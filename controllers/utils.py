@@ -50,4 +50,12 @@ def append(arr, val):  # handle tuples as well
         return arr
     else:
         raise NotImplementedError(arr.__class__)
+
+
+def _slice_pytree(pytree, start_idx, slice_size):
+    """
+    Slice a pytree leafwise
+    """
+    return jax.tree_map(lambda p: jax.lax.dynamic_slice_in_dim(p, start_idx, slice_size), pytree)
+slice_pytree = jax.jit(_slice_pytree, static_argnums=(2,))
     

@@ -9,7 +9,7 @@ from flax.training import train_state
 
 class TrainState(train_state.TrainState):
     # things that dont change
-    loss_fn: Callable[[Tuple[jnp.ndarray, jnp.ndarray]], float] = struct.field(pytree_node=False)
+    loss_fn: Callable[[Tuple[jnp.ndarray, jnp.ndarray]], float]
     model: jnn.Module = struct.field(pytree_node=False)
     input_dims: List[int] = struct.field(pytree_node=False)  # dimensions that the model takes as input
 
@@ -25,7 +25,7 @@ def create_train_state(rng, model: jnn.Module, input_dims: List[int], optimizer,
                                apply_fn=model.apply, 
                                params={}, 
                                tx=optimizer,
-                               loss_fn=loss_fn, 
+                               loss_fn=jax.tree_util.Partial(loss_fn), 
                                input_dims=input_dims)
     return reset_model(rng, tstate)
 
@@ -58,3 +58,9 @@ def forward(tstate, batch):
 def apply_gradients(tstate, grads):
     tstate = tstate.apply_gradients(grads=grads)
     return tstate
+
+@jax.jit
+def gradient_descent(tstate, batch):
+    tstate, (loss, grads) = forward_and_backward(tstate, batch)
+    tstate = apply_gradients(tstate, grads)
+    return tstate, (loss, grads)
