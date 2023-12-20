@@ -1,0 +1,11 @@
+jax
+jaxlib
+numpy
+tensorflow
+tensorflow_datasets
+matplotlib
+jupyter
+scipy
+flax
+optax
+tqdm
