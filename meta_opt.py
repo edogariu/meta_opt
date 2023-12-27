@@ -44,7 +44,7 @@ class MetaOptGPCState(ControllerState):
 
 @jax.jit
 def compute_control(M, disturbances):
-    if isinstance(M, jnp.ndarray): control = jax.tree_map(lambda d: (M[:, *[None for _ in range(d.ndim - 1)]] * d).sum(axis=0), disturbances)
+    if isinstance(M, jnp.ndarray): control = jax.tree_map(lambda d: (jax.lax.expand_dims(M, range(1, d.ndim)) * d).sum(axis=0), disturbances)
     else: control = jax.tree_map(lambda m, d: (m * d).sum(axis=0), M, disturbances)
     return control
 

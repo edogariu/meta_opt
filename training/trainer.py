@@ -1,4 +1,5 @@
 from typing import Tuple, List, Callable
+import functools
 
 import jax
 import jax.numpy as jnp
@@ -64,3 +65,35 @@ def gradient_descent(tstate, batch):
     tstate, (loss, grads) = forward_and_backward(tstate, batch)
     tstate = apply_gradients(tstate, grads)
     return tstate, (loss, grads)
+
+@jax.jit
+def p_gradient_descent(params, batch, tstate):
+    y = batch['y']
+
+    # define grad fn
+    def loss_fn(p):
+        yhat = tstate.apply_fn({'params': p}, batch['x'])
+        loss = tstate.loss_fn(yhat, y)
+        return loss
+    grad_fn = jax.value_and_grad(loss_fn)
+
+    # get loss and grads
+    loss, grads = grad_fn(params)
+    tstate = tstate.apply_gradients(grads=grads)
+    params = tstate.params
+    return params, (loss, grads, tstate)
+    
+
+@jax.jit
+def value_and_jacfwd(f, x):
+    pushfwd = functools.partial(jax.jvp, f, (x,))
+    basis = jnp.eye(x.size, dtype=x.dtype)
+    y, jac = jax.vmap(pushfwd, out_axes=(None, 1))((basis,))
+    return y, jac
+
+@jax.jit
+def value_and_jacrev(f, *x):
+    y, pullback = jax.vjp(f, *x)
+    basis = jnp.eye(y.size, dtype=y.dtype)
+    jac = jax.vmap(pullback)(basis)
+    return y, jac
