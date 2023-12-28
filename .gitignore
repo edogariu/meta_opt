@@ -3,4 +3,4 @@ env
 *.DS_Store
 *.ipynb_checkpoints*
 *Copy*
-data
+data/*

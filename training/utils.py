@@ -41,6 +41,26 @@ def load_mnist(num_iters: int, batch_size: int) -> Tuple[tf.data.Dataset, tf.dat
     
     return train_ds, test_ds, cross_entropy, [28, 28, 1]  # train dataset, test dataset, loss function, unbatched input dimensions
 
+def load_cifar10(num_iters: int, batch_size: int) -> Tuple[tf.data.Dataset, tf.data.Dataset, Callable, List[int]]:
+    """Load MNIST train and test datasets into memory."""
+    train_ds = tfds.load('cifar10', split='train')
+    test_ds = tfds.load('cifar10', split='test')
+    
+    train_ds = train_ds.map(lambda sample: {'x': tf.cast(sample['image'],
+                                                           tf.float32) / 255.,
+                                          'y': sample['label']}) # normalize train set
+    test_ds = test_ds.map(lambda sample: {'x': tf.cast(sample['image'],
+                                                         tf.float32) / 255.,
+                                        'y': sample['label']}) # normalize test set
+    
+    num_epochs = 1 + (num_iters * batch_size) // len(train_ds)
+    train_ds = train_ds.repeat(num_epochs).shuffle(1024)
+    train_ds = train_ds.batch(batch_size, drop_remainder=True).take(num_iters).prefetch(1)
+    test_ds = test_ds.shuffle(1024)
+    test_ds = test_ds.batch(batch_size, drop_remainder=True).prefetch(1)
+    
+    return train_ds, test_ds, cross_entropy, [32, 32, 3]  # train dataset, test dataset, loss function, unbatched input dimensions
+
 # ------------------------------------------------------------------
 # ------------------------------ Models ----------------------------
 # ------------------------------------------------------------------
@@ -73,6 +93,7 @@ class MLP(jnn.Module):
         
 class CNN(jnn.Module):
     channels: List[int]   # dims of each layer
+    layer_dims: List[int] = None
     activation: jnn.Module = jnn.activation.relu
     normalization: jnn.Module = None  # normalize before the activation
     drop_last_activation: bool = True
@@ -87,13 +108,18 @@ class CNN(jnn.Module):
             layers.append(jnn.Conv(features=chan, kernel_size=(3, 3), use_bias=self.use_bias, name=f'conv {i}'))
             if self.normalization is not None: layers.append(self.normalization())
             layers.append(self.activation)
+            layers.append(lambda x: jnn.max_pool(x, (2, 2), (2, 2)))
         if self.drop_last_activation: 
             layers.pop()  # removes activation from final layer
             if self.normalization is not None: layers.pop()  # removes last normalization too
         self.model = jnn.Sequential(layers)
+        if self.layer_dims is not None: self.body = MLP(self.layer_dims)
         pass
 
     def __call__(self, x: jnp.ndarray):  # forward pass
         x = self.model(x)
+        if self.layer_dims is not None:
+            x = x.reshape((x.shape[0], -1))
+            x = self.body(x)
         return x
     
