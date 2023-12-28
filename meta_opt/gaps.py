@@ -3,10 +3,10 @@ import jax
 import jax.numpy as jnp
 import optax
 
-from controllers.utils import append, slice_pytree
+from .controllers.utils import append, slice_pytree
 
-from training.trainer import gradient_descent, value_and_jacfwd
-from meta_opt import MetaOptGPCState, compute_control
+from .training.trainer import gradient_descent, value_and_jacfwd
+from .meta_opt import MetaOptGPCState, compute_control
 
 # --------------------------------------------------------------------------------------------------------------------
 # --------------------   Gradient-based Adaptive Policy Selection (GAPS) ---------------------------------------------

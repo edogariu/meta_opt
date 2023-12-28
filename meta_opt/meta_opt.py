@@ -6,10 +6,10 @@ import jax.numpy as jnp
 import optax
 from flax import struct
 
-from controllers._base import ControllerState
-from controllers.utils import append, slice_pytree
+from .controllers._base import ControllerState
+from .controllers.utils import append, slice_pytree
 
-from training.trainer import forward, gradient_descent
+from .training.trainer import forward, gradient_descent
 
 
 # --------------------------------------------------------------------------------------------------------------------
