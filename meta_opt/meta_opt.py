@@ -132,6 +132,7 @@ class MetaOpt:
                  ):      
         
         self.batch_history = append(self.batch_history, batch)
+        self.grad_history = jax.tree_map(lambda h, g: append(h, g), self.grad_history, grads)
 
         if self.t >= self.cstate.H + self.cstate.HH:
             control = compute_control(self.cstate.M, slice_pytree(self.grad_history, self.cstate.HH, self.cstate.H))  # use past H disturbances
@@ -140,7 +141,6 @@ class MetaOpt:
             self.cstate = update(self.cstate, self.tstate_history[0], self.grad_history, self.batch_history)
         
         self.tstate_history = append(self.tstate_history, tstate)
-        self.grad_history = jax.tree_map(lambda h, g: append(h, g), self.grad_history, grads)
         self.t += 1
         return tstate
     
