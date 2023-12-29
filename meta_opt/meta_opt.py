@@ -87,7 +87,7 @@ def update(cstate,
     # clip grads)
     K = 1e9
     if isinstance(cstate.M, jnp.ndarray): 
-        print(jnp.linalg.norm(grads)[0])
+        print(jnp.linalg.norm(grads[0]))
         grads = (jnp.clip(grads[0], -K, K),)
     else: grads = (jax.tree_map(lambda g: jnp.clip(g, -K, K), grads[0]),)
     
