@@ -136,9 +136,8 @@ class MetaOpt:
         return tstate
     
     def episode_reset(self):
-        if self.tstate_history[-1] is None: return self  # do nothing if we are already reset
         H, HH = self.cstate.H, self.cstate.HH
-        self.grad_history = jax.tree_map(lambda p: jnp.zeros((H + HH, *p.shape)), self.tstate_history[-1].params)
+        self.grad_history = jax.tree_map(lambda p: jnp.zeros_like(p), self.grad_history)
         self.tstate_history = (None,) * (HH + 1)
         self.batch_history = (None,) * (HH + 1)
         self.t = 0
