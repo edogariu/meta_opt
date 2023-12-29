@@ -75,7 +75,7 @@ def _compute_loss(M, H, HH, initial_tstate,
 
 _grad_fn = jax.grad(_compute_loss, (0,))
 
-#@jax.jit
+@jax.jit
 def update(cstate,
            initial_tstate,  # tstate from HH steps ago
            disturbances,  # past H + HH disturbances
@@ -87,7 +87,6 @@ def update(cstate,
     # clip grads)
     K = 10
     if isinstance(cstate.M, jnp.ndarray): 
-        print(jnp.linalg.norm(grads[0]))
         grads = (jnp.clip(grads[0], -K, K),)
     else: grads = (jax.tree_map(lambda g: jnp.clip(g, -K, K), grads[0]),)
     
