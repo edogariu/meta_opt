@@ -75,7 +75,7 @@ def _compute_loss(M, H, HH, initial_tstate,
 
 _grad_fn = jax.grad(_compute_loss, (0,))
 
-@jax.jit
+#@jax.jit
 def update(cstate,
            initial_tstate,  # tstate from HH steps ago
            disturbances,  # past H + HH disturbances
