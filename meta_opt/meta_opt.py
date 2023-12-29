@@ -108,7 +108,7 @@ class MetaOpt:
                  m_method: str):
         self.tstate_history = (None,) * (HH + 1)
         self.grad_history = jax.tree_map(lambda p: jnp.zeros((H + HH, *p.shape)), initial_tstate.params)
-        self.batch_history = (None,) * (HH + 1)
+        self.batch_history = (None,) * (HH + 2)
         self.delta = delta
         self.t = 0
 
@@ -139,6 +139,6 @@ class MetaOpt:
         H, HH = self.cstate.H, self.cstate.HH
         self.grad_history = jax.tree_map(lambda p: jnp.zeros_like(p), self.grad_history)
         self.tstate_history = (None,) * (HH + 1)
-        self.batch_history = (None,) * (HH + 1)
+        self.batch_history = (None,) * (HH + 2)
         self.t = 0
         return self
