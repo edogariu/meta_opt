@@ -83,6 +83,12 @@ def update(cstate,
           ):
     
     grads = _grad_fn(cstate.M, cstate.H, cstate.HH, initial_tstate, disturbances, batches)
+    
+    # clip grads
+    K = 1
+    if isinstance(cstate.M, jnp.ndarray): grads = jnp.clip(grads, -K, K)
+    else: grads = jax.tree_map(lambda g: jnp.clip(g, -K, K), grads)
+    
     updates, new_opt_state = cstate.tx.update(grads, cstate.opt_state, cstate.M)
     M = optax.apply_updates(cstate.M, updates[0])
     return cstate.replace(M=M, opt_state=new_opt_state)   
