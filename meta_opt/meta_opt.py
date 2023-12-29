@@ -85,12 +85,11 @@ def update(cstate,
     grads = _grad_fn(cstate.M, cstate.H, cstate.HH, initial_tstate, disturbances, batches)
     
     # clip grads)
-    K = 1
+    K = 1e9
     if isinstance(cstate.M, jnp.ndarray): 
-        print(grads)
-        print(jnp.linalg.norm(grads))
-        grads = jnp.clip(grads, -K, K)
-    else: grads = jax.tree_map(lambda g: jnp.clip(g, -K, K), grads)
+        print(jnp.linalg.norm(grads)[0])
+        grads = (jnp.clip(grads[0], -K, K),)
+    else: grads = (jax.tree_map(lambda g: jnp.clip(g, -K, K), grads[0]),)
     
     updates, new_opt_state = cstate.tx.update(grads, cstate.opt_state, cstate.M)
     M = optax.apply_updates(cstate.M, updates[0])
