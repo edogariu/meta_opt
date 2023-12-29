@@ -29,14 +29,15 @@ class MetaOptGPCState(ControllerState):
                m_method: str,
                H: int,
                HH: int,
-               lr: float = 0.008,):
+               lr: float = 0.001,):
 
         if m_method == 'scalar': M = jnp.zeros((H,))
         elif m_method == 'diagonal': M = jax.tree_map(lambda p: jnp.zeros((H, *p.shape)), tstate.params)
         else: raise NotImplementedError(m_method)
         
-        tx = optax.sgd(learning_rate=lr)  # M optimizer
-        opt_state = tx.init(M)
+        # tx = optax.sgd(learning_rate=lr)  # M optimizer
+        tx = optax.adam(learning_rate=lr)
+        opt_state = tx.init((M,))
         
         return cls(M=M,
                    H=H, HH=HH, 
@@ -90,7 +91,7 @@ def update(cstate,
         grads = (jnp.clip(grads[0], -K, K),)
     else: grads = (jax.tree_map(lambda g: jnp.clip(g, -K, K), grads[0]),)
     
-    updates, new_opt_state = cstate.tx.update(grads, cstate.opt_state, cstate.M)
+    updates, new_opt_state = cstate.tx.update(grads, cstate.opt_state, (cstate.M,))
     M = optax.apply_updates(cstate.M, updates[0])
     return cstate.replace(M=M, opt_state=new_opt_state)   
 
