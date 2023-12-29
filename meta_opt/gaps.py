@@ -85,7 +85,7 @@ class MetaOptGAPS:
     def __init__(self,
                  initial_tstate,
                  H: int, B: int, 
-                 meta_lr: float, delta: float,
+                 meta_lr: float, use_adam: bool, delta: float,
                  m_method: str):
         self.grad_history = jax.tree_map(lambda p: jnp.zeros((H + 1, *p.shape)), initial_tstate.params)
         self.delta = delta
@@ -94,7 +94,7 @@ class MetaOptGAPS:
         self.B = B
 
         assert m_method in ['scalar',]
-        self.cstate = MetaOptGPCState.create(initial_tstate, m_method, H, HH=-1, lr=meta_lr)
+        self.cstate = MetaOptGPCState.create(initial_tstate, m_method, H, HH=0, lr=meta_lr, use_adam=use_adam)
         self.grad_estimator = GAPSEstimator(B, H, initial_tstate.params)
         pass    
 

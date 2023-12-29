@@ -29,14 +29,15 @@ class MetaOptGPCState(ControllerState):
                m_method: str,
                H: int,
                HH: int,
-               lr: float = 0.001,):
+               lr: float = 0.001,
+               use_adam: bool = False):
 
         if m_method == 'scalar': M = jnp.zeros((H,))
         elif m_method == 'diagonal': M = jax.tree_map(lambda p: jnp.zeros((H, *p.shape)), tstate.params)
         else: raise NotImplementedError(m_method)
         
-        # tx = optax.sgd(learning_rate=lr)  # M optimizer
-        tx = optax.adam(learning_rate=lr)
+        if not use_adam: tx = optax.sgd(learning_rate=lr)  # M optimizer
+        else: tx = optax.adam(learning_rate=lr)
         opt_state = tx.init((M,))
         
         return cls(M=M,
@@ -112,7 +113,7 @@ class MetaOpt:
     def __init__(self,
                  initial_tstate,
                  H: int, HH: int,
-                 meta_lr: float, delta: float,
+                 meta_lr: float, use_adam: bool, delta: float,
                  m_method: str):
         self.tstate_history = (None,) * HH
         self.grad_history = jax.tree_map(lambda p: jnp.zeros((H + HH, *p.shape)), initial_tstate.params)
@@ -121,7 +122,7 @@ class MetaOpt:
         self.t = 0
 
         assert m_method in ['scalar', 'diagonal']
-        self.cstate = MetaOptGPCState.create(initial_tstate, m_method, H, HH, lr=meta_lr)
+        self.cstate = MetaOptGPCState.create(initial_tstate, m_method, H, HH, lr=meta_lr, use_adam=use_adam)
         pass
 
     def meta_step(self, 
