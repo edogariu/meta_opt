@@ -106,7 +106,7 @@ class MetaOpt:
                  H: int, HH: int,
                  meta_lr: float, delta: float,
                  m_method: str):
-        self.tstate_history = (None,) * HH
+        self.tstate_history = (None,) * (HH + 1)
         self.grad_history = jax.tree_map(lambda p: jnp.zeros((H + HH, *p.shape)), initial_tstate.params)
         self.batch_history = (None,) * (HH + 1)
         self.delta = delta
@@ -139,7 +139,7 @@ class MetaOpt:
         if self.tstate_history[-1] is None: return self  # do nothing if we are already reset
         H, HH = self.cstate.H, self.cstate.HH
         self.grad_history = jax.tree_map(lambda p: jnp.zeros((H + HH, *p.shape)), self.tstate_history[-1].params)
-        self.tstate_history = (None,) * HH
+        self.tstate_history = (None,) * (HH + 1)
         self.batch_history = (None,) * (HH + 1)
         self.t = 0
         return self
