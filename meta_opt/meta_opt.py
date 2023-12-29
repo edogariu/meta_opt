@@ -85,7 +85,7 @@ def update(cstate,
     grads = _grad_fn(cstate.M, cstate.H, cstate.HH, initial_tstate, disturbances, batches)
     
     # clip grads)
-    K = 1e9
+    K = 10
     if isinstance(cstate.M, jnp.ndarray): 
         print(jnp.linalg.norm(grads[0]))
         grads = (jnp.clip(grads[0], -K, K),)
