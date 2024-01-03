@@ -30,7 +30,7 @@ def create_train_state(rng, model: jnn.Module, input_dims: List[int], optimizer,
                                params={}, 
                                tx=optimizer,
                                loss_fn=jax.tree_util.Partial(loss_fn), 
-                               input_dims=input_dims, acc_fn = acc_fn, rng=None)
+                               input_dims=input_dims, acc_fn=jax.tree_util.Partial(acc_fn) if acc_fn is not None else acc_fn, rng=None)
     return reset_model(rng, tstate)
 
 
