@@ -87,7 +87,7 @@ class MetaOptGAPS:
                  H: int, B: int, 
                  meta_lr: float, use_adam: bool, delta: float,
                  m_method: str):
-        self.grad_history = jax.tree_map(lambda p: jnp.zeros((H + 1, *p.shape)), initial_tstate.params)
+        self.grad_history = jax.tree_map(lambda p: jnp.zeros((H, *p.shape)), initial_tstate.params)
         self.delta = delta
         self.t = 0
         self.H = H
