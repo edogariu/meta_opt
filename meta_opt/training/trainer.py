@@ -11,23 +11,26 @@ from flax.training import train_state
 class TrainState(train_state.TrainState):
     # things that dont change
     loss_fn: Callable[[Tuple[jnp.ndarray, jnp.ndarray]], float]
+    acc_fn: Callable[[Tuple[jnp.ndarray, jnp.ndarray]], float]
     model: jnn.Module = struct.field(pytree_node=False)
     input_dims: List[int] = struct.field(pytree_node=False)  # dimensions that the model takes as input
+    rng: jnp.array
 
 def reset_model(rng, tstate: TrainState):
-    params = tstate.model.init(rng, jnp.ones([1, *tstate.input_dims]))['params'] # initialize parameters by passing a template input
+    init_rng, rng = jax.random.split(rng)
+    params = tstate.model.init(init_rng, jnp.ones([1, *tstate.input_dims]), train=False)['params'] # initialize parameters by passing a template input
     opt_state = tstate.tx.init(params)
-    tstate = tstate.replace(params=params, opt_state=opt_state)
+    tstate = tstate.replace(params=params, opt_state=opt_state, rng=rng)
     return tstate
 
-def create_train_state(rng, model: jnn.Module, input_dims: List[int], optimizer, loss_fn):
+def create_train_state(rng, model: jnn.Module, input_dims: List[int], optimizer, loss_fn, acc_fn = None):
     """Creates an initial `TrainState`."""
     tstate = TrainState.create(model=model, 
                                apply_fn=model.apply, 
                                params={}, 
                                tx=optimizer,
                                loss_fn=jax.tree_util.Partial(loss_fn), 
-                               input_dims=input_dims)
+                               input_dims=input_dims, acc_fn = acc_fn, rng=None)
     return reset_model(rng, tstate)
 
 
@@ -36,10 +39,16 @@ def create_train_state(rng, model: jnn.Module, input_dims: List[int], optimizer,
 @jax.jit
 def forward_and_backward(tstate, batch):
     y = batch['y']
+    
+    if tstate.rng is not None:
+        next_key, dropout_key = jax.random.split(tstate.rng)
+        tstate = tstate.replace(rng=next_key)
+    else:
+        dropout_key = None
 
     # define grad fn
     def loss_fn(params):
-        yhat = tstate.apply_fn({'params': params}, batch['x'])
+        yhat = tstate.apply_fn({'params': params}, batch['x'], train=True, rngs={'dropout': dropout_key})
         loss = tstate.loss_fn(yhat, y)
         return loss
     grad_fn = jax.value_and_grad(loss_fn)
@@ -51,9 +60,16 @@ def forward_and_backward(tstate, batch):
 
 @jax.jit
 def forward(tstate, batch):
-    yhat = tstate.apply_fn({'params': tstate.params}, batch['x'])
+    yhat = tstate.apply_fn({'params': tstate.params}, batch['x'], train=False,)
     loss = tstate.loss_fn(yhat, batch['y'])
     return loss
+
+@jax.jit
+def eval(tstate, batch):
+    yhat = tstate.apply_fn({'params': tstate.params}, batch['x'], train=False,)
+    loss = tstate.loss_fn(yhat, batch['y'])
+    acc = tstate.acc_fn(yhat, batch['y'])
+    return loss, acc
 
 @jax.jit
 def apply_gradients(tstate, grads):
@@ -66,22 +82,22 @@ def gradient_descent(tstate, batch):
     tstate = apply_gradients(tstate, grads)
     return tstate, (loss, grads)
 
-@jax.jit
-def p_gradient_descent(params, batch, tstate):
-    y = batch['y']
+# @jax.jit
+# def p_gradient_descent(params, batch, tstate):
+#     y = batch['y']
 
-    # define grad fn
-    def loss_fn(p):
-        yhat = tstate.apply_fn({'params': p}, batch['x'])
-        loss = tstate.loss_fn(yhat, y)
-        return loss
-    grad_fn = jax.value_and_grad(loss_fn)
+#     # define grad fn
+#     def loss_fn(p):
+#         yhat = tstate.apply_fn({'params': p}, batch['x'])
+#         loss = tstate.loss_fn(yhat, y)
+#         return loss
+#     grad_fn = jax.value_and_grad(loss_fn)
 
-    # get loss and grads
-    loss, grads = grad_fn(params)
-    tstate = tstate.apply_gradients(grads=grads)
-    params = tstate.params
-    return params, (loss, grads, tstate)
+#     # get loss and grads
+#     loss, grads = grad_fn(params)
+#     tstate = tstate.apply_gradients(grads=grads)
+#     params = tstate.params
+#     return params, (loss, grads, tstate)
     
 
 @jax.jit
