@@ -55,6 +55,10 @@ def forward_and_backward(tstate, batch):
 
     # get loss and grads
     loss, grads = grad_fn(tstate.params)
+    
+    # clip grads
+    K = 1.0
+    grads = (jax.tree_map(lambda g: jnp.clip(g, -K, K), grads[0]),)
 
     return tstate, (loss, grads)
 

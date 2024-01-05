@@ -40,6 +40,7 @@ class MetaOptGPCState(ControllerState):
         else: tx = optax.adam(learning_rate=lr)
         opt_state = tx.init((M,))
         
+        print(sum(x.size for x in jax.tree_util.tree_leaves(M)), 'params in the controller')
         return cls(M=M,
                    H=H, HH=HH, 
                    lr=lr, tx=tx, opt_state=opt_state)
@@ -85,12 +86,6 @@ def update(cstate,
           ):
     
     grads = _grad_fn(cstate.M, cstate.H, cstate.HH, initial_tstate, disturbances, batches)
-    
-    # # clip grads
-    # K = 0.5
-    # if isinstance(cstate.M, jnp.ndarray): 
-    #     grads = (jnp.clip(grads[0], -K, K),)
-    # else: grads = (jax.tree_map(lambda g: jnp.clip(g, -K, K), grads[0]),)
     
     updates, new_opt_state = cstate.tx.update(grads, cstate.opt_state, (cstate.M,))
     M = optax.apply_updates(cstate.M, updates[0])
