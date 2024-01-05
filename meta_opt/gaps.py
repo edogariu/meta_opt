@@ -105,10 +105,7 @@ class MetaOptGAPS:
         
         if self.t >= self.H + self.B:
             (loss, (tstate, grads, du_dM)), df_dM = _gd_and_loss(self.cstate.M, self.grad_history, batch, tstate, self.delta)
-            def _t(d):
-                if d.ndim <= 2: return d
-                else: return jnp.transpose(d, axes=(0, *range(2, d.ndim), 1))
-            du_dM = jax.tree_util.tree_map(_t, du_dM)
+            du_dM = jax.tree_util.tree_map(lambda d: jnp.transpose(d, axes=(0, *range(2, d.ndim), 1)) if d.ndim > 2 else d, du_dM)  # permute axes
             m_grads = self.grad_estimator.estimate(self.delta, du_dM, grads, df_dM)
             self.cstate = update(self.cstate, m_grads)
         else:
