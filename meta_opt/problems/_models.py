@@ -166,7 +166,7 @@ class MlpBlock(nn.Module):
   out_dim: Optional[int] = None
 
   @nn.compact
-  def __call__(self, inputs):
+  def __call__(self, inputs, train=True):
     """Applies Transformer MlpBlock module."""
     config = self.config
     actual_out_dim = inputs.shape[-1] if self.out_dim is None else self.out_dim
@@ -178,7 +178,7 @@ class MlpBlock(nn.Module):
     )(inputs)
     x = nn.relu(x)
     x = nn.Dropout(rate=config.dropout_rate)(
-        x, deterministic=config.deterministic
+        x, deterministic=not train
     )
     output = nn.Dense(
         actual_out_dim,
@@ -187,7 +187,7 @@ class MlpBlock(nn.Module):
         bias_init=config.bias_init,
     )(x)
     output = nn.Dropout(rate=config.dropout_rate)(
-        output, deterministic=config.deterministic
+        output, deterministic=not train
     )
     return output
 
@@ -202,7 +202,7 @@ class Encoder1DBlock(nn.Module):
   config: TransformerConfig
 
   @nn.compact
-  def __call__(self, inputs, encoder_mask=None):
+  def __call__(self, inputs, encoder_mask=None, train=True):
     """Applies Encoder1DBlock module.
 
     Args:
@@ -226,17 +226,17 @@ class Encoder1DBlock(nn.Module):
         use_bias=False,
         broadcast_dropout=False,
         dropout_rate=config.attention_dropout_rate,
-        deterministic=config.deterministic,
+        deterministic=not train,
     )(inputs_q=x, inputs_kv=x, mask=encoder_mask)
 
     x = nn.Dropout(rate=config.dropout_rate)(
-        x, deterministic=config.deterministic
+        x, deterministic=not train
     )
     x = x + inputs
 
     # MLP block.
     y = nn.LayerNorm(dtype=config.dtype)(x)
-    y = MlpBlock(config=config)(y)
+    y = MlpBlock(config=config)(y, train=train)
 
     return x + y
 
@@ -252,7 +252,7 @@ class EncoderDecoder1DBlock(nn.Module):
 
   @nn.compact
   def __call__(
-      self, targets, encoded, decoder_mask=None, encoder_decoder_mask=None
+      self, targets, encoded, decoder_mask=None, encoder_decoder_mask=None, train=True,
   ):
     """Applies EncoderDecoder1DBlock module.
 
@@ -279,11 +279,11 @@ class EncoderDecoder1DBlock(nn.Module):
         use_bias=False,
         broadcast_dropout=False,
         dropout_rate=config.attention_dropout_rate,
-        deterministic=config.deterministic,
+        deterministic=not train,
         decode=config.decode,
     )(inputs_q=x, inputs_kv=x, mask=decoder_mask)
     x = nn.Dropout(rate=config.dropout_rate)(
-        x, deterministic=config.deterministic
+        x, deterministic=not train
     )
     x = x + targets
 
@@ -298,17 +298,17 @@ class EncoderDecoder1DBlock(nn.Module):
         use_bias=False,
         broadcast_dropout=False,
         dropout_rate=config.attention_dropout_rate,
-        deterministic=config.deterministic,
+        deterministic=not train,
     )(y, encoded, mask=encoder_decoder_mask)
 
     y = nn.Dropout(rate=config.dropout_rate)(
-        y, deterministic=config.deterministic
+        y, deterministic=not train
     )
     y = y + x
 
     # MLP block.
     z = nn.LayerNorm(dtype=config.dtype)(y)
-    z = MlpBlock(config=config)(z)
+    z = MlpBlock(config=config)(z, train=train)
 
     return y + z
 
@@ -325,7 +325,7 @@ class Encoder(nn.Module):
   shared_embedding: Any = None
 
   @nn.compact
-  def __call__(self, inputs, inputs_positions=None, encoder_mask=None):
+  def __call__(self, inputs, inputs_positions=None, encoder_mask=None, train=True):
     """Applies Transformer model on the inputs.
 
     Args:
@@ -354,7 +354,7 @@ class Encoder(nn.Module):
         x, inputs_positions=inputs_positions
     )
     x = nn.Dropout(rate=config.dropout_rate)(
-        x, deterministic=config.deterministic
+        x, deterministic=not train
     )
 
     x = x.astype(config.dtype)
@@ -362,7 +362,7 @@ class Encoder(nn.Module):
     # Input Encoder
     for lyr in range(config.num_layers):
       x = Encoder1DBlock(config=config, name=f'encoderblock_{lyr}')(
-          x, encoder_mask
+          x, encoder_mask, train=train
       )
 
     encoded = nn.LayerNorm(dtype=config.dtype, name='encoder_norm')(x)
@@ -389,6 +389,7 @@ class Decoder(nn.Module):
       targets_positions=None,
       decoder_mask=None,
       encoder_decoder_mask=None,
+      train=True,
   ):
     """Applies Transformer model on the inputs.
 
@@ -425,7 +426,7 @@ class Decoder(nn.Module):
         config=config, decode=config.decode, name='posembed_output'
     )(y, inputs_positions=targets_positions)
     y = nn.Dropout(rate=config.dropout_rate)(
-        y, deterministic=config.deterministic
+        y, deterministic=not train
     )
 
     y = y.astype(config.dtype)
@@ -439,6 +440,7 @@ class Decoder(nn.Module):
           encoded,
           decoder_mask=decoder_mask,
           encoder_decoder_mask=encoder_decoder_mask,
+          train=train,
       )
     y = nn.LayerNorm(dtype=config.dtype, name='encoderdecoder_norm')(y)
 
@@ -491,7 +493,7 @@ class Transformer(nn.Module):
         config=config, shared_embedding=self.shared_embedding
     )
 
-  def encode(self, inputs, inputs_positions=None, inputs_segmentation=None):
+  def encode(self, inputs, inputs_positions=None, inputs_segmentation=None, train=True):
     """Applies Transformer encoder-branch on the inputs.
 
     Args:
@@ -519,7 +521,7 @@ class Transformer(nn.Module):
           ),
       )
     return self.encoder(
-        inputs, inputs_positions=inputs_positions, encoder_mask=encoder_mask
+        inputs, inputs_positions=inputs_positions, encoder_mask=encoder_mask, train=train
     )
 
   def decode(
@@ -530,6 +532,7 @@ class Transformer(nn.Module):
       targets_positions=None,
       inputs_segmentation=None,
       targets_segmentation=None,
+      train=True,
   ):
     """Applies Transformer decoder-branch on encoded-input and target.
 
@@ -588,6 +591,7 @@ class Transformer(nn.Module):
         targets_positions=targets_positions,
         decoder_mask=decoder_mask,
         encoder_decoder_mask=encoder_decoder_mask,
+        train=train
     )
     return logits.astype(self.config.dtype)
 
@@ -600,7 +604,7 @@ class Transformer(nn.Module):
   #     inputs_segmentation=None,
   #     targets_segmentation=None,
   # ):
-  def __call__(self, x, train=True):  # TODO make `train` not a dummy variable
+  def __call__(self, x, train=True): 
     """Applies Transformer model on the inputs.
 
     Args:
@@ -626,6 +630,7 @@ class Transformer(nn.Module):
         inputs,
         inputs_positions=inputs_positions,
         inputs_segmentation=inputs_segmentation,
+        train=train,
     )
 
     return self.decode(
@@ -635,4 +640,5 @@ class Transformer(nn.Module):
         targets_positions=targets_positions,
         inputs_segmentation=inputs_segmentation,
         targets_segmentation=targets_segmentation,
+        train=train,
     )
