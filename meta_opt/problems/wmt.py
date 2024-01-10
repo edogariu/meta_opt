@@ -103,7 +103,7 @@ def load_wmt(num_iters: int, batch_size: int) -> Tuple[tf.data.Dataset, tf.data.
     # test_ds = test_ds.shuffle(1024)
     # test_ds = test_ds.batch(batch_size, drop_remainder=True).prefetch(1)
     
-    return train_ds, test_ds, [32, 32, 3], _compute_weighted_cross_entropy, c_ompute_weighted_accuracy  # train dataset, test dataset, unbatched input dimensions, loss function, accuracy fn
+    return train_ds, test_ds, [32, 32, 3], _compute_weighted_cross_entropy, _compute_weighted_accuracy  # train dataset, test dataset, unbatched input dimensions, loss function, accuracy fn
 
 
 
