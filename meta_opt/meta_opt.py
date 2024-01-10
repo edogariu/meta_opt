@@ -9,7 +9,7 @@ from flax import struct
 from .controllers._base import ControllerState
 from .controllers.utils import append, slice_pytree
 
-from .training.trainer import forward, gradient_descent
+from .nn.trainer import forward, gradient_descent
 
 
 # --------------------------------------------------------------------------------------------------------------------
@@ -88,7 +88,7 @@ def update(cstate,
     grads = _grad_fn(cstate.M, cstate.H, cstate.HH, initial_tstate, disturbances, batches)
     
     # clip grads
-    K = 0.5
+    K = 5.
     if isinstance(cstate.M, jnp.ndarray): 
         grads = (jnp.clip(grads[0], -K, K),)
     else: grads = (jax.tree_map(lambda g: jnp.clip(g, -K, K), grads[0]),)

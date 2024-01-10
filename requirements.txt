@@ -3,9 +3,14 @@ jaxlib
 numpy
 tensorflow
 tensorflow_datasets
+tensorflow-text
+sentencepiece
 matplotlib
 jupyter
 scipy
 flax
 optax
 tqdm
+utils_flax
+ml_collections
+clu
