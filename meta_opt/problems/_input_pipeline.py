@@ -62,7 +62,6 @@ def get_raw_dataset(
     Dataset with source and target language features mapped to 'inputs' and
     'targets'.
   """
-  dataset_builder.download_and_prepare()
   num_examples = dataset_builder.info.splits[split].num_examples
   per_host_split = deterministic_data.get_read_instruction_for_host(
       split, num_examples, drop_remainder=False
