@@ -9,10 +9,10 @@ from .utils import cross_entropy, accuracy
 # ------------------------------------------------------------------
 # ------------------------- Dataset --------------------------------
 # ------------------------------------------------------------------
-def load_cifar10(num_iters: int, batch_size: int) -> Tuple[tf.data.Dataset, tf.data.Dataset, List[int], Callable, Callable]:
+def load_cifar10(num_iters: int, batch_size: int, dataset_dir: str = './datasets') -> Tuple[tf.data.Dataset, tf.data.Dataset, List[int], Callable, Callable]:
     """Load MNIST train and test datasets into memory."""
-    train_ds = tfds.load('cifar10', split='train')
-    test_ds = tfds.load('cifar10', split='test')
+    train_ds = tfds.load('cifar10', split='train', data_dir=dataset_dir)
+    test_ds = tfds.load('cifar10', split='test', data_dir=dataset_dir)
     
     train_ds = train_ds.map(lambda sample: {'x': tf.cast(sample['image'],
                                                            tf.float32) / 255.,
@@ -27,7 +27,7 @@ def load_cifar10(num_iters: int, batch_size: int) -> Tuple[tf.data.Dataset, tf.d
     test_ds = test_ds.shuffle(1024)
     test_ds = test_ds.batch(batch_size, drop_remainder=True).prefetch(1)
     
-    return train_ds, test_ds, [32, 32, 3], cross_entropy, accuracy  # train dataset, test dataset, unbatched input dimensions, loss function, accuracy fn
+    return train_ds, test_ds, jnp.zeros((1, 32, 32, 3)), cross_entropy, accuracy  # train dataset, test dataset, unbatched input dimensions, loss function, accuracy fn
 
 
 # ------------------------------------------------------------------

@@ -4,5 +4,6 @@ env
 *.ipynb_checkpoints*
 *Copy*
 data/*
+datasets/*
 build
 *.egg-info

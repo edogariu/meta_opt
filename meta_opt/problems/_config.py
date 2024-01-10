@@ -25,12 +25,12 @@ def get_config():
   config.vocab_path = None
 
   # Vocabulary size if `vocab_path` is not given.
-  config.vocab_size = 32_000
+  config.vocab_size = 32000
 
   config.max_corpus_chars = 10**7
 
   # Name of TFDS translation dataset to use.
-  config.dataset_name = 'wmt17_translate/de-en'
+  config.dataset_name = 'wmt14_translate/de-en'
 
   # Optional name of TFDS translation dataset to use for evaluation.
   config.eval_dataset_name = 'wmt14_translate/de-en'

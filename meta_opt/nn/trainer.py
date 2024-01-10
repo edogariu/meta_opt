@@ -13,24 +13,25 @@ class TrainState(train_state.TrainState):
     loss_fn: Callable[[Tuple[jnp.ndarray, jnp.ndarray]], float]
     acc_fn: Callable[[Tuple[jnp.ndarray, jnp.ndarray]], float]
     model: jnn.Module = struct.field(pytree_node=False)
-    input_dims: List[int] = struct.field(pytree_node=False)  # dimensions that the model takes as input
+    # input_dims: List[int] = struct.field(pytree_node=False)  # dimensions that the model takes as input
+    example_input: jnp.ndarray
     rng: jnp.array
 
 def reset_model(rng, tstate: TrainState):
-    init_rng, rng = jax.random.split(rng)
-    params = tstate.model.init(init_rng, jnp.ones([1, *tstate.input_dims]), train=False)['params'] # initialize parameters by passing a template input
+    init_rng, dropout_rng, rng = jax.random.split(rng, 3)
+    params = tstate.model.init({'params': init_rng, 'dropout': dropout_rng}, tstate.example_input, train=False)['params'] # initialize parameters by passing a template input
     opt_state = tstate.tx.init(params)
     tstate = tstate.replace(params=params, opt_state=opt_state, rng=rng)
     return tstate
 
-def create_train_state(rng, model: jnn.Module, input_dims: List[int], optimizer, loss_fn, acc_fn = None):
+def create_train_state(rng, model: jnn.Module, example_input: jnp.ndarray, optimizer, loss_fn, acc_fn = None):
     """Creates an initial `TrainState`."""
     tstate = TrainState.create(model=model, 
                                apply_fn=model.apply, 
                                params={}, 
                                tx=optimizer,
                                loss_fn=jax.tree_util.Partial(loss_fn), 
-                               input_dims=input_dims, acc_fn=jax.tree_util.Partial(acc_fn) if acc_fn is not None else acc_fn, rng=None)
+                               example_input=example_input, acc_fn=jax.tree_util.Partial(acc_fn) if acc_fn is not None else acc_fn, rng=None)
     return reset_model(rng, tstate)
 
 

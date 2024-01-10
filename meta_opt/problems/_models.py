@@ -227,7 +227,7 @@ class Encoder1DBlock(nn.Module):
         broadcast_dropout=False,
         dropout_rate=config.attention_dropout_rate,
         deterministic=config.deterministic,
-    )(x, mask=encoder_mask)
+    )(inputs_q=x, inputs_kv=x, mask=encoder_mask)
 
     x = nn.Dropout(rate=config.dropout_rate)(
         x, deterministic=config.deterministic
@@ -281,7 +281,7 @@ class EncoderDecoder1DBlock(nn.Module):
         dropout_rate=config.attention_dropout_rate,
         deterministic=config.deterministic,
         decode=config.decode,
-    )(x, mask=decoder_mask)
+    )(inputs_q=x, inputs_kv=x, mask=decoder_mask)
     x = nn.Dropout(rate=config.dropout_rate)(
         x, deterministic=config.deterministic
     )
@@ -591,15 +591,16 @@ class Transformer(nn.Module):
     )
     return logits.astype(self.config.dtype)
 
-  def __call__(
-      self,
-      inputs,
-      targets,
-      inputs_positions=None,
-      targets_positions=None,
-      inputs_segmentation=None,
-      targets_segmentation=None,
-  ):
+  # def __call__(
+  #     self,
+  #     inputs,
+  #     targets,
+  #     inputs_positions=None,
+  #     targets_positions=None,
+  #     inputs_segmentation=None,
+  #     targets_segmentation=None,
+  # ):
+  def __call__(self, x, train=True):  # TODO make `train` not a dummy variable
     """Applies Transformer model on the inputs.
 
     Args:
@@ -613,6 +614,14 @@ class Transformer(nn.Module):
     Returns:
       logits array from full transformer.
     """
+    
+    inputs, targets = x['inputs'], x['targets']
+    try:
+      inputs_positions, targets_positions = x['inputs_positions'], x['targets_positions']
+      inputs_segmentation, targets_segmentation = x['inputs_segmentation'], x['targets_segmentation']
+    except:
+      inputs_positions = targets_positions = inputs_segmentation = targets_segmentation = None
+
     encoded = self.encode(
         inputs,
         inputs_positions=inputs_positions,

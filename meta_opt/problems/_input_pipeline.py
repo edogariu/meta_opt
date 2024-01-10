@@ -32,8 +32,8 @@ Features = Dict[str, tf.Tensor]
 class NormalizeFeatureNamesOp:
   """Normalizes feature names to 'inputs' and 'targets'."""
 
-  def __init__(self, ds_info: tfds.core.DatasetInfo, reverse_translation: bool):
-    self.input_lang, self.target_lang = ds_info.supervised_keys
+  def __init__(self, reverse_translation: bool):
+    self.input_lang, self.target_lang = 'de', 'en'
     if reverse_translation:
       self.input_lang, self.target_lang = self.target_lang, self.input_lang
 
@@ -45,6 +45,7 @@ class NormalizeFeatureNamesOp:
 
 def get_raw_dataset(
     dataset_name: str,
+    dataset_dir: str,
     split: str,
     *,
     reverse_translation: bool = False,
@@ -67,11 +68,9 @@ def get_raw_dataset(
   #     split, num_examples, drop_remainder=False
   # )
   # ds = dataset_builder.as_dataset(split=split, shuffle_files=False)
-  ds = tfds.load(dataset_name, split=split)
+  ds = tfds.load(dataset_name, split=split, data_dir=dataset_dir)
   ds = ds.map(
-      NormalizeFeatureNamesOp(
-          dataset_builder.info, reverse_translation=reverse_translation
-      ),
+      NormalizeFeatureNamesOp(reverse_translation=reverse_translation),
       num_parallel_calls=AUTOTUNE,
   )
   return ds
@@ -286,16 +285,16 @@ def _pack_with_tf_ops(
 # -----------------------------------------------------------------------------
 def preprocess_wmt_data(
     dataset,
+    batch_size: int,
+    num_iters: int,
     shuffle: bool,
-    num_epochs: Optional[int] = 1,
-    pack_examples: bool = True,
     shuffle_buffer_size: int = 1024,
-    max_length: int = 512,
-    batch_size: int = 256,
+    max_length: int = 256,
     drop_remainder: bool = True,
     prefetch_size: int = AUTOTUNE,
 ):
   """Shuffle and batch/pack the given dataset."""
+  dataset_len = len(dataset)
 
   def length_filter(max_len):
     def filter_fn(x):
@@ -304,35 +303,39 @@ def preprocess_wmt_data(
       return tf.less(l, max_len + 1)
 
     return filter_fn
-
   if max_length > 0:
     dataset = dataset.filter(length_filter(max_length))
-
-  if shuffle:
-    dataset = dataset.shuffle(shuffle_buffer_size)
+  
+  
+  num_epochs = 1 + (num_iters * batch_size) // dataset_len
   dataset = dataset.repeat(num_epochs)
-
-  if pack_examples:
-    dataset = pack_dataset(dataset, max_length)
-    dataset = dataset.batch(batch_size, drop_remainder=drop_remainder)
-  else:  # simple (static-shape) padded batching
-    dataset = dataset.padded_batch(
-        batch_size,
-        padded_shapes={'inputs': max_length, 'targets': max_length},
-        padding_values={'inputs': 0, 'targets': 0},
-        drop_remainder=drop_remainder,
-    )
-
-  if prefetch_size:
-    dataset = dataset.prefetch(prefetch_size)
-
+  if shuffle: dataset = dataset.shuffle(1024)
+  
+  # if pack_examples:
+  #   dataset = pack_dataset(dataset, max_length)
+  #   dataset = dataset.batch(batch_size, drop_remainder=drop_remainder)
+  # else:  # simple (static-shape) padded batching
+  #   dataset = dataset.padded_batch(
+  #       batch_size,
+  #       padded_shapes={'inputs': max_length, 'targets': max_length},
+  #       padding_values={'inputs': 0, 'targets': 0},
+  #       drop_remainder=drop_remainder,
+  #   )
+  
+  dataset = pack_dataset(dataset, max_length)
+  dataset = dataset.batch(batch_size, drop_remainder=drop_remainder)
+  
+  dataset = dataset.take(num_iters).prefetch(prefetch_size)
+  
   return dataset
 
 
 def get_wmt_datasets(
     dataset_name,
     eval_dataset_name, 
+    dataset_dir,
     batch_size,
+    num_iters,
     vocab_size,
     reverse_translation: bool = False,
     max_corpus_chars: int = 10 ** 7,
@@ -341,15 +344,16 @@ def get_wmt_datasets(
   
   """Load and return dataset of batched examples for use during training."""
   if vocab_path is None:
-    vocab_path = os.path.expanduser('~/wmt_sentencepiece_model')
+    vocab_path = os.path.expanduser('./datasets/wmt_sentencepiece_model')
 
   train_data = get_raw_dataset(
-      dataset_name, 'test', reverse_translation=reverse_translation
+      dataset_name, dataset_dir, 'train', reverse_translation=reverse_translation
   )
 
   if eval_dataset_name is None: eval_dataset_name = dataset_name
   eval_data = get_raw_dataset(
       eval_dataset_name,
+      dataset_dir,
       'test',
       reverse_translation=reverse_translation,
   )
@@ -368,21 +372,24 @@ def get_wmt_datasets(
       TokenizeOp(sp_tokenizer), num_parallel_calls=AUTOTUNE
   )
 
+  def _f(features):  # TODO fix the inefficiency here
+    return {'x': features,
+            'y': features['targets']}
+
   train_ds = preprocess_wmt_data(
       train_data,
+      batch_size, 
+      num_iters,
       shuffle=True,
-      num_epochs=None,
-      pack_examples=True,
-      batch_size=batch_size,
       max_length=256,
-  )
+  ).map(_f)
 
   eval_ds = preprocess_wmt_data(
       eval_data,
+      batch_size,
+      num_iters,
       shuffle=False,
-      pack_examples=False,
-      batch_size=batch_size,
       max_length=256,
-  )
+  ).map(_f)
 
-  return train_ds, eval_ds
+  return (train_ds, eval_ds), sp_tokenizer
