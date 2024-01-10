@@ -44,7 +44,7 @@ class NormalizeFeatureNamesOp:
 
 
 def get_raw_dataset(
-    dataset_builder: tfds.core.DatasetBuilder,
+    dataset_name: str,
     split: str,
     *,
     reverse_translation: bool = False,
@@ -62,11 +62,12 @@ def get_raw_dataset(
     Dataset with source and target language features mapped to 'inputs' and
     'targets'.
   """
-  num_examples = dataset_builder.info.splits[split].num_examples
-  per_host_split = deterministic_data.get_read_instruction_for_host(
-      split, num_examples, drop_remainder=False
-  )
-  ds = dataset_builder.as_dataset(split=per_host_split, shuffle_files=False)
+  # num_examples = dataset_builder.info.splits[split].num_examples
+  # per_host_split = deterministic_data.get_read_instruction_for_host(
+  #     split, num_examples, drop_remainder=False
+  # )
+  # ds = dataset_builder.as_dataset(split=split, shuffle_files=False)
+  ds = tfds.load(dataset_name, split=split)
   ds = ds.map(
       NormalizeFeatureNamesOp(
           dataset_builder.info, reverse_translation=reverse_translation
@@ -342,17 +343,13 @@ def get_wmt_datasets(
   if vocab_path is None:
     vocab_path = os.path.expanduser('~/wmt_sentencepiece_model')
 
-  train_ds_builder = tfds.builder(dataset_name)
   train_data = get_raw_dataset(
-      train_ds_builder, 'train', reverse_translation=reverse_translation
+      dataset_name, 'test', reverse_translation=reverse_translation
   )
 
-  if eval_dataset_name:
-    eval_ds_builder = tfds.builder(eval_dataset_name)
-  else:
-    eval_ds_builder = train_ds_builder
+  if eval_dataset_name is None: eval_dataset_name = dataset_name
   eval_data = get_raw_dataset(
-      eval_ds_builder,
+      eval_dataset_name,
       'test',
       reverse_translation=reverse_translation,
   )
