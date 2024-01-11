@@ -3,6 +3,7 @@ from typing import Tuple, Callable, List
 import tensorflow as tf
 import tensorflow_datasets as tfds
 
+import jax.numpy as jnp
 import flax.linen as jnn
 from .utils import cross_entropy, accuracy
 
