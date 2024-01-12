@@ -87,11 +87,11 @@ def update(cstate,
     
     grads = _grad_fn(cstate.M, cstate.H, cstate.HH, initial_tstate, disturbances, batches)
     
-    # clip grads
-    K = 5.
-    if isinstance(cstate.M, jnp.ndarray): 
-        grads = (jnp.clip(grads[0], -K, K),)
-    else: grads = (jax.tree_map(lambda g: jnp.clip(g, -K, K), grads[0]),)
+    # # clip grads
+    # K = 5.
+    # if isinstance(cstate.M, jnp.ndarray): 
+    #     grads = (jnp.clip(grads[0], -K, K),)
+    # else: grads = (jax.tree_map(lambda g: jnp.clip(g, -K, K), grads[0]),)
     
     updates, new_opt_state = cstate.tx.update(grads, cstate.opt_state, (cstate.M,))
     M = optax.apply_updates(cstate.M, updates[0])
@@ -115,7 +115,8 @@ class MetaOpt:
                  initial_tstate,
                  H: int, HH: int,
                  meta_lr: float, use_adam: bool, delta: float,
-                 m_method: str):
+                 m_method: str,
+                 ):
         self.tstate_history = (None,) * HH
         self.grad_history = jax.tree_map(lambda p: jnp.zeros((H + HH, *p.shape)), initial_tstate.params)
         self.batch_history = (None,) * (HH + 1)  # need one more because we hallucinate on `batch_history[:HH]` and compute stage loss via `batch_history[-1]`
@@ -132,8 +133,8 @@ class MetaOpt:
                   batch,  # batch from step of gd that resulted in `tstate`
                  ):      
         
-        self.batch_history = append(self.batch_history, batch)
-        self.grad_history = jax.tree_map(lambda h, g: append(h, g), self.grad_history, grads)
+        self.batch_history = append(self.batch_history, batch)        
+        self.grad_history = jax.tree_map(append, self.grad_history, grads)
 
         if self.t >= self.cstate.H + self.cstate.HH:
             control = compute_control(self.cstate.M, slice_pytree(self.grad_history, self.cstate.HH, self.cstate.H))  # use past H disturbances

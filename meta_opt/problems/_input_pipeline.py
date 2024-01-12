@@ -306,6 +306,7 @@ def preprocess_wmt_data(
   if max_length > 0:
     dataset = dataset.filter(length_filter(max_length))
   
+  # TODO add caching to WMT dataset
   
   num_epochs = 1 + (num_iters * batch_size) // dataset_len
   dataset = dataset.repeat(num_epochs)
@@ -322,9 +323,8 @@ def preprocess_wmt_data(
   #       drop_remainder=drop_remainder,
   #   )
   
-  dataset = pack_dataset(dataset, max_length)
+  dataset = pack_dataset(dataset, max_length)  
   dataset = dataset.batch(batch_size, drop_remainder=drop_remainder)
-  
   dataset = dataset.take(num_iters).prefetch(prefetch_size)
   
   return dataset
@@ -375,6 +375,8 @@ def get_wmt_datasets(
   def _f(features):  # TODO fix the inefficiency here
     return {'x': features,
             'y': features['targets']}
+  train_ds = train_ds.map(_f)
+  eval_ds = eval_ds.map(_f)
 
   train_ds = preprocess_wmt_data(
       train_data,
@@ -382,7 +384,7 @@ def get_wmt_datasets(
       num_iters,
       shuffle=True,
       max_length=256,
-  ).map(_f)
+  )
 
   eval_ds = preprocess_wmt_data(
       eval_data,
@@ -390,6 +392,6 @@ def get_wmt_datasets(
       num_iters,
       shuffle=False,
       max_length=256,
-  ).map(_f)
+  )
 
   return (train_ds, eval_ds), sp_tokenizer
