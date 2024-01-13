@@ -371,13 +371,6 @@ def get_wmt_datasets(
   eval_data = eval_data.map(
       TokenizeOp(sp_tokenizer), num_parallel_calls=AUTOTUNE
   )
-
-  def _f(features):  # TODO fix the inefficiency here
-    return {'x': features,
-            'y': features['targets']}
-  train_ds = train_ds.map(_f)
-  eval_ds = eval_ds.map(_f)
-
   train_ds = preprocess_wmt_data(
       train_data,
       batch_size, 
@@ -394,4 +387,10 @@ def get_wmt_datasets(
       max_length=256,
   )
 
+  def _f(features):  # TODO fix the inefficiency here
+    return {'x': features,
+            'y': features['targets']}
+  train_ds = train_ds.map(_f)
+  eval_ds = eval_ds.map(_f)
+  
   return (train_ds, eval_ds), sp_tokenizer
