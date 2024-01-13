@@ -1,6 +1,6 @@
 # THINGS TO RUN
 - BIG WMT EXPERMIENTS!!! And repeat CIFAR stuff for MNIST too
-- Fix what Xinyi noticed bout the delta
+- Fix issue with the delta
 - Correctly handle std (linear comb of R.V.s) for plotting when we smooth loss
 - Plot along varying time to see which method performs best at a fixed time, sweeping hyperparameter vs accuracy at different times
 - Fix eval for WMT to not take so long so that the big experiments will work
