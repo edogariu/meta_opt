@@ -136,6 +136,11 @@ class MetaOpt:
                  ):      
         
         self.batch_history = append(self.batch_history, batch)        
+
+        # clip disturbances
+        K = 5.0
+        grads = jax.tree_map(lambda g: jnp.clip(g, -K, K), grads)
+                     
         self.grad_history = jax.tree_map(append, self.grad_history, grads)
 
         if self.t >= self.cstate.H + self.cstate.HH:
@@ -143,7 +148,7 @@ class MetaOpt:
             params = jax.tree_map(lambda p, c: (1 - self.delta) * p + c, tstate.params, control)
             tstate = tstate.replace(params=params)
             self.cstate = update(self.cstate, self.tstate_history[0], self.grad_history, self.batch_history)
-        
+            
         self.tstate_history = append(self.tstate_history, tstate)
         self.t += 1
         return tstate
