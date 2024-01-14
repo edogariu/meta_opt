@@ -7,7 +7,7 @@
 - [ ] rerun CIFAR baselines with weight decay
 - [X] Correctly handle std (linear comb of R.V.s) for plotting when we smooth loss
 - [ ] Plot along varying time to see which method performs best at a fixed time, sweeping hyperparameter vs accuracy at different times
-- [ ] Fix eval for WMT to not take so long so that the big experiments will work
+- [X] Fix eval for WMT to not take so long so that the big experiments will work
 - [ ] Try meta opt from initial lr of 0.1 instead of tiny, maybe sweep initial lr
 - [ ] Add avg to training and run diagonal
 - [ ] Sweep hgd
