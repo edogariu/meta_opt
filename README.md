@@ -1,16 +1,16 @@
 # THINGS TO RUN
-- [ ] **VERIFY BATCHING ISNT DEGENERATE ON WMT**
-- [ ] check my hunch that we produce same optimum even w different meta lr
 - [ ] **BIG WMT EXPERMIENTS!!! And repeat CIFAR stuff for MNIST too**
-- [ ] Plot along varying time to see which method performs best at a fixed time, sweeping hyperparameter vs accuracy at different times
 - [ ] Add avg to training and run diagonal
+- [ ] add MP, cosine, cyclical learning rates, hedging, AGD, DoWG, D-adaptation, adagrad?
+- [ ] check my hunch that we produce same optimum even w different meta lr
+- [ ] Plot along varying time to see which method performs best at a fixed time, sweeping hyperparameter vs accuracy at different times
 - [ ] Sweep hgd
 - [ ] Investigate effect of overfitting
 - [ ] Investigate training stability & couple w sequential stability
 - [ ] add caching to dataloaders
-- [ ] add MP, cosine, cyclical learning rates, hedging, AGD, DoWG, D-adaptation, adagrad?
 - [ ] try other settings?
 
+- [X] ~~**VERIFY BATCHING ISNT DEGENERATE ON WMT**~~
 - [X] ~~**USE OPTAX GRAD CLIPPING**~~
 - [X] ~~**run meta-opt with optimal initial lr instead of near-0**~~ (turns out optimal is 0 lol)
 - [X] ~~fix buffer alignment issue~~
