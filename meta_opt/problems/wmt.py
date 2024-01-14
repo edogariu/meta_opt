@@ -13,6 +13,7 @@ from ._config import get_config as _get_config
 from ._input_pipeline import get_wmt_datasets as _get_wmt_datasets
 from ._models import Transformer as _Transformer
 from ._models import TransformerConfig as _TransformerConfig
+from ._models import create_learning_rate_schedule as rsqrt_lr_schedule
 from ._bleu import translate_and_calculate_bleu as bleu
 from ._tokenizer import TOKENIZER
 
