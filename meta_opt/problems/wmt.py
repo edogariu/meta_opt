@@ -111,7 +111,7 @@ def load_wmt(num_iters: int, batch_size: int, dataset_dir: str = './datasets', n
                      'inputs_segmentation': jnp.zeros((batch_size, 256), dtype=int),
                      'targets_segmentation': jnp.zeros((batch_size, 256), dtype=int),
                      }
-
+    assert tokenizer == TOKENIZER
     return train_ds, test_ds, example_input, _compute_weighted_cross_entropy, _compute_weighted_accuracy  # train dataset, test dataset, unbatched input dimensions, loss function, accuracy fn
 
 # ------------------------------------------------------------------
