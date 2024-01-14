@@ -29,6 +29,29 @@ from sentencepiece import SentencePieceTrainer
 
 Features = Dict[str, tf.Tensor]
 
+TOKENIZER = None
+
+
+# class TokenizerWrapper:  # written by evan
+#      def __init__(self): 
+#           self._tokenizer = None
+       
+#      # using property decorator 
+#      # a getter function 
+#      @property
+#      def tokenizer(self): 
+#          print("getter method called") 
+#          # if self._tokenizer is None: raise Exception('must load dataset first')
+#          else: return self._tokenizer 
+       
+#      # a setter function 
+#      @tokenizer.setter 
+#      def tokenizer(self, t): 
+#          print("setter method called") 
+#          self._tokenizer = t
+         
+# TOKENIZER = TokenizerWrapper().tokenizer
+
 
 def _dump_chars_to_textfile(
     dataset: tf.data.Dataset,
@@ -128,6 +151,7 @@ def _load_sentencepiece_tokenizer(
     reverse: bool = False,
 ):
   """Load a tf-text SentencePiece tokenizer from given model filepath."""
+  if 
   with tf.io.gfile.GFile(model_path, 'rb') as model_fp:
     sp_model = model_fp.read()
   sp_tokenizer = tftxt.SentencepieceTokenizer(
@@ -145,19 +169,21 @@ def load_or_train_tokenizer(
     data_keys: Tuple[str, str] = ('inputs', 'targets'),
 ):
   """Loads the tokenizer at `vocab_path` or trains a one from `dataset`."""
+  if TOKENIZER is not None: return TOKENIZER    
   try:
-    return _load_sentencepiece_tokenizer(vocab_path)
+    t = _load_sentencepiece_tokenizer(vocab_path)
   except tf.errors.NotFoundError:
-    logging.info('SentencePiece vocab not found, building one from data.')
-    vocab_path = _train_sentencepiece(
+      print('SentencePiece vocab not found, building one from data.')
+      vocab_path = _train_sentencepiece(
         dataset,
         vocab_size=vocab_size,
         maxchars=max_corpus_chars,
         model_path=vocab_path,
         data_keys=data_keys,
-    )
-    return _load_sentencepiece_tokenizer(vocab_path)
-
+      )
+      t = _load_sentencepiece_tokenizer(vocab_path)
+  TOKENIZER = t
+  return TOKENIZER
 
 @dataclasses.dataclass
 class TokenizeOp:
