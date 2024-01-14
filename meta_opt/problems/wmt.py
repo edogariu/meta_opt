@@ -14,7 +14,7 @@ from ._input_pipeline import get_wmt_datasets as _get_wmt_datasets
 from ._models import Transformer as _Transformer
 from ._models import TransformerConfig as _TransformerConfig
 from ._models import create_learning_rate_schedule as rsqrt_lr_schedule
-from ._bleu import translate_and_calculate_bleu as bleu
+from ._bleu import translate_and_calculate_bleu as _translate_and_calculate_bleu
 
 
 # this is  flax's example WMT transformer problem taken from https://github.com/google/flax/blob/main/examples/wmt/train.py
@@ -22,6 +22,9 @@ from ._bleu import translate_and_calculate_bleu as bleu
 # ------------------------------------------------------------------
 # ------------------------ Loss/Accuracy Fns -----------------------
 # ------------------------------------------------------------------
+
+def bleu(tstate, dataset):
+    return _translate_and_calculate_bleu(tstate, dataset, tstate.tokenizer)
 
 def _compute_weighted_cross_entropy(
     logits, targets, weights=None, label_smoothing=0.0
