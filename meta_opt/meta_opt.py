@@ -30,14 +30,17 @@ class MetaOptGPCState(ControllerState):
                H: int,
                HH: int,
                lr: float = 0.001,
-               use_adam: bool = False):
-
+               use_adam: bool = False,
+               grad_clip = 1.0):
+        # make controller
         if m_method == 'scalar': M = jnp.zeros((H,))
         elif m_method == 'diagonal': M = jax.tree_map(lambda p: jnp.zeros((H, *p.shape)), tstate.params)
         else: raise NotImplementedError(m_method)
-        
+
+        # make optimizer 
         if not use_adam: tx = optax.sgd(learning_rate=lr)  # M optimizer
         else: tx = optax.adam(learning_rate=lr)
+        if grad_clip is not None: tx = optax.chain(optax.clip(grad_clip), tx)  # clip grads
         opt_state = tx.init((M,))
         
         print(sum(x.size for x in jax.tree_util.tree_leaves(M)), 'params in the controller')
@@ -52,15 +55,16 @@ def compute_control(M, disturbances):
     return control
 
 @jax.jit
-def _hallucinate(M, tstate, disturbances, batch):
+def _hallucinate(M, tstate, disturbances, batch, delta):
     tstate, _ = gradient_descent(tstate, batch)
-    params = jax.tree_map(lambda p, c: p + c, tstate.params, compute_control(M, disturbances))
+    params = jax.tree_map(lambda p, c: (1 - delta) * p + c, tstate.params, compute_control(M, disturbances))
     tstate = tstate.replace(params=params)
     return tstate
 
 def _compute_loss(M, H, HH, initial_tstate, 
                   disturbances,  # past H + HH disturbances
                   batches,  # past HH + 1 batches, starting at the one that would have been used to evolve `initial_params` and ending with the current one
+                  delta,
                  ):
     # def _evolve(tstate, h):
     #     tstate, _ = gradient_descent(tstate, batches[h])
@@ -72,7 +76,7 @@ def _compute_loss(M, H, HH, initial_tstate,
 
     tstate = initial_tstate
     for h in range(HH):
-        tstate = _hallucinate(M, tstate, slice_pytree(disturbances, h, H), batches[h])
+        tstate = _hallucinate(M, tstate, slice_pytree(disturbances, h, H), batches[h], delta)
     loss = forward(tstate, batches[-1])
     return loss
 
@@ -83,18 +87,10 @@ def update(cstate,
            initial_tstate,  # tstate from HH steps ago
            disturbances,  # past H + HH disturbances
            batches,  # past HH + 1 batches, starting at the one that would have been used to evolve `initial_params` and ending with the current one
+           delta,
           ):
     
-    grads = _grad_fn(cstate.M, cstate.H, cstate.HH, initial_tstate, disturbances, batches)
-    
-    # clip grads
-    if isinstance(cstate.M, jnp.ndarray):  # if scalar M's
-        K = 5.0
-        grads = (jnp.clip(grads[0], -K, K),)
-    else: 
-        K = 0.05
-        grads = (jax.tree_map(lambda g: jnp.clip(g, -K, K), grads[0]),)
-    
+    grads = _grad_fn(cstate.M, cstate.H, cstate.HH, initial_tstate, disturbances, batches, delta)    
     updates, new_opt_state = cstate.tx.update(grads, cstate.opt_state, (cstate.M,))
     M = optax.apply_updates(cstate.M, updates[0])
     return cstate.replace(M=M, opt_state=new_opt_state)   
@@ -147,7 +143,7 @@ class MetaOpt:
             control = compute_control(self.cstate.M, slice_pytree(self.grad_history, self.cstate.HH, self.cstate.H))  # use past H disturbances
             params = jax.tree_map(lambda p, c: (1 - self.delta) * p + c, tstate.params, control)
             tstate = tstate.replace(params=params)
-            self.cstate = update(self.cstate, self.tstate_history[0], self.grad_history, self.batch_history)
+            self.cstate = update(self.cstate, self.tstate_history[0], self.grad_history, self.batch_history, self.delta)
             
         self.tstate_history = append(self.tstate_history, tstate)
         self.t += 1
