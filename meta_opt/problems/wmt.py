@@ -90,13 +90,14 @@ def _compute_weighted_accuracy(logits, targets, weights=None):
 # ------------------------------ Dataset ---------------------------
 # ------------------------------------------------------------------
 
-def load_wmt(num_iters: int, batch_size: int, dataset_dir: str = './datasets') -> Tuple[tf.data.Dataset, tf.data.Dataset, List[int], Callable, Callable]:
+def load_wmt(num_iters: int, batch_size: int, dataset_dir: str = './datasets', num_eval_iters: int = 256) -> Tuple[tf.data.Dataset, tf.data.Dataset, List[int], Callable, Callable]:
     """Load WMT DE/EN train and test datasets into memory."""
     (train_ds, test_ds), tokenizer = _get_wmt_datasets(dataset_name='wmt14_translate/de-en',
                                                        eval_dataset_name='wmt14_translate/de-en',
                                                        dataset_dir=dataset_dir,
                                                        batch_size=batch_size,
                                                        num_iters=num_iters,
+                                                       num_eval_iters=num_eval_iters,
                                                        vocab_size=32000,
                                                        reverse_translation=False,
                                                        vocab_path=os.path.join(dataset_dir, 'wmt_sentencepiece_model'))
@@ -108,7 +109,7 @@ def load_wmt(num_iters: int, batch_size: int, dataset_dir: str = './datasets') -
                      'targets_segmentation': jnp.zeros((batch_size, 256), dtype=int),
                      }
 
-    return train_ds, test_ds, example_input, _compute_weighted_cross_entropy, _compute_weighted_accuracy  # train dataset, test dataset, unbatched input dimensions, loss function, accuracy fn
+    return train_ds, test_ds, example_input, _compute_weighted_cross_entropy, _compute_weighted_accuracy, tokenizer  # train dataset, test dataset, unbatched input dimensions, loss function, accuracy fn
 
 
 

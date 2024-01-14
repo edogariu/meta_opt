@@ -325,7 +325,8 @@ def preprocess_wmt_data(
   
   dataset = pack_dataset(dataset, max_length)  
   dataset = dataset.batch(batch_size, drop_remainder=drop_remainder)
-  dataset = dataset.take(num_iters).prefetch(prefetch_size)
+  if num_iters > 0: dataset = dataset.take(num_iters)
+  dataset = dataset.prefetch(prefetch_size)
   
   return dataset
 
@@ -337,6 +338,7 @@ def get_wmt_datasets(
     batch_size,
     num_iters,
     vocab_size,
+    num_eval_iters = 256,
     reverse_translation: bool = False,
     max_corpus_chars: int = 10 ** 7,
     vocab_path: Optional[str] = None,
@@ -382,7 +384,7 @@ def get_wmt_datasets(
   eval_ds = preprocess_wmt_data(
       eval_data,
       batch_size,
-      num_iters,
+      num_iters=num_eval_iters // batch_size,  # eval on `num_eval_iters` data points
       shuffle=False,
       max_length=256,
   )
