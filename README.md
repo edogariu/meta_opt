@@ -1,5 +1,6 @@
 # THINGS TO RUN
 - [ ] **VERIFY BATCHING ISNT DEGENERATE**
+- [ ] check my hunch that we produce same optimum even w different meta lr
 - [ ] Try meta opt from initial lr of 0.1 instead of tiny, maybe sweep initial lr
 - [ ] ~~**USE OPTAX GRAD CLIPPING**~~
 - [ ] **BIG WMT EXPERMIENTS!!! And repeat CIFAR stuff for MNIST too**
