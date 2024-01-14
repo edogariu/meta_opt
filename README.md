@@ -1,6 +1,6 @@
 # THINGS TO RUN
 - [ ] **VERIFY BATCHING ISNT DEGENERATE**
-- [ ] **USE OPTAX GRAD CLIPPING**
+- [ ] ~~**USE OPTAX GRAD CLIPPING**~~
 - [ ] **BIG WMT EXPERMIENTS!!! And repeat CIFAR stuff for MNIST too**
 - [ ] **run meta-opt with optimal initial lr instead of near-0**
 - [ ] ~~fix buffer alignment issue~~
