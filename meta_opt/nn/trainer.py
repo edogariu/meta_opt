@@ -1,4 +1,4 @@
-from typing import Tuple, List, Callable
+from typing import Tuple, List, Callable, Any
 import functools
 
 import jax
@@ -16,6 +16,7 @@ class TrainState(train_state.TrainState):
     # input_dims: List[int] = struct.field(pytree_node=False)  # dimensions that the model takes as input
     example_input: jnp.ndarray
     rng: jnp.array
+    tokenizer: Any = None
 
 def reset_model(rng, tstate: TrainState):
     init_rng, dropout_rng, rng = jax.random.split(rng, 3)
@@ -24,14 +25,14 @@ def reset_model(rng, tstate: TrainState):
     tstate = tstate.replace(params=params, opt_state=opt_state, rng=rng)
     return tstate
 
-def create_train_state(rng, model: jnn.Module, example_input: jnp.ndarray, optimizer, loss_fn, acc_fn = None):
+def create_train_state(rng, model: jnn.Module, example_input: jnp.ndarray, optimizer, loss_fn, acc_fn = None, tokenizer = None):
     """Creates an initial `TrainState`."""
     tstate = TrainState.create(model=model, 
                                apply_fn=model.apply, 
                                params={}, 
                                tx=optimizer,
                                loss_fn=jax.tree_util.Partial(loss_fn), 
-                               example_input=example_input, acc_fn=jax.tree_util.Partial(acc_fn) if acc_fn is not None else acc_fn, rng=None)
+                               example_input=example_input, acc_fn=jax.tree_util.Partial(acc_fn) if acc_fn is not None else acc_fn, rng=None, tokenizer=tokenizer)
     return reset_model(rng, tstate)
 
 
