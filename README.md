@@ -1,18 +1,20 @@
 # THINGS TO RUN
-- **BIG WMT EXPERMIENTS!!! And repeat CIFAR stuff for MNIST too**
-- **run meta-opt with optimal initial lr instead of near-0**
-- Fix issue with the delta
-- Correctly handle std (linear comb of R.V.s) for plotting when we smooth loss
-- Plot along varying time to see which method performs best at a fixed time, sweeping hyperparameter vs accuracy at different times
-- Fix eval for WMT to not take so long so that the big experiments will work
-- Try meta opt from initial lr of 0.1 instead of tiny, maybe sweep initial lr
-- Add avg to training and  run things again, sigh
-- Sweep hgd
-- Investigate effect of overfitting
-- Investigate training stability & couple w sequential stability
-- add caching to dataloaders
-- add MP, cosine, cyclical learning rates, hedging, AGD, DoWG, D-adaptation, adagrad?
-- try other settings?
+- [ ] **BIG WMT EXPERMIENTS!!! And repeat CIFAR stuff for MNIST too**
+- [ ] **run meta-opt with optimal initial lr instead of near-0**
+- [ ] fix buffer alignment issue
+- [ ] Fix issue with the delta
+- [ ] rerun CIFAR baselines with weight decay
+- [X] Correctly handle std (linear comb of R.V.s) for plotting when we smooth loss
+- [ ] Plot along varying time to see which method performs best at a fixed time, sweeping hyperparameter vs accuracy at different times
+- [ ] Fix eval for WMT to not take so long so that the big experiments will work
+- [ ] Try meta opt from initial lr of 0.1 instead of tiny, maybe sweep initial lr
+- [ ] Add avg to training and run diagonal
+- [ ] Sweep hgd
+- [ ] Investigate effect of overfitting
+- [ ] Investigate training stability & couple w sequential stability
+- [ ] add caching to dataloaders
+- [ ] add MP, cosine, cyclical learning rates, hedging, AGD, DoWG, D-adaptation, adagrad?
+- [ ] try other settings?
 
 # NOTES ON META OPT
 ## CIFAR
