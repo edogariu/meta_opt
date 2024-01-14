@@ -115,7 +115,7 @@ class MetaOpt:
                  meta_lr: float, use_adam: bool, delta: float,
                  m_method: str,
                  ):
-        self.tstate_history = (None,) * HH
+        self.tstate_history = (None,) * (HH + 1)
         self.grad_history = jax.tree_map(lambda p: jnp.zeros((H + HH, *p.shape)), initial_tstate.params)
         self.batch_history = (None,) * (HH + 1)  # need one more because we hallucinate on `batch_history[:HH]` and compute stage loss via `batch_history[-1]`
         self.delta = delta
