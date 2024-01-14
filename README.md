@@ -3,7 +3,7 @@
 - [ ] check my hunch that we produce same optimum even w different meta lr
 - [X] ~~**USE OPTAX GRAD CLIPPING**~~
 - [ ] **BIG WMT EXPERMIENTS!!! And repeat CIFAR stuff for MNIST too**
-- [ ] **run meta-opt with optimal initial lr instead of near-0**
+- [X] ~~**run meta-opt with optimal initial lr instead of near-0**~~ (turns out optimal is 0 lol)
 - [X] ~~fix buffer alignment issue~~
 - [X] ~~Fix issue with the delta~~
 - [X] ~~rerun CIFAR baselines with weight decay~~
