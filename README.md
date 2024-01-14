@@ -3,7 +3,7 @@
 - [ ] **USE OPTAX GRAD CLIPPING**
 - [ ] **BIG WMT EXPERMIENTS!!! And repeat CIFAR stuff for MNIST too**
 - [ ] **run meta-opt with optimal initial lr instead of near-0**
-- [ ] fix buffer alignment issue
+- [ ] ~~fix buffer alignment issue~~
 - [ ] Fix issue with the delta
 - [X] ~~rerun CIFAR baselines with weight decay~~
 - [X] ~~Correctly handle std (linear comb of R.V.s) for plotting when we smooth loss~~
