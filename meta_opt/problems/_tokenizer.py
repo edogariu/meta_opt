@@ -29,9 +29,6 @@ from sentencepiece import SentencePieceTrainer
 
 Features = Dict[str, tf.Tensor]
 
-TOKENIZER = None
-
-
 # class TokenizerWrapper:  # written by evan
 #      def __init__(self): 
 #           self._tokenizer = None
@@ -168,7 +165,6 @@ def load_or_train_tokenizer(
     data_keys: Tuple[str, str] = ('inputs', 'targets'),
 ):
   """Loads the tokenizer at `vocab_path` or trains a one from `dataset`."""
-  if TOKENIZER is not None: return TOKENIZER    
   try:
     t = _load_sentencepiece_tokenizer(vocab_path)
   except tf.errors.NotFoundError:
@@ -181,8 +177,7 @@ def load_or_train_tokenizer(
         data_keys=data_keys,
       )
       t = _load_sentencepiece_tokenizer(vocab_path)
-  TOKENIZER = t
-  return TOKENIZER
+  return t
 
 @dataclasses.dataclass
 class TokenizeOp:
