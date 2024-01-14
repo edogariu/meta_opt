@@ -292,7 +292,7 @@ def translate_and_calculate_bleu(
     return tokenizer.detokenize(valid_toks).numpy().decode("utf-8")
   
   sources, references, predictions = [], [], []
-  for batch in dataset:
+  for batch in dataset.as_numpy_iterator():
     pred = predict_step(tstate, batch)
     # Iterate through non-padding examples of batch.
     inputs, targets = batch['x']['inputs'], batch['y']
