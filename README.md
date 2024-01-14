@@ -5,7 +5,7 @@
 - [ ] **run meta-opt with optimal initial lr instead of near-0**
 - [ ] fix buffer alignment issue
 - [ ] Fix issue with the delta
-- [ ] rerun CIFAR baselines with weight decay
+- [X] rerun CIFAR baselines with weight decay
 - [X] Correctly handle std (linear comb of R.V.s) for plotting when we smooth loss
 - [ ] Plot along varying time to see which method performs best at a fixed time, sweeping hyperparameter vs accuracy at different times
 - [X] Fix eval for WMT to not take so long so that the big experiments will work
