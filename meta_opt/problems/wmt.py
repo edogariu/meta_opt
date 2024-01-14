@@ -15,7 +15,6 @@ from ._models import Transformer as _Transformer
 from ._models import TransformerConfig as _TransformerConfig
 from ._models import create_learning_rate_schedule as rsqrt_lr_schedule
 from ._bleu import translate_and_calculate_bleu as bleu
-from ._tokenizer import TOKENIZER
 
 
 # this is  flax's example WMT transformer problem taken from https://github.com/google/flax/blob/main/examples/wmt/train.py
@@ -112,7 +111,6 @@ def load_wmt(num_iters: int, batch_size: int, dataset_dir: str = './datasets', n
                      'inputs_segmentation': jnp.zeros((batch_size, 256), dtype=int),
                      'targets_segmentation': jnp.zeros((batch_size, 256), dtype=int),
                      }
-    assert tokenizer == TOKENIZER
     return train_ds, test_ds, example_input, _compute_weighted_cross_entropy, _compute_weighted_accuracy  # train dataset, test dataset, unbatched input dimensions, loss function, accuracy fn
 
 # ------------------------------------------------------------------
