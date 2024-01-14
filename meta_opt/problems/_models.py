@@ -24,9 +24,47 @@ from typing import Callable, Any, Optional
 
 from flax import linen as nn
 from flax import struct
+import optax
 from jax import lax
 import jax.numpy as jnp
 import numpy as np
+
+def _rsqrt_schedule(
+    init_value: float,
+    shift: int = 0,
+):
+  """Applies a reverse square-root schedule.
+
+  The reverse square root schedule is simply `lr = init_value / sqrt(step)`.
+
+  Args:
+    init_value: Base learning rate (before applying the rsqrt schedule).
+    shift: How many steps the rsqrt should be shifted. Shifting the rsqrt
+      schedule makes it less steep in the beginning (close to 0).
+
+  Returns:
+    A schedule `count -> learning_rate`.
+  """
+
+  def schedule(count):
+    return init_value * (count + shift) ** -0.5 * shift**0.5
+
+  return schedule
+
+
+def create_learning_rate_schedule(learning_rate: float, warmup_steps: int):
+  """Creates a rsqrt schedule with linear warmup."""
+  return optax.join_schedules(
+      [
+          optax.linear_schedule(
+              init_value=0,
+              end_value=learning_rate,
+              transition_steps=warmup_steps,
+          ),
+          _rsqrt_schedule(init_value=learning_rate, shift=warmup_steps),
+      ],
+      boundaries=[warmup_steps],
+  )
 
 
 @struct.dataclass
