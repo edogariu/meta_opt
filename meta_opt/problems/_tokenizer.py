@@ -151,7 +151,6 @@ def _load_sentencepiece_tokenizer(
     reverse: bool = False,
 ):
   """Load a tf-text SentencePiece tokenizer from given model filepath."""
-  if 
   with tf.io.gfile.GFile(model_path, 'rb') as model_fp:
     sp_model = model_fp.read()
   sp_tokenizer = tftxt.SentencepieceTokenizer(
