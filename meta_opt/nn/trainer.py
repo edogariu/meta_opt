@@ -16,7 +16,7 @@ class TrainState(train_state.TrainState):
     # input_dims: List[int] = struct.field(pytree_node=False)  # dimensions that the model takes as input
     example_input: jnp.ndarray
     rng: jnp.array
-    tokenizer: Any = None
+    tokenizer: Any = struct.field(pytree_node=False)
 
 def reset_model(rng, tstate: TrainState):
     init_rng, dropout_rng, rng = jax.random.split(rng, 3)
