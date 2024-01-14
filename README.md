@@ -1,12 +1,11 @@
 # THINGS TO RUN
-- [ ] **VERIFY BATCHING ISNT DEGENERATE**
+- [ ] **VERIFY BATCHING ISNT DEGENERATE ON WMT**
 - [ ] check my hunch that we produce same optimum even w different meta lr
-- [ ] Try meta opt from initial lr of 0.1 instead of tiny, maybe sweep initial lr
-- [ ] ~~**USE OPTAX GRAD CLIPPING**~~
+- [X] ~~**USE OPTAX GRAD CLIPPING**~~
 - [ ] **BIG WMT EXPERMIENTS!!! And repeat CIFAR stuff for MNIST too**
 - [ ] **run meta-opt with optimal initial lr instead of near-0**
-- [ ] ~~fix buffer alignment issue~~
-- [ ] ~~Fix issue with the delta~~
+- [X] ~~fix buffer alignment issue~~
+- [X] ~~Fix issue with the delta~~
 - [X] ~~rerun CIFAR baselines with weight decay~~
 - [X] ~~Correctly handle std (linear comb of R.V.s) for plotting when we smooth loss~~
 - [ ] Plot along varying time to see which method performs best at a fixed time, sweeping hyperparameter vs accuracy at different times
