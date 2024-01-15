@@ -181,4 +181,5 @@ class MetaOpt:
         self.tstate_history = (None,) * (HH + 1)
         self.batch_history = (None,) * (HH + 1)
         self.t = 0
+        self.cstate = self.cstate.replace(opt_state=self.cstate.tx.init(self.cstate.cparams))
         return self
