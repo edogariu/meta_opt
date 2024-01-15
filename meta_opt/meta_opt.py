@@ -21,7 +21,6 @@ class MetaOptGPCState(ControllerState):
     
     H: int = struct.field(pytree_node=False)  # history of the controller, how many past disturbances to use for control
     HH: int = struct.field(pytree_node=False)  # history of the system, how many hallucination steps to take
-    lr: float
     num_params: int
     
     @classmethod
@@ -54,7 +53,7 @@ class MetaOptGPCState(ControllerState):
         print(num_params, f'params in the controller {param_counts}')
         return cls(cparams=cparams,
                    H=H, HH=HH, num_params=num_params,
-                   lr=lr, tx=tx, opt_state=opt_state)
+                   tx=tx, opt_state=opt_state)
 
 @jax.jit
 def compute_control(cparams, disturbances, emas):
