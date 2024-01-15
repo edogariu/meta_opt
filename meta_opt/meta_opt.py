@@ -33,7 +33,7 @@ class MetaOptGPCState(ControllerState):
                ema_keys = [],
                lr: float = 0.001,
                use_adam: bool = False,
-               grad_clip = 1.0):
+               grad_clip: float = 1.0):
         # make controller
         if m_method == 'scalar': 
             M = jnp.zeros((H,))
@@ -132,7 +132,7 @@ class MetaOpt:
                  initial_tstate,
                  H: int, HH: int,
                  meta_lr: float, use_adam: bool,
-                 m_method: str, ema_keys = [],
+                 m_method: str, ema_keys = [], grad_clip: float = 1.0
                  ):
         self.tstate_history = (None,) * (HH + 1)
         self.grad_history = jax.tree_map(lambda p: jnp.zeros((H + HH, *p.shape)), initial_tstate.params)
@@ -141,7 +141,7 @@ class MetaOpt:
         self.t = 0
 
         assert m_method in ['scalar', 'diagonal']
-        self.cstate = MetaOptGPCState.create(initial_tstate, m_method, H, HH, lr=meta_lr, use_adam=use_adam, ema_keys=ema_keys)
+        self.cstate = MetaOptGPCState.create(initial_tstate, m_method, H, HH, lr=meta_lr, use_adam=use_adam, ema_keys=ema_keys, grad_clip=grad_clip)
         pass
 
     def meta_step(self, 
