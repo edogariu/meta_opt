@@ -30,9 +30,8 @@ class MetaOptGPCState(ControllerState):
                m_method: str,
                H: int,
                HH: int,
+               meta_optimizer,
                ema_keys = [],
-               lr: float = 0.001,
-               use_adam: bool = False,
                grad_clip: float = 1.0):
         # make controller
         if m_method == 'scalar': 
@@ -45,8 +44,7 @@ class MetaOptGPCState(ControllerState):
         cparams = {'M': M, 'M_ema': M_ema}
 
         # make optimizer 
-        if not use_adam: tx = optax.sgd(learning_rate=lr)  # M optimizer
-        else: tx = optax.adam(learning_rate=lr, b2=0.99)
+        tx = meta_optimizer
         if grad_clip is not None: tx = optax.chain(optax.clip(grad_clip), tx)  # clip grads
         opt_state = tx.init(cparams)
         
@@ -131,7 +129,7 @@ class MetaOpt:
     def __init__(self,
                  initial_tstate,
                  H: int, HH: int,
-                 meta_lr: float, use_adam: bool,
+                 meta_optimizer,
                  m_method: str, ema_keys = [], grad_clip: float = 1.0
                  ):
         self.tstate_history = (None,) * (HH + 1)
@@ -141,7 +139,7 @@ class MetaOpt:
         self.t = 0
 
         assert m_method in ['scalar', 'diagonal']
-        self.cstate = MetaOptGPCState.create(initial_tstate, m_method, H, HH, lr=meta_lr, use_adam=use_adam, ema_keys=ema_keys, grad_clip=grad_clip)
+        self.cstate = MetaOptGPCState.create(initial_tstate, m_method, H, HH, meta_optimizer=meta_optimizer, ema_keys=ema_keys, grad_clip=grad_clip)
         pass
 
     def meta_step(self, 
