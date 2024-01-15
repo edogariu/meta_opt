@@ -1,6 +1,6 @@
 # THINGS TO RUN
 - [ ] **BIG WMT EXPERMIENTS!!! And repeat CIFAR stuff for MNIST too**
-- [ ] run with *many* ema values and plot preferred $mu$ over time video-style
+- [ ] run with *many* ema values and plot preferred $\mu$ over time video-style
 - [ ] check overfitting on task other than cross-entropy
 - [ ] Add avg to training and run diagonal
 - [ ] add MP, cosine, cyclical learning rates, hedging, AGD, DoWG, D-adaptation, adagrad?
