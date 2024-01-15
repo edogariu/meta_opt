@@ -58,4 +58,28 @@ def _slice_pytree(pytree, start_idx, slice_size):
     """
     return jax.tree_map(lambda p: jax.lax.dynamic_slice_in_dim(p, start_idx, slice_size), pytree)
 slice_pytree = jax.jit(_slice_pytree, static_argnums=(2,))
-    
+
+@jax.jit
+def index_pytree(pytree, idx):
+    return jax.tree_map(lambda p: jax.lax.dynamic_index_in_dim(p, idx)[0], pytree)
+
+@jax.jit
+def add_pytrees(*pytrees):
+    """
+    add pytrees elementwise
+    """
+    return jax.tree_map(lambda *p: sum(p), *pytrees)
+
+@jax.jit
+def multiply_pytrees(*pytrees):
+    """
+    multiply pytrees elementwise
+    """
+    return jax.tree_map(lambda *p: jnp.prod(jnp.stack(p, axis=0), axis=0), *pytrees)
+
+@jax.jit
+def multiply_pytree_by_scalar(scalar, pytree):
+    """
+    multiply pytree with a scalar elementwise
+    """
+    return jax.tree_map(lambda p: scalar * p, pytree)
