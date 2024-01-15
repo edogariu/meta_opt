@@ -46,7 +46,7 @@ class MetaOptGPCState(ControllerState):
 
         # make optimizer 
         if not use_adam: tx = optax.sgd(learning_rate=lr)  # M optimizer
-        else: tx = optax.adam(learning_rate=lr)
+        else: tx = optax.adam(learning_rate=lr, b2=0.99)
         if grad_clip is not None: tx = optax.chain(optax.clip(grad_clip), tx)  # clip grads
         opt_state = tx.init(cparams)
         
