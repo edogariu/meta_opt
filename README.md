@@ -2,7 +2,6 @@
 - [ ] **BIG WMT EXPERMIENTS!!! And repeat CIFAR stuff for MNIST too**
 - [ ] run with *many* ema values and plot preferred $\mu$ over time video-style
 - [ ] check overfitting on task other than cross-entropy
-- [ ] Add avg to training and run diagonal
 - [ ] add MP, cosine, cyclical learning rates, hedging, AGD, DoWG, D-adaptation, adagrad?
 - [ ] check my hunch that we produce same optimum even w different meta lr
 - [ ] Plot along varying time to see which method performs best at a fixed time, sweeping hyperparameter vs accuracy at different times
@@ -11,6 +10,7 @@
 - [ ] add caching to dataloaders
 - [ ] try other settings?
 
+- [X] ~~Add avg to training and run diagonal~~
 - [X] ~~**VERIFY BATCHING ISNT DEGENERATE ON WMT**~~
 - [X] ~~**USE OPTAX GRAD CLIPPING**~~
 - [X] ~~**run meta-opt with optimal initial lr instead of near-0**~~ (turns out optimal is 0 lol)
