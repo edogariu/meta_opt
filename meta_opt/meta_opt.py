@@ -38,8 +38,8 @@ class MetaOptGPCState(ControllerState):
             M = jnp.zeros((H,))
             M_ema = {e: jnp.zeros(()) for e in ema_keys}
         elif m_method == 'diagonal': 
-            M = jax.tree_map(lambda p: jnp.zeros((H, *p.shape)), tstate.params)
-            M_ema = {e: jax.tree_map(jnp.zeros_like, tstate.params) for e in ema_keys}
+            M = jax.tree_map(lambda p: jnp.zeros((H, *p.shape), dtype=jnp.float16), tstate.params)
+            M_ema = {e: jax.tree_map(lambda z: jnp.zeros_like(z, dtype=jnp.float16), tstate.params) for e in ema_keys}
         else: raise NotImplementedError(m_method)
         cparams = {'M': M, 'M_ema': M_ema}
 
