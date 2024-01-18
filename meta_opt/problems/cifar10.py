@@ -52,6 +52,7 @@ class VGG(jnn.Module):
             x = jnn.max_pool(x, (2, 2), (2, 2))
             x = jnn.Dropout(self.dropout, deterministic=not train)(x)
         x = x.reshape((x.shape[0], -1))
+        x = jnn.Dropout(self.dropout, deterministic=not train)(x)
         for j, l in enumerate(self.layer_dims):
             x = jnn.Dense(features=l, use_bias=self.use_bias)(x)
             if j != len(self.layer_dims) - 1 or not self.drop_last_activation:
