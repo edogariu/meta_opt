@@ -9,7 +9,7 @@ from flax import struct
 from .controllers._base import ControllerState
 from .controllers.utils import append, slice_pytree, index_pytree, add_pytrees, multiply_pytrees, multiply_pytree_by_scalar
 
-from .nn.trainer import forward, gradient_descent
+from .nn.trainer import forward, train_step
 
 
 # --------------------------------------------------------------------------------------------------------------------
@@ -70,7 +70,7 @@ def compute_control(cparams, disturbances, emas):
 
 @jax.jit
 def _hallucinate(cparams, tstate, disturbances, emas, batch):
-    tstate, _ = gradient_descent(tstate, batch)
+    tstate, _ = train_step(tstate, batch)
     params = add_pytrees(tstate.params, compute_control(cparams, disturbances, emas))
     tstate = tstate.replace(params=params)
     return tstate
@@ -94,7 +94,7 @@ def _compute_loss(cparams, H, HH, initial_tstate,
         # update emas or something like that, then hallucinate
         for beta, avg in emas.items(): emas[beta] = jax.tree_map(lambda v, g: beta * v + (1 - beta) * g, avg, index_pytree(disturbances, h + H - 1))  # update emas
         tstate = _hallucinate(cparams, tstate, slice_pytree(disturbances, h, H), emas, batches[h])
-    loss = forward(tstate, batches[-1])
+    loss, _ = forward(tstate, batches[-1])
     return loss
 
 _grad_fn = jax.grad(_compute_loss, (0,))
@@ -152,8 +152,8 @@ class MetaOpt:
         
         self.batch_history = append(self.batch_history, batch)        
 
-        # clip disturbances
-        K = 5.0; grads = jax.tree_map(lambda g: jnp.clip(g, -K, K), grads)
+        # clip disturbances (K = 10 is very soft)
+        K = 10; grads = jax.tree_map(lambda g: jnp.clip(g, -K, K), grads)
                      
         self.grad_history = jax.tree_map(append, self.grad_history, grads)
         for beta, avg in self.emas.items(): self.emas[beta] = jax.tree_map(lambda v, g: beta * v + (1 - beta) * g, avg, grads)  # update emas

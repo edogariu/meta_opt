@@ -10,10 +10,13 @@ from .utils import cross_entropy, accuracy
 # ------------------------------------------------------------------
 # ------------------------- Dataset --------------------------------
 # ------------------------------------------------------------------
-def load_cifar10(num_iters: int, batch_size: int, dataset_dir: str = './datasets') -> Tuple[tf.data.Dataset, tf.data.Dataset, List[int], Callable, Callable]:
+def load_cifar10(num_iters: int, batch_size: int, num_eval_iters: int = -1, dataset_dir: str = './datasets') -> Tuple[tf.data.Dataset, tf.data.Dataset, List[int], Callable, Callable]:
     """Load MNIST train and test datasets into memory."""
     train_ds = tfds.load('cifar10', split='train', data_dir=dataset_dir)
     test_ds = tfds.load('cifar10', split='test', data_dir=dataset_dir)
+    if num_eval_iters != -1: 
+        percent = min(int(100 * num_eval_iters * batch_size / len(test_ds)) + 1, 100)
+        test_ds = tfds.load('mnist', split=f'test[:{percent}%]', data_dir=dataset_dir)
     
     train_ds = train_ds.map(lambda sample: {'x': tf.cast(sample['image'],
                                                            tf.float32) / 255.,
@@ -23,12 +26,10 @@ def load_cifar10(num_iters: int, batch_size: int, dataset_dir: str = './datasets
                                         'y': sample['label']}) # normalize test set
     
     num_epochs = 1 + (num_iters * batch_size) // len(train_ds)
-    train_ds = train_ds.repeat(num_epochs).shuffle(1024)
-    train_ds = train_ds.batch(batch_size, drop_remainder=True).take(num_iters).prefetch(1)
-    test_ds = test_ds.shuffle(1024)
-    test_ds = test_ds.batch(batch_size, drop_remainder=True).prefetch(1)
+    train_ds = train_ds.repeat(num_epochs).shuffle(1024).batch(batch_size, drop_remainder=True).take(num_iters).prefetch(tf.data.AUTOTUNE)
+    test_ds = test_ds.batch(batch_size, drop_remainder=True).shuffle(1024).prefetch(tf.data.AUTOTUNE)
     
-    return train_ds, test_ds, jnp.zeros((1, 32, 32, 3)), cross_entropy, accuracy  # train dataset, test dataset, unbatched input dimensions, loss function, accuracy fn
+    return train_ds, test_ds, jnp.zeros((1, 32, 32, 3)), cross_entropy, {'loss': cross_entropy, 'acc': accuracy}  # train dataset, test dataset, unbatched input dimensions, loss function, eval metrics
 
 
 # ------------------------------------------------------------------
@@ -60,6 +61,7 @@ class VGG(jnn.Module):
                 x = jnn.Dropout(self.dropout, deterministic=not train)(x)
         return x
     
+def make_vgg16(): return VGG(stages=((64, 64), (128, 128), (256, 256, 256), (512, 512, 512), (512, 512, 512)), layer_dims=[512, 512, 10], drop_last_activation=True, dropout=0.1)  # this is VGG-16
 
 # # ----------------------------------------------------------------------------
 # # TAKEN DIRECTLY FROM https://github.com/fattorib/Flax-ResNets/tree/master

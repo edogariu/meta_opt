@@ -1,5 +1,6 @@
-from typing import Tuple, List, Callable, Any
+from typing import Tuple, Callable, Dict
 import functools
+from collections import defaultdict
 
 import jax
 import jax.numpy as jnp
@@ -9,98 +10,76 @@ from flax import struct
 from flax.training import train_state
 
 class TrainState(train_state.TrainState):
-    # things that dont change
+    batch_stats: jnp.ndarray
     loss_fn: Callable[[Tuple[jnp.ndarray, jnp.ndarray]], float]
-    acc_fn: Callable[[Tuple[jnp.ndarray, jnp.ndarray]], float]
+    metric_fns: Dict[str, Callable[[Tuple[jnp.ndarray, jnp.ndarray]], float]]
     model: jnn.Module = struct.field(pytree_node=False)
-    # input_dims: List[int] = struct.field(pytree_node=False)  # dimensions that the model takes as input
     example_input: jnp.ndarray
-    rng: jnp.array
-    tokenizer: Any = struct.field(pytree_node=False)
+    rng: jnp.ndarray
 
 def reset_model(rng, tstate: TrainState):
     init_rng, dropout_rng, rng = jax.random.split(rng, 3)
-    params = tstate.model.init({'params': init_rng, 'dropout': dropout_rng}, tstate.example_input, train=False)['params'] # initialize parameters by passing a template input
+    variables = tstate.model.init({'params': init_rng, 'dropout': dropout_rng}, tstate.example_input, train=False)
+    params, batch_stats = variables['params'], variables['batch_stats'] if 'batch_stats' in variables else {}  # initialize parameters by passing a template input
     opt_state = tstate.tx.init(params)
-    tstate = tstate.replace(params=params, opt_state=opt_state, rng=rng)
+    tstate = tstate.replace(params=params, batch_stats=batch_stats, opt_state=opt_state, rng=rng)
     return tstate
 
-def create_train_state(rng, model: jnn.Module, example_input: jnp.ndarray, optimizer, loss_fn, acc_fn = None, tokenizer = None):
+def create_train_state(rng, model: jnn.Module, example_input: jnp.ndarray, optimizer, loss_fn, metric_fns={}):
     """Creates an initial `TrainState`."""
     tstate = TrainState.create(model=model, 
                                apply_fn=model.apply, 
                                params={}, 
+                               batch_stats={},
                                tx=optimizer,
+                               example_input=example_input, 
                                loss_fn=jax.tree_util.Partial(loss_fn), 
-                               example_input=example_input, acc_fn=jax.tree_util.Partial(acc_fn) if acc_fn is not None else acc_fn, rng=None, tokenizer=tokenizer)
+                               metric_fns={k: jax.tree_util.Partial(v) for k, v in metric_fns.items()},
+                               rng=None)
     return reset_model(rng, tstate)
 
 
-
-
-@jax.jit
-def forward_and_backward(tstate, batch):
-    y = batch['y']
-    
-    if tstate.rng is not None:
-        next_key, dropout_key = jax.random.split(tstate.rng)
-        tstate = tstate.replace(rng=next_key)
-    else:
-        dropout_key = None
-
-    # define grad fn
-    def loss_fn(params):
-        yhat = tstate.apply_fn({'params': params}, batch['x'], train=True, rngs={'dropout': dropout_key})
-        loss = tstate.loss_fn(yhat, y)
-        return loss
-    grad_fn = jax.value_and_grad(loss_fn)
-
-    # get loss and grads
-    loss, grads = grad_fn(tstate.params)
-    
-    return tstate, (loss, grads)
-
 @jax.jit
 def forward(tstate, batch):
-    yhat = tstate.apply_fn({'params': tstate.params}, batch['x'], train=False,)
+    yhat = tstate.apply_fn({'params': tstate.params, 'batch_stats': tstate.batch_stats}, batch['x'], train=False,)
     loss = tstate.loss_fn(yhat, batch['y'])
-    return loss
+    return loss, yhat
+
 
 @jax.jit
-def eval(tstate, batch):
-    yhat = tstate.apply_fn({'params': tstate.params}, batch['x'], train=False,)
-    loss = tstate.loss_fn(yhat, batch['y'])
-    acc = tstate.acc_fn(yhat, batch['y'])
-    return loss, acc
+def train_step(tstate, batch):    
+    
+    if tstate.rng is not None:  # some rng hacking that is very anti-jax :)
+        next_key, dropout_key = jax.random.split(tstate.rng)
+        tstate = tstate.replace(rng=next_key)
+    else: dropout_key = None
+    
+    # define grad fn
+    def loss_fn(params):
+        yhat, updates = tstate.apply_fn({'params': params, 'batch_stats': tstate.batch_stats}, 
+                                        batch['x'], train=True, 
+                                        rngs={'dropout': dropout_key}, mutable=['batch_stats'])
+        loss = tstate.loss_fn(yhat, batch['y'])
+        return loss, (yhat, updates)
 
-@jax.jit
-def apply_gradients(tstate, grads):
+    # get loss and grads
+    (loss, (yhat, updates)), grads = jax.value_and_grad(loss_fn, has_aux=True)(tstate.params)
     tstate = tstate.apply_gradients(grads=grads)
-    return tstate
-
-@jax.jit
-def gradient_descent(tstate, batch):
-    tstate, (loss, grads) = forward_and_backward(tstate, batch)
-    tstate = apply_gradients(tstate, grads)
+    tstate = tstate.replace(batch_stats=updates['batch_stats'])
     return tstate, (loss, grads)
 
+
 # @jax.jit
-# def p_gradient_descent(params, batch, tstate):
-#     y = batch['y']
+def eval(tstate, dataset):
+    eval_metrics = defaultdict(float)
+    n = 0
+    for batch in dataset:
+        yhat, y = forward(tstate, batch)[1], batch['y']
+        for k, v in tstate.metric_fns.items(): eval_metrics[k] += v(yhat, y)
+        n += 1
+    for k in eval_metrics.keys(): eval_metrics[k] /= n
+    return dict(eval_metrics)
 
-#     # define grad fn
-#     def loss_fn(p):
-#         yhat = tstate.apply_fn({'params': p}, batch['x'])
-#         loss = tstate.loss_fn(yhat, y)
-#         return loss
-#     grad_fn = jax.value_and_grad(loss_fn)
-
-#     # get loss and grads
-#     loss, grads = grad_fn(params)
-#     tstate = tstate.apply_gradients(grads=grads)
-#     params = tstate.params
-#     return params, (loss, grads, tstate)
-    
 
 @jax.jit
 def value_and_jacfwd(f, x):

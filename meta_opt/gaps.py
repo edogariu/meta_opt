@@ -5,7 +5,7 @@ import optax
 
 from .controllers.utils import append, slice_pytree
 
-from .nn.trainer import gradient_descent, value_and_jacfwd
+from .nn.trainer import train_step, value_and_jacfwd
 from .meta_opt import MetaOptGPCState, compute_control
 
 # --------------------------------------------------------------------------------------------------------------------
