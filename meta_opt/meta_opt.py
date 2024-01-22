@@ -84,9 +84,11 @@ def _compute_loss(cparams, H, HH, initial_tstate,
     def _evolve(carry, batch):
         tstate, emas, h = carry
         for beta, avg in emas.items(): emas[beta] = jax.tree_map(lambda v, g: beta * v + (1 - beta) * g, avg, index_pytree(disturbances, h + H - 1))  # update emas
-        tstate = _hallucinate(cparams, tstate, slice_pytree(disturbances, h, H), emas, batch)
-        carry = (tstate, emas, h + 1)
-        return carry, None
+        tstate, _ = train_step(tstate, batch)
+        params = add_pytrees(tstate.params, compute_control(cparams, slice_pytree(disturbances, h, H), emas))
+        tstate = tstate.replace(params=params)
+        return (tstate, emas, h + 1), None
+    
     (tstate, _, _), _ = jax.lax.scan(_evolve, (initial_tstate, initial_emas, 0), batches)
     loss, _ = forward(tstate, curr_batch)
 
@@ -102,7 +104,7 @@ def _compute_loss(cparams, H, HH, initial_tstate,
 
 _grad_fn = jax.grad(_compute_loss, (0,))
 
-# @jax.jit
+@jax.jit
 def update(cstate,
            initial_tstate,  # tstate from HH steps ago
            disturbances,  # past H + HH disturbances
