@@ -74,27 +74,28 @@ def _hallucinate(cparams, tstate, disturbances, emas, batch):
     tstate = tstate.replace(params=params)
     return tstate
 
+@jax.jit
 def _compute_loss(cparams, H, HH, initial_tstate, 
                   disturbances,  # past H + HH disturbances
                   initial_emas,  # dict of the `{momentum_coefficient: pytree_of_running_avgs}` sort
                   batches,  # past HH + 1 batches, starting at the one that would have been used to evolve `initial_params` and ending with the current one
                  ):
-    # def _evolve(carry, batch):
-    #     tstate, emas, h = carry
-    #     for beta, avg in emas.items(): emas[beta] = jax.tree_map(lambda v, g: beta * v + (1 - beta) * g, avg, index_pytree(disturbances, h + H - 1))  # update emas
-    #     tstate = _hallucinate(cparams, tstate, slice_pytree(disturbances, h, H), emas, batch)
-    #     carry = (tstate, emas, h + 1)
-    #     return carry, None
-    # (tstate, _, _), _ = jax.lax.scan(_evolve, (initial_tstate, initial_emas, 0), slice_pytree(batches, 0, HH))
-    # loss, _ = forward(tstate, index_pytree(batches, -1))
-
-    tstate = initial_tstate
-    emas = initial_emas
-    for h in range(HH):
-        # update emas or something like that, then hallucinate
+    def _evolve(carry, batch):
+        tstate, emas, h = carry
         for beta, avg in emas.items(): emas[beta] = jax.tree_map(lambda v, g: beta * v + (1 - beta) * g, avg, index_pytree(disturbances, h + H - 1))  # update emas
-        tstate = _hallucinate(cparams, tstate, slice_pytree(disturbances, h, H), emas, {'x': batches['x'][h], 'y': batches['y'][h]})
+        tstate = _hallucinate(cparams, tstate, slice_pytree(disturbances, h, H), emas, batch)
+        carry = (tstate, emas, h + 1)
+        return carry, None
+    (tstate, _, _), _ = jax.lax.scan(_evolve, (initial_tstate, initial_emas, 0), slice_pytree(batches, 0, HH))
     loss, _ = forward(tstate, index_pytree(batches, -1))
+
+    # tstate = initial_tstate
+    # emas = initial_emas
+    # for h in range(HH):
+    #     # update emas or something like that, then hallucinate
+    #     for beta, avg in emas.items(): emas[beta] = jax.tree_map(lambda v, g: beta * v + (1 - beta) * g, avg, index_pytree(disturbances, h + H - 1))  # update emas
+    #     tstate = _hallucinate(cparams, tstate, slice_pytree(disturbances, h, H), emas, {'x': batches['x'][h], 'y': batches['y'][h]})
+    # loss, _ = forward(tstate, index_pytree(batches, -1))
     
     return loss
 
