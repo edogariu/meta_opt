@@ -74,11 +74,12 @@ def _hallucinate(cparams, tstate, disturbances, emas, batch):
     tstate = tstate.replace(params=params)
     return tstate
 
-@jax.jit
+# @jax.jit
 def _compute_loss(cparams, H, HH, initial_tstate, 
                   disturbances,  # past H + HH disturbances
                   initial_emas,  # dict of the `{momentum_coefficient: pytree_of_running_avgs}` sort
-                  batches,  # past HH + 1 batches, starting at the one that would have been used to evolve `initial_params` and ending with the current one
+                  batches,  # past HH batches, starting at the one that would have been used to evolve `initial_params`
+                  curr_batch,  #  the current one
                  ):
     def _evolve(carry, batch):
         tstate, emas, h = carry
@@ -86,8 +87,8 @@ def _compute_loss(cparams, H, HH, initial_tstate,
         tstate = _hallucinate(cparams, tstate, slice_pytree(disturbances, h, H), emas, batch)
         carry = (tstate, emas, h + 1)
         return carry, None
-    (tstate, _, _), _ = jax.lax.scan(_evolve, (initial_tstate, initial_emas, 0), slice_pytree(batches, 0, HH))
-    loss, _ = forward(tstate, index_pytree(batches, -1))
+    (tstate, _, _), _ = jax.lax.scan(_evolve, (initial_tstate, initial_emas, 0), batches)
+    loss, _ = forward(tstate, curr_batch)
 
     # tstate = initial_tstate
     # emas = initial_emas
@@ -95,7 +96,7 @@ def _compute_loss(cparams, H, HH, initial_tstate,
     #     # update emas or something like that, then hallucinate
     #     for beta, avg in emas.items(): emas[beta] = jax.tree_map(lambda v, g: beta * v + (1 - beta) * g, avg, index_pytree(disturbances, h + H - 1))  # update emas
     #     tstate = _hallucinate(cparams, tstate, slice_pytree(disturbances, h, H), emas, {'x': batches['x'][h], 'y': batches['y'][h]})
-    # loss, _ = forward(tstate, index_pytree(batches, -1))
+    # lostt, _ = forward(tstate, curr_batch)
     
     return loss
 
@@ -106,9 +107,10 @@ def update(cstate,
            initial_tstate,  # tstate from HH steps ago
            disturbances,  # past H + HH disturbances
            initial_emas,  # dict of the `{momentum_coefficient: pytree_of_running_avgs}` sort
-           batches,  # past HH + 1 batches, starting at the one that would have been used to evolve `initial_params` and ending with the current one
+           batches,  # past HH batches, starting at the one that would have been used to evolve `initial_params`
+           curr_batch,  #  the current one
           ):
-    grads = _grad_fn(cstate.cparams, cstate.H, cstate.HH, initial_tstate, disturbances, initial_emas, batches)    
+    grads = _grad_fn(cstate.cparams, cstate.H, cstate.HH, initial_tstate, disturbances, initial_emas, batches, curr_batch)    
     updates, new_opt_state = cstate.tx.update(grads[0], cstate.opt_state, cstate.cparams)
     cparams = optax.apply_updates(cstate.cparams, updates)
     return cstate.replace(cparams=cparams, opt_state=new_opt_state)   
@@ -141,7 +143,7 @@ class MetaOpt:
         self.tstate_history = (None,) * (HH + 1)
         self.grad_history = jax.tree_map(lambda p: jnp.zeros((H + HH, *p.shape)), initial_tstate.params)
         self.emas = {k: jax.tree_map(jnp.zeros_like, initial_tstate.params) for k in ema_keys}
-        self.batch_history = None  # this will be size HH + 1 because we hallucinate on `batch_history[:HH]` and compute stage loss via `batch_history[-1]`
+        self.batch_history = None  # this will be size HH
         self.t = 0
 
         assert m_method in ['scalar', 'diagonal']
@@ -153,9 +155,8 @@ class MetaOpt:
                   grads,  # grads from the step of gd that resulted in `tstate`
                   batch,  # batch from step of gd that resulted in `tstate`
                  ):      
-        # add the current batch to the history of batches. lazy initialize the history if it is still `None``
-        if self.batch_history is None: self.batch_history = {k: jnp.repeat(v[None], self.HH + 1, axis=0) for k, v in batch.items()}
-        for k in self.batch_history.keys(): self.batch_history[k] = append(self.batch_history[k], batch[k])        
+        # lazy initialize the history if it is still `None``
+        if self.batch_history is None: self.batch_history = {k: jnp.repeat(v[None], self.HH, axis=0) for k, v in batch.items()}
 
         # clip disturbances (K = 10 is very soft)
         K = 10; grads = jax.tree_map(lambda g: jnp.clip(g, -K, K), grads)
@@ -174,9 +175,10 @@ class MetaOpt:
                 for beta, avg in self.emas.items():
                     if j == 1: initial_emas[beta] = avg
                     initial_emas[beta] = jax.tree_map(lambda v, g: (v - (1 - beta) * g) / beta, initial_emas[beta], grad)  # reverse the emas
-            self.cstate = update(self.cstate, self.tstate_history[0], self.grad_history, initial_emas, self.batch_history)
+            self.cstate = update(self.cstate, self.tstate_history[0], self.grad_history, initial_emas, self.batch_history, batch)
             
         self.tstate_history = append(self.tstate_history, tstate)
+        for k in self.batch_history.keys(): self.batch_history[k] = append(self.batch_history[k], batch[k]) 
         self.t += 1
         return tstate
     
