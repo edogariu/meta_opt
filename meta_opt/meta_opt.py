@@ -103,18 +103,17 @@ def _compute_loss(cparams, H, HH, initial_tstate,
     # loss, _ = forward(tstate, curr_batch)
     
     # the memory-optimized way?
-    prev_tstate = initial_tstate
+    tstate = initial_tstate
     emas = initial_emas
     for h in range(HH):
         # update emas or something like that, then hallucinate
         for beta, avg in emas.items(): emas[beta] = jax.tree_map(lambda v, g: beta * v + (1 - beta) * g, avg, index_pytree(disturbances, h + H - 1))  # update emas
-        temp, _ = train_step(prev_tstate, {'x': batches['x'][h], 'y': batches['y'][h]})
-        del prev_tstate
+        temp, _ = train_step(tstate, {'x': batches['x'][h], 'y': batches['y'][h]})
+        del tstate
         params = add_pytrees(temp.params, compute_control(cparams, slice_pytree(disturbances, h, H), emas))
         tstate = temp.replace(params=params)
         del params, temp
     loss, _ = forward(tstate, curr_batch)
-    
     
     return loss
 
