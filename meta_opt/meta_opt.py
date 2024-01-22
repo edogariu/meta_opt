@@ -153,7 +153,7 @@ class MetaOpt:
         self.batch_history = append(self.batch_history, batch)        
 
         # clip disturbances (K = 10 is very soft)
-        K = 10; grads = jax.tree_map(lambda g: jnp.clip(g, -K, K), grads)
+        # K = 10; grads = jax.tree_map(lambda g: jnp.clip(g, -K, K), grads)
                      
         self.grad_history = jax.tree_map(append, self.grad_history, grads)
         for beta, avg in self.emas.items(): self.emas[beta] = jax.tree_map(lambda v, g: beta * v + (1 - beta) * g, avg, grads)  # update emas
