@@ -81,24 +81,40 @@ def _compute_loss(cparams, H, HH, initial_tstate,
                   batches,  # past HH batches, starting at the one that would have been used to evolve `initial_params`
                   curr_batch,  #  the current one
                  ):
-    def _evolve(carry, batch):
-        tstate, emas, h = carry
-        for beta, avg in emas.items(): emas[beta] = jax.tree_map(lambda v, g: beta * v + (1 - beta) * g, avg, index_pytree(disturbances, h + H - 1))  # update emas
-        tstate, _ = train_step(tstate, batch)
-        params = add_pytrees(tstate.params, compute_control(cparams, slice_pytree(disturbances, h, H), emas))
-        tstate = tstate.replace(params=params)
-        return (tstate, emas, h + 1), None
+    # # the scanning way
+    # def _evolve(carry, batch):
+    #     tstate, emas, h = carry
+    #     for beta, avg in emas.items(): emas[beta] = jax.tree_map(lambda v, g: beta * v + (1 - beta) * g, avg, index_pytree(disturbances, h + H - 1))  # update emas
+    #     tstate, _ = train_step(tstate, batch)
+    #     params = add_pytrees(tstate.params, compute_control(cparams, slice_pytree(disturbances, h, H), emas))
+    #     tstate = tstate.replace(params=params)
+    #     return (tstate, emas, h + 1), None
     
-    (tstate, _, _), _ = jax.lax.scan(_evolve, (initial_tstate, initial_emas, 0), batches)
-    loss, _ = forward(tstate, curr_batch)
+    # (tstate, _, _), _ = jax.lax.scan(_evolve, (initial_tstate, initial_emas, 0), batches)
+    # loss, _ = forward(tstate, curr_batch)
 
+    # # the original way
     # tstate = initial_tstate
     # emas = initial_emas
     # for h in range(HH):
     #     # update emas or something like that, then hallucinate
     #     for beta, avg in emas.items(): emas[beta] = jax.tree_map(lambda v, g: beta * v + (1 - beta) * g, avg, index_pytree(disturbances, h + H - 1))  # update emas
     #     tstate = _hallucinate(cparams, tstate, slice_pytree(disturbances, h, H), emas, {'x': batches['x'][h], 'y': batches['y'][h]})
-    # lostt, _ = forward(tstate, curr_batch)
+    # loss, _ = forward(tstate, curr_batch)
+    
+    # the memory-optimized way?
+    prev_tstate = initial_tstate
+    emas = initial_emas
+    for h in range(HH):
+        # update emas or something like that, then hallucinate
+        for beta, avg in emas.items(): emas[beta] = jax.tree_map(lambda v, g: beta * v + (1 - beta) * g, avg, index_pytree(disturbances, h + H - 1))  # update emas
+        temp, _ = train_step(prev_tstate, {'x': batches['x'][h], 'y': batches['y'][h]})
+        del prev_tstate
+        params = add_pytrees(temp.params, compute_control(cparams, slice_pytree(disturbances, h, H), emas))
+        tstate = temp.replace(params=params)
+        del params, temp
+    loss, _ = forward(tstate, curr_batch)
+    
     
     return loss
 
