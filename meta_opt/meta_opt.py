@@ -68,7 +68,6 @@ def compute_control(cparams, disturbances, emas):
             control = add_pytrees(control, *map(multiply_pytrees, M_ema.values(), emas.values()))
     return control
 
-@jax.jit
 def _hallucinate(cparams, tstate, disturbances, emas, batch):
     tstate, _ = train_step(tstate, batch)
     params = add_pytrees(tstate.params, compute_control(cparams, disturbances, emas))
@@ -80,21 +79,23 @@ def _compute_loss(cparams, H, HH, initial_tstate,
                   initial_emas,  # dict of the `{momentum_coefficient: pytree_of_running_avgs}` sort
                   batches,  # past HH + 1 batches, starting at the one that would have been used to evolve `initial_params` and ending with the current one
                  ):
-    # def _evolve(tstate, h):
-    #     tstate, _ = gradient_descent(tstate, batches[h])
-    #     params = jax.tree_map(lambda p, c: p + c, tstate.params, compute_control(M, slice_pytree(disturbances, h, H)))
-    #     return tstate.replace(params=params), None
-    # tstate, _ = jax.lax.scan(_evolve, initial_tstate, jnp.arange(HH))
-    # loss = forward(tstate, batches[-1])
-    # return loss
-
-    tstate = initial_tstate
-    emas = initial_emas
-    for h in range(HH):
-        # update emas or something like that, then hallucinate
+    def _evolve(carry, batch):
+        tstate, emas, h = carry
         for beta, avg in emas.items(): emas[beta] = jax.tree_map(lambda v, g: beta * v + (1 - beta) * g, avg, index_pytree(disturbances, h + H - 1))  # update emas
-        tstate = _hallucinate(cparams, tstate, slice_pytree(disturbances, h, H), emas, batches[h])
-    loss, _ = forward(tstate, batches[-1])
+        tstate = _hallucinate(cparams, tstate, slice_pytree(disturbances, h, H), emas, batch)
+        carry = (tstate, emas, h + 1)
+        return carry, None
+    (tstate, _, _), _ = jax.lax.scan(_evolve, (initial_tstate, initial_emas, 0), slice_pytree(batches, 0, HH))
+    loss, _ = forward(tstate, index_pytree(batches, -1))
+
+    # tstate = initial_tstate
+    # emas = initial_emas
+    # for h in range(HH):
+    #     # update emas or something like that, then hallucinate
+    #     for beta, avg in emas.items(): emas[beta] = jax.tree_map(lambda v, g: beta * v + (1 - beta) * g, avg, index_pytree(disturbances, h + H - 1))  # update emas
+    #     tstate = _hallucinate(cparams, tstate, slice_pytree(disturbances, h, H), emas, {'x': batches['x'][h], 'y': batches['y'][h]})
+    # loss, _ = forward(tstate, index_pytree(batches, -1))
+    
     return loss
 
 _grad_fn = jax.grad(_compute_loss, (0,))
@@ -106,7 +107,6 @@ def update(cstate,
            initial_emas,  # dict of the `{momentum_coefficient: pytree_of_running_avgs}` sort
            batches,  # past HH + 1 batches, starting at the one that would have been used to evolve `initial_params` and ending with the current one
           ):
-    
     grads = _grad_fn(cstate.cparams, cstate.H, cstate.HH, initial_tstate, disturbances, initial_emas, batches)    
     updates, new_opt_state = cstate.tx.update(grads[0], cstate.opt_state, cstate.cparams)
     cparams = optax.apply_updates(cstate.cparams, updates)
@@ -125,6 +125,8 @@ class MetaOpt:
     batch_history: Tuple
     cstate: MetaOptGPCState
     t: int
+    H: int
+    HH: int
 
     def __init__(self,
                  initial_tstate,
@@ -134,10 +136,11 @@ class MetaOpt:
                  grad_clip: float,
                  ema_keys = [], 
                  ):
+        self.H, self.HH = H, HH
         self.tstate_history = (None,) * (HH + 1)
         self.grad_history = jax.tree_map(lambda p: jnp.zeros((H + HH, *p.shape)), initial_tstate.params)
         self.emas = {k: jax.tree_map(jnp.zeros_like, initial_tstate.params) for k in ema_keys}
-        self.batch_history = (None,) * (HH + 1)  # need one more because we hallucinate on `batch_history[:HH]` and compute stage loss via `batch_history[-1]`
+        self.batch_history = None  # this will be size HH + 1 because we hallucinate on `batch_history[:HH]` and compute stage loss via `batch_history[-1]`
         self.t = 0
 
         assert m_method in ['scalar', 'diagonal']
@@ -149,11 +152,12 @@ class MetaOpt:
                   grads,  # grads from the step of gd that resulted in `tstate`
                   batch,  # batch from step of gd that resulted in `tstate`
                  ):      
-        
-        self.batch_history = append(self.batch_history, batch)        
+        # add the current batch to the history of batches. lazy initialize the history if it is still `None``
+        if self.batch_history is None: self.batch_history = {k: jnp.repeat(v[None], self.HH + 1, axis=0) for k, v in batch.items()}
+        for k in self.batch_history.keys(): self.batch_history[k] = append(self.batch_history[k], batch[k])        
 
         # clip disturbances (K = 10 is very soft)
-        # K = 10; grads = jax.tree_map(lambda g: jnp.clip(g, -K, K), grads)
+        K = 10; grads = jax.tree_map(lambda g: jnp.clip(g, -K, K), grads)
                      
         self.grad_history = jax.tree_map(append, self.grad_history, grads)
         for beta, avg in self.emas.items(): self.emas[beta] = jax.tree_map(lambda v, g: beta * v + (1 - beta) * g, avg, grads)  # update emas
@@ -179,7 +183,7 @@ class MetaOpt:
         H, HH = self.cstate.H, self.cstate.HH
         self.grad_history = jax.tree_map(jnp.zeros_like, self.grad_history)
         self.tstate_history = (None,) * (HH + 1)
-        self.batch_history = (None,) * (HH + 1)
+        self.batch_history = None
         self.t = 0
         self.cstate = self.cstate.replace(opt_state=self.cstate.tx.init(self.cstate.cparams))
         return self
