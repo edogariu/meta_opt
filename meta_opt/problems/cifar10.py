@@ -26,9 +26,9 @@ def load_cifar10(cfg, dataset_dir: str = './datasets') -> Tuple[tf.data.Dataset,
                                                          tf.float32) / 255.,
                                         'y': sample['label']}) # normalize test set
     
-    num_epochs = 1 + (num_iters * batch_size) // len(train_ds)
+    num_epochs = int(1 + (num_iters * batch_size) / len(train_ds))
     train_ds = train_ds.repeat(num_epochs).shuffle(1024).batch(batch_size, drop_remainder=True).take(num_iters).prefetch(tf.data.AUTOTUNE)
-    test_ds = test_ds.batch(batch_size, drop_remainder=True).shuffle(1024).prefetch(tf.data.AUTOTUNE)
+    test_ds = test_ds.shuffle(1024).batch(batch_size, drop_remainder=True).prefetch(tf.data.AUTOTUNE)
     
     return train_ds, test_ds, jnp.zeros((1, 32, 32, 3)), cross_entropy, {'loss': cross_entropy, 'acc': accuracy}  # train dataset, test dataset, unbatched input dimensions, loss function, eval metrics
 
