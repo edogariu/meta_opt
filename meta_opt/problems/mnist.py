@@ -1,6 +1,6 @@
 from typing import Tuple, Callable, List
 
-import tensorflow as tf
+import tensorflow as tf; tf.config.experimental.set_visible_devices([], "GPU")
 import tensorflow_datasets as tfds
 
 import jax.numpy as jnp
@@ -11,8 +11,9 @@ from .utils import cross_entropy, accuracy
 # ------------------------------------------------------------------
 # ------------------------- Dataset --------------------------------
 # ------------------------------------------------------------------
-def load_mnist(num_iters: int, batch_size: int, num_eval_iters: int = -1, dataset_dir: str = './datasets') -> Tuple[tf.data.Dataset, tf.data.Dataset, List[int], Callable, Callable]:
+def load_mnist(cfg, dataset_dir: str = './datasets') -> Tuple[tf.data.Dataset, tf.data.Dataset, List[int], Callable, Callable]:
     """Load MNIST train and test datasets into memory."""
+    num_iters, batch_size, num_eval_iters = cfg['num_iters'], cfg['batch_size'], cfg['num_eval_iters']
     train_ds = tfds.load('mnist', split='train', data_dir=dataset_dir)
     test_ds = tfds.load('mnist', split='test', data_dir=dataset_dir)
     if num_eval_iters != -1: 
@@ -26,7 +27,7 @@ def load_mnist(num_iters: int, batch_size: int, num_eval_iters: int = -1, datase
                                                          tf.float32) / 255.,
                                         'y': sample['label']}) # normalize test set
     
-    num_epochs = 1 + (num_iters * batch_size) // len(train_ds)
+    num_epochs = int(1 + (num_iters * batch_size) / len(train_ds))
     train_ds = train_ds.repeat(num_epochs).shuffle(1024).batch(batch_size, drop_remainder=True).take(num_iters).prefetch(tf.data.AUTOTUNE)
     test_ds = test_ds.shuffle(1024).batch(batch_size, drop_remainder=True).prefetch(tf.data.AUTOTUNE)
     

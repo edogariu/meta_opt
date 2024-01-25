@@ -1,6 +1,6 @@
 from typing import Tuple, Callable, List
 
-import tensorflow as tf
+import tensorflow as tf; tf.config.experimental.set_visible_devices([], "GPU")
 import tensorflow_datasets as tfds
 
 import jax.numpy as jnp
@@ -10,8 +10,9 @@ from .utils import cross_entropy, accuracy
 # ------------------------------------------------------------------
 # ------------------------- Dataset --------------------------------
 # ------------------------------------------------------------------
-def load_cifar10(num_iters: int, batch_size: int, num_eval_iters: int = -1, dataset_dir: str = './datasets') -> Tuple[tf.data.Dataset, tf.data.Dataset, List[int], Callable, Callable]:
+def load_cifar10(cfg, dataset_dir: str = './datasets') -> Tuple[tf.data.Dataset, tf.data.Dataset, List[int], Callable, Callable]:
     """Load CIFAR-10 train and test datasets into memory."""
+    num_iters, batch_size, num_eval_iters = cfg['num_iters'], cfg['batch_size'], cfg['num_eval_iters']
     train_ds = tfds.load('cifar10', split='train', data_dir=dataset_dir)
     test_ds = tfds.load('cifar10', split='test', data_dir=dataset_dir)
     if num_eval_iters != -1: 

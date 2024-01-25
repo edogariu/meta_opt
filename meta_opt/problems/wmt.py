@@ -96,8 +96,9 @@ def _compute_weighted_accuracy(logits, targets, weights=None):
 # ------------------------------ Dataset ---------------------------
 # ------------------------------------------------------------------
 
-def load_wmt(num_iters: int, batch_size: int, dataset_dir: str = './datasets', num_eval_iters: int = 256) -> Tuple[tf.data.Dataset, tf.data.Dataset, List[int], Callable, Callable]:
+def load_wmt(cfg, dataset_dir: str = './datasets') -> Tuple[tf.data.Dataset, tf.data.Dataset, List[int], Callable, Callable]:
     """Load WMT DE/EN train and test datasets into memory."""
+    num_iters, batch_size, num_eval_iters = cfg['num_iters'], cfg['batch_size'], cfg['num_eval_iters']
     (train_ds, test_ds), tokenizer = _get_wmt_datasets(dataset_name='wmt14_translate/de-en',
                                                        eval_dataset_name='wmt14_translate/de-en',
                                                        dataset_dir=dataset_dir,
