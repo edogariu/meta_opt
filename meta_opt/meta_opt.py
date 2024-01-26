@@ -143,7 +143,7 @@ class MetaOpt:
         else: 
             for _ in range(self.cstate.HH): 
                 tstate, loss, self.grad_history, self.emas = jax.jit(_roll_forward)(tstate, batch, self.grad_history, self.emas)
-        self.t += 1
+        self.t += self.cstate.HH
         return tstate, (loss, index_pytree(self.grad_history, -1))
     
     def episode_reset(self):
