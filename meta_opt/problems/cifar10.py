@@ -86,7 +86,7 @@ class VGG16(jnn.Module):
 
         # flatten and produce logits        
         x = x.reshape((x.shape[0], -1))
-        x = jnn.Dropout(0.2, deterministic=not train)(x)
+        x = jnn.Dropout(0.5, deterministic=not train)(x)
         x = jnn.activation.relu(jnn.Dense(features=512)(x))
         x = jnn.BatchNorm(use_running_average=not train)(x)
         x = jnn.Dense(features=10)(x)
