@@ -60,6 +60,8 @@ class VGG16(jnn.Module):
     
     @jnn.compact
     def __call__(self, x, train: bool):
+        train = not train
+        
         # first stage
         x = ConvBNReLU(num_channels=64, kernel_size=3, name='conv1_1', dropout=0.1)(x, train)
         x = ConvBNReLU(num_channels=64, kernel_size=3, name='conv1_2', dropout=0.1)(x, train)
