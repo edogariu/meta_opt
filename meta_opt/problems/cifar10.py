@@ -61,32 +61,32 @@ class VGG16(jnn.Module):
     @jnn.compact
     def __call__(self, x, train: bool):
         # first stage
-        x = ConvBNReLU(num_channels=64, kernel_size=3, name='conv1_1', dropout=0.1)(x, train)
-        x = ConvBNReLU(num_channels=64, kernel_size=3, name='conv1_2', dropout=0.1)(x, train)
+        x = ConvBNReLU(num_channels=64, kernel_size=3, name='conv1_1', dropout=0.3)(x, train)
+        x = ConvBNReLU(num_channels=64, kernel_size=3, name='conv1_2', dropout=0.)(x, train)
         x = jnn.max_pool(x, (2, 2), (2, 2))
         # second stage
-        x = ConvBNReLU(num_channels=128, kernel_size=3, name='conv2_1', dropout=0.1)(x, train)
-        x = ConvBNReLU(num_channels=128, kernel_size=3, name='conv2_2', dropout=0.1)(x, train)
+        x = ConvBNReLU(num_channels=128, kernel_size=3, name='conv2_1', dropout=0.4)(x, train)
+        x = ConvBNReLU(num_channels=128, kernel_size=3, name='conv2_2', dropout=0.)(x, train)
         x = jnn.max_pool(x, (2, 2), (2, 2))
         # third stage
-        x = ConvBNReLU(num_channels=256, kernel_size=3, name='conv3_1', dropout=0.1)(x, train)
-        x = ConvBNReLU(num_channels=256, kernel_size=3, name='conv3_2', dropout=0.1)(x, train)
-        x = ConvBNReLU(num_channels=256, kernel_size=3, name='conv3_3', dropout=0.1)(x, train)
+        x = ConvBNReLU(num_channels=256, kernel_size=3, name='conv3_1', dropout=0.4)(x, train)
+        x = ConvBNReLU(num_channels=256, kernel_size=3, name='conv3_2', dropout=0.4)(x, train)
+        x = ConvBNReLU(num_channels=256, kernel_size=3, name='conv3_3', dropout=0.)(x, train)
         x = jnn.max_pool(x, (2, 2), (2, 2))
         # fourth stage
-        x = ConvBNReLU(num_channels=512, kernel_size=3, name='conv4_1', dropout=0.1)(x, train)
-        x = ConvBNReLU(num_channels=512, kernel_size=3, name='conv4_2', dropout=0.1)(x, train)
-        x = ConvBNReLU(num_channels=512, kernel_size=3, name='conv4_3', dropout=0.1)(x, train)
+        x = ConvBNReLU(num_channels=512, kernel_size=3, name='conv4_1', dropout=0.4)(x, train)
+        x = ConvBNReLU(num_channels=512, kernel_size=3, name='conv4_2', dropout=0.4)(x, train)
+        x = ConvBNReLU(num_channels=512, kernel_size=3, name='conv4_3', dropout=0.)(x, train)
         x = jnn.max_pool(x, (2, 2), (2, 2))
         # fifth stage
-        x = ConvBNReLU(num_channels=512, kernel_size=3, name='conv5_1', dropout=0.1)(x, train)
-        x = ConvBNReLU(num_channels=512, kernel_size=3, name='conv5_2', dropout=0.1)(x, train)
-        x = ConvBNReLU(num_channels=512, kernel_size=3, name='conv5_3', dropout=0.1)(x, train)
+        x = ConvBNReLU(num_channels=512, kernel_size=3, name='conv5_1', dropout=0.4)(x, train)
+        x = ConvBNReLU(num_channels=512, kernel_size=3, name='conv5_2', dropout=0.4)(x, train)
+        x = ConvBNReLU(num_channels=512, kernel_size=3, name='conv5_3', dropout=0.)(x, train)
         x = jnn.max_pool(x, (2, 2), (2, 2))
 
         # flatten and produce logits        
         x = x.reshape((x.shape[0], -1))
-        x = jnn.Dropout(0.1, deterministic=not train)(x)
+        x = jnn.Dropout(0.2, deterministic=not train)(x)
         x = jnn.activation.relu(jnn.Dense(features=512)(x))
         x = jnn.BatchNorm(use_running_average=not train)(x)
         x = jnn.Dense(features=10)(x)
