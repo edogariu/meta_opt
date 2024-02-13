@@ -14,10 +14,11 @@ def load_cifar10(cfg, dataset_dir: str = './datasets') -> Tuple[tf.data.Dataset,
     """Load CIFAR-10 train and test datasets into memory."""
     num_iters, batch_size, num_eval_iters = cfg['num_iters'], cfg['batch_size'], cfg['num_eval_iters']
     train_ds = tfds.load('cifar10', split='train', data_dir=dataset_dir)
-    test_ds = tfds.load('cifar10', split='test', data_dir=dataset_dir)
     if num_eval_iters != -1: 
         percent = min(int(100 * num_eval_iters * batch_size / len(test_ds)) + 1, 100)
-        test_ds = tfds.load('mnist', split=f'test[:{percent}%]', data_dir=dataset_dir)
+        test_ds = tfds.load('cifar10', split=f'test[:{percent}%]', data_dir=dataset_dir)
+    else:
+        test_ds = tfds.load('cifar10', split='test', data_dir=dataset_dir)
     
     train_ds = train_ds.map(lambda sample: {'x': tf.cast(sample['image'],
                                                            tf.float32) / 255.,
