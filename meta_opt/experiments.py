@@ -280,7 +280,6 @@ def print_stuff_and_load_checkpoint(cfg):
             load_experiment_checkpoint = False
         else:
             results = pkl.load(open(filename, 'rb'))
-            ret = pkl.load(open('{}/data/{}_processed.pkl'.format(directory, cfg['experiment_name']), 'rb'))
             print(f'\t{bcolors.OKGREEN}{bcolors.BOLD}loaded checkpoint from {filename}, containing {list(results.keys())}{bcolors.ENDC}')
     if not load_experiment_checkpoint:
         results = defaultdict(list)
@@ -325,7 +324,7 @@ def process_results(cfg, results):
             ret[stat_key][k]['std'] = np.std(arr, axis=1)
 
     filename = '{}/data/{}_processed.pkl'.format(cfg['directory'], cfg['experiment_name'])
-    assert cfg['overwrite'] or not os.path.isfile(filename), 'cannot save processed results with existing processed results and `overwrite=False`'
+    if not (cfg['overwrite'] or not os.path.isfile(filename)): print(f'{bcolors.FAIL}{bcolors.BOLD}cannot save processed results with existing processed results and `overwrite=False`{bcolors.ENDC}')
     with open(filename, 'wb') as f: pkl.dump(ret, f)
     print(f'{bcolors.OKGREEN}{bcolors.BOLD}Saved processed results to {filename}{bcolors.ENDC}')
     return ret
