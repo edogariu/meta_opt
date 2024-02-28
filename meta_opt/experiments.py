@@ -5,6 +5,9 @@ from copy import deepcopy
 import tqdm
 import dill as pkl
 import os
+import matplotlib.pyplot as plt
+import re
+import matplotlib.animation as animation
 
 import numpy as np
 import tensorflow as tf; tf.config.experimental.set_visible_devices([], "GPU")
@@ -13,26 +16,29 @@ import jax.numpy as jnp
 import optax
 
 from meta_opt.nn.trainer import create_train_state, reset_model, train_step, eval
-from meta_opt.problems import mnist, cifar10#, wmt  # WMT is a bit broken atm
+from meta_opt.workloads import mnist, cifar10#, wmt  # WMT is a bit broken atm
 from meta_opt.meta_opt import MetaOpt
 # from meta_opt.gaps import MetaOptGAPS  # we arent running GAPS experiments atm
 
 """
 All the utilities and such that are necessary to run our experiments, but aren't really an integral part of the `meta_opt` package itself.
 
-- To add a workload, add an extra entry in the `_get_problem()` function
+- To add a workload, add an extra entry in the `_get_workload()` function
     - current list: ['MNIST', 'CIFAR',]
 - To add an optimization algorithm, create a new `train_*()` function like the ones below
     - current list: any standard optax optimizer, meta opt, hypergradient decent
 """
 
-def _get_problem(cfg, optimizer):
+def _get_workload(cfg, optimizer):
     rng, cfg['seed'] = _set_seed(cfg['seed'])
     init_rng, rng = jax.random.split(rng)
     directory = cfg['directory']
 
     # get dataset and model
-    if cfg['workload'] == 'MNIST':
+    if cfg['workload'] == 'NONCONVEX_QUADRATIC':
+        # TODO implement
+        pass
+    elif cfg['workload'] == 'MNIST':
         train_ds, test_ds, example_input, loss_fn, metric_fns = mnist.load_mnist(cfg, dataset_dir=os.path.join(directory, 'datasets'))
         model = mnist.MLP([28 * 28, 100, 100, 10])
     elif cfg['workload'] == 'CIFAR':
@@ -62,7 +68,7 @@ def _get_problem(cfg, optimizer):
 # -------------------------------------------------------------------------------------------------
 
 def train_standard_opt(cfg, optimizer):
-    tstate, train_ds, test_ds, rng, args = _get_problem(cfg, optimizer)
+    tstate, train_ds, test_ds, rng, args = _get_workload(cfg, optimizer)
 
     stats = defaultdict(dict)
     args['optimizer_args'] = _get_opt_hyperparams(tstate.opt_state)
@@ -121,7 +127,7 @@ def train_meta_opt(cfg,
         else: return t % n < HH
     
     optimizer = optax.chain(optax.add_decayed_weights(1e-5), optax.sgd(learning_rate=initial_lr))
-    tstate, train_ds, test_ds, rng, args = _get_problem(dict(cfg, **({'num_iters': cfg['num_iters'] // HH} if not counterfactual else {})), optimizer)
+    tstate, train_ds, test_ds, rng, args = _get_workload(dict(cfg, **({'num_iters': cfg['num_iters'] // HH} if not counterfactual else {})), optimizer)
     meta_opt = MetaOpt(tstate, H=H, HH=HH, m_method=m_method, meta_optimizer=meta_optimizer, ema_keys=ema_keys, grad_clip=grad_clip)
 
     stats = defaultdict(dict)
@@ -188,7 +194,7 @@ def train_meta_opt(cfg,
 def train_hgd(cfg, initial_lr: float, hypergrad_lr: float):
 
     optimizer = optax.inject_hyperparams(optax.sgd)(learning_rate=initial_lr)
-    tstate, train_ds, test_ds, rng, args = _get_problem(cfg, optimizer)
+    tstate, train_ds, test_ds, rng, args = _get_workload(cfg, optimizer)
 
     stats = defaultdict(dict)
     args['optimizer_name'] = 'hgd'
@@ -330,3 +336,78 @@ def process_results(cfg, results):
     else:
         print(f'{bcolors.FAIL}{bcolors.BOLD}cannot save processed results with existing processed results and `overwrite=False`{bcolors.ENDC}')
     return ret
+
+
+def animate(results, Ms, downsample, bounds):
+    downsample_factor = downsample  # how many timesteps to move forward every animation step
+    ymin, ymax = bounds
+
+    anim_data = []  # each entry is a dictionary containing the M values for that animation step
+    _Ms = {k: (np.array(v[0]), v[1]) for k, v in Ms.items()}
+    H_max = max([v[1].shape[1] for v in _Ms.values()])
+    T = list(results.values())[0][0]['args']['num_iters']
+    name = results['experiment_name']
+    for t in range(0, T, downsample_factor):
+        temp = {}
+        for k, (ts, vals) in _Ms.items(): temp[k] = vals[max(0, np.argmax(ts > t) - 1)]
+        anim_data.append(temp)
+
+    fig = plt.figure()  # initializing a figure in which the graph will be plotted
+    ax = plt.axes(xlim =(0, H_max), ylim=(ymin, ymax))  # marking the x-axis and y-axis
+    ax.set_xlabel('number of steps in the past')
+    ax.set_ylabel('M coefficient')
+
+    # initializing a line variable
+    ls = {}
+    for k in _Ms.keys():
+        ls[k], = ax.plot([], [], lw = 3, label=k)
+    legend = ax.legend()
+
+    # data which the line will contain (x, y)
+    def init():
+        for l in ls.values(): l.set_data([], [])
+        return list(ls.values())
+
+    def animate(i):
+        for k, M in anim_data[i].items():
+            x, y = range(0, len(M)), M
+            ls[k].set_data(x, y[::-1])
+            # line.set_label(i)
+        # legend.get_texts()[0].set_text(i * downsample_factor) #Update label each at frame
+        ax.set_title(f'timestep #{i * downsample_factor} of meta-opt on {name}')
+        return list(ls.values())
+
+    anim = animation.FuncAnimation(fig, animate, init_func = init,
+                        frames = T // downsample_factor, interval = downsample_factor, blit = True)
+    return anim
+
+def plot(results, processed_results, keys_to_plot, anim_downsample_factor=200, anim_bounds=(-0.4, 0.1)):
+    fig, ax = plt.subplots(len(processed_results), 1, figsize=(10, 32))
+    Ms = {}
+    for i, stat_key in enumerate(processed_results.keys()):
+        ax[i].set_title(stat_key)
+        for experiment_name in processed_results[stat_key].keys():
+            if (isinstance(keys_to_plot, list) and experiment_name not in keys_to_plot) or (isinstance(keys_to_plot, str) and not re.match(keys_to_plot, experiment_name)): 
+                # print(f'skipped {experiment_name}')
+                continue
+            ts, avgs, stds = processed_results[stat_key][experiment_name]['t'], processed_results[stat_key][experiment_name]['avg'], processed_results[stat_key][experiment_name]['std']
+            if avgs.ndim == 2:  # how to handle stats that are vectors (such as the Ms for scalar meta-opt)
+                Ms[experiment_name] = (ts, avgs)
+                ax[i].plot(ts, avgs.sum(axis=-1), label=experiment_name)
+                stds = ((stds ** 2).sum(axis=-1)) ** 0.5
+                ax[i].fill_between(ts, avgs.sum(axis=-1) - 1.96 * stds, avgs.sum(axis=-1) + 1.96 * stds, alpha=0.2)
+                # for j in range(avgs.shape[1]):
+                #     ax[i].plot(ts, avgs[:, j], label=f'{experiment_name} {str(j)}')
+                #     ax[i].fill_between(ts, avgs[:, j] - 1.96 * stds[:, j], avgs[:, j] + 1.96 * stds[:, j], alpha=0.2)
+            else:
+                if stat_key in ['loss', 'grad_sq_norm', 'eval_acc', 'eval_loss']:
+                    n = 20
+                    kernel = np.array([1 / n,] * n)
+                    avgs = np.convolve(avgs, kernel)[n // 2:n // 2 + avgs.shape[0]]
+                    stds = np.convolve(stds ** 2, kernel ** 2)[n // 2:n // 2 + stds.shape[0]] ** 0.5
+                ax[i].plot(ts, avgs, label=experiment_name)
+                ax[i].fill_between(ts, avgs - 1.96 * stds, avgs + 1.96 * stds, alpha=0.2)
+    for a in ax: a.legend()
+    anim = animate(results, Ms, anim_downsample_factor, anim_bounds)
+    plt.close()
+    return (fig, ax), anim
