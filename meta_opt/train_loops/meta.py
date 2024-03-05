@@ -21,7 +21,8 @@ def train_meta_opt(cfg,
                    meta_optimizer, 
                    H: int, HH: int, 
                    m_method: str = 'scalar', 
-                   initial_lr: float = 1e-4, grad_clip = 10, dtype=jax.numpy.float32): 
+                   initial_lr: float = 1e-4, grad_clip = 10, dtype=jax.numpy.float32,
+                   cparams_initial = None): 
     
     """
     note that if we aren't counterfactual, we have to rescale the number of iterations by HH to account for taking HH training steps every noncounterfactual meta step
@@ -31,6 +32,8 @@ def train_meta_opt(cfg,
     optimizer = optax.chain(optax.add_decayed_weights(1e-5), optax.sgd(learning_rate=initial_lr))
     tstate, train_ds, test_ds, rng, args = get_workload(dict(cfg, **({'num_iters': cfg['num_iters'] // HH} if not counterfactual else {})), optimizer)
     meta_opt = MetaOpt(tstate, H=H, HH=HH, m_method=m_method, meta_optimizer=meta_optimizer, grad_clip=grad_clip, dtype=dtype)
+    
+    if cparams_initial is not None: meta_opt.cstate = meta_opt.cstate.replace(cparams=cparams_initial)
 
     def check(t, k):  # to check conditions that happen every `n` steps, since `t` will increment by 1 if counterfactual and by `HH` otherwise
         n = args[k]
