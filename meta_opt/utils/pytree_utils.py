@@ -1,36 +1,6 @@
-from typing import List, Tuple
-from scipy.linalg import solve_discrete_are
+from typing import Tuple
 import jax
 import jax.numpy as jnp
-
-@jax.jit
-def quad_loss(x: jnp.ndarray, u: jnp.ndarray) -> float:
-    """
-    Quadratic loss.
-
-    Args:
-        x (jnp.ndarray):
-        u (jnp.ndarray):
-
-    Returns:
-        Real
-    """
-    return jnp.sum(x.T @ x + u.T @ u)
-
-def clip(x: jnp.ndarray, max_norm: float):
-    norm = jnp.linalg.norm(x)  
-    x *= jnp.minimum(1., max_norm / norm)
-    return x
-
-def dare_gain(A: jnp.ndarray,
-              B: jnp.ndarray,
-              Q: jnp.ndarray = None,
-              R: jnp.ndarray = None):
-    if Q is None: Q = jnp.eye(B.shape[0])
-    if R is None: R = jnp.eye(B.shape[1])
-    P = solve_discrete_are(A, B, Q, R)
-    K = jnp.linalg.inv(B.T @ P @ B + R) @ (B.T @ P @ A)  # compute LQR gain
-    return -K
 
 @jax.jit
 def _append(arr, val):
@@ -83,3 +53,7 @@ def multiply_pytree_by_scalar(scalar, pytree):
     multiply pytree with a scalar elementwise
     """
     return jax.tree_map(lambda p: scalar * p, pytree)
+
+@jax.jit
+def pytree_sq_norm(pytree):
+    return sum(jax.tree_util.tree_flatten(jax.tree_map(lambda p: (p * p).sum(), pytree))[0])

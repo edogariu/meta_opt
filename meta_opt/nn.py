@@ -16,13 +16,15 @@ class TrainState(train_state.TrainState):
     model: jnn.Module = struct.field(pytree_node=False)
     example_input: jnp.ndarray
     rng: jnp.ndarray
+    other_vars: Dict[str, jnp.ndarray]
 
 def reset_model(rng, tstate: TrainState):
     init_rng, dropout_rng, rng = jax.random.split(rng, 3)
     variables = tstate.model.init({'params': init_rng, 'dropout': dropout_rng}, tstate.example_input, train=False)
     params, batch_stats = variables['params'], variables['batch_stats'] if 'batch_stats' in variables else {}  # initialize parameters by passing a template input
+    other_vars = {k: v for k, v in variables.items() if k not in ['params', 'batch_stats']}
     opt_state = tstate.tx.init(params)
-    tstate = tstate.replace(params=params, batch_stats=batch_stats, opt_state=opt_state, rng=rng)
+    tstate = tstate.replace(params=params, batch_stats=batch_stats, opt_state=opt_state, other_vars=other_vars, rng=rng)
     return tstate
 
 def create_train_state(rng, model: jnn.Module, example_input: jnp.ndarray, optimizer, loss_fn, metric_fns={}):
@@ -35,13 +37,16 @@ def create_train_state(rng, model: jnn.Module, example_input: jnp.ndarray, optim
                                example_input=example_input, 
                                loss_fn=jax.tree_util.Partial(loss_fn), 
                                metric_fns={k: jax.tree_util.Partial(v) for k, v in metric_fns.items()},
+                               other_vars={},
                                rng=None)
     return reset_model(rng, tstate)
 
 
 @jax.jit
 def forward(tstate, batch):
-    yhat = tstate.apply_fn({'params': tstate.params, 'batch_stats': tstate.batch_stats}, batch['x'], train=False,)
+    variables = {'params': tstate.params, 'batch_stats': tstate.batch_stats}
+    variables.update(tstate.other_vars)
+    yhat = tstate.apply_fn(variables, batch['x'], train=False,)
     loss = tstate.loss_fn(yhat, batch['y'])
     return loss, yhat
 
@@ -56,7 +61,9 @@ def train_step(tstate, batch):
     
     # define grad fn
     def loss_fn(params):
-        yhat, updates = tstate.apply_fn({'params': params, 'batch_stats': tstate.batch_stats}, 
+        variables = {'params': params, 'batch_stats': tstate.batch_stats}
+        variables.update(tstate.other_vars)
+        yhat, updates = tstate.apply_fn(variables, 
                                         batch['x'], train=True, 
                                         rngs={'dropout': dropout_key}, mutable=['batch_stats'])
         loss = tstate.loss_fn(yhat, batch['y'])

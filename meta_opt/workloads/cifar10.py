@@ -13,23 +13,31 @@ from .utils import cross_entropy, accuracy
 def load_cifar10(cfg, dataset_dir: str = './datasets') -> Tuple[tf.data.Dataset, tf.data.Dataset, List[int], Callable, Callable]:
     """Load CIFAR-10 train and test datasets into memory."""
     num_iters, batch_size, num_eval_iters = cfg['num_iters'], cfg['batch_size'], cfg['num_eval_iters']
-    train_ds = tfds.load('cifar10', split='train', data_dir=dataset_dir)
-    if num_eval_iters != -1: 
-        percent = min(int(100 * num_eval_iters * batch_size / len(test_ds)) + 1, 100)
-        test_ds = tfds.load('cifar10', split=f'test[:{percent}%]', data_dir=dataset_dir)
+    
+    if full_batch:
+        train_ds = tfds.load('cifar10', split='train', data_dir=dataset_dir)
+        train_ds = train_ds.map(lambda sample: {'x': tf.cast(sample['image'],
+                                                            tf.float32) / 255.,
+                                            'y': sample['label']}) # normalize train set
+        train_ds = train_ds.shuffle(1024).take(batch_size).cache().batch(batch_size).repeat(num_iters)
+        test_ds = None
     else:
+        train_ds = tfds.load('cifar10', split='train', data_dir=dataset_dir)
         test_ds = tfds.load('cifar10', split='test', data_dir=dataset_dir)
-    
-    train_ds = train_ds.map(lambda sample: {'x': tf.cast(sample['image'],
-                                                           tf.float32) / 255.,
-                                          'y': sample['label']}) # normalize train set
-    test_ds = test_ds.map(lambda sample: {'x': tf.cast(sample['image'],
-                                                         tf.float32) / 255.,
-                                        'y': sample['label']}) # normalize test set
-    
-    num_epochs = int(1 + (num_iters * batch_size) / len(train_ds))
-    train_ds = train_ds.repeat(num_epochs).shuffle(1024).batch(batch_size, drop_remainder=True).take(num_iters).prefetch(tf.data.AUTOTUNE)
-    test_ds = test_ds.shuffle(1024).batch(batch_size, drop_remainder=True).prefetch(tf.data.AUTOTUNE)
+        if num_eval_iters != -1: 
+            percent = min(int(100 * num_eval_iters * batch_size / len(test_ds)), 100); del test_ds
+            test_ds = tfds.load('cifar10', split=f'test[:{percent}%]', data_dir=dataset_dir)
+        
+        train_ds = train_ds.map(lambda sample: {'x': tf.cast(sample['image'],
+                                                            tf.float32) / 255.,
+                                            'y': sample['label']}) # normalize train set
+        test_ds = test_ds.map(lambda sample: {'x': tf.cast(sample['image'],
+                                                            tf.float32) / 255.,
+                                            'y': sample['label']}) # normalize test set
+        
+        num_epochs = int(1 + (num_iters * batch_size) / len(train_ds))
+        train_ds = train_ds.repeat(num_epochs).shuffle(1024).batch(batch_size, drop_remainder=True).take(num_iters).prefetch(tf.data.AUTOTUNE)
+        test_ds = test_ds.shuffle(1024).batch(batch_size, drop_remainder=True).prefetch(tf.data.AUTOTUNE)
     
     return train_ds, test_ds, jnp.zeros((1, 32, 32, 3)), cross_entropy, {'loss': cross_entropy, 'acc': accuracy}  # train dataset, test dataset, unbatched input dimensions, loss function, eval metrics
 

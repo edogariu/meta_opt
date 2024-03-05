@@ -1,4 +1,5 @@
 from typing import Tuple, Callable, List
+from copy import deepcopy
 
 import tensorflow as tf; tf.config.experimental.set_visible_devices([], "GPU")
 import tensorflow_datasets as tfds
@@ -13,24 +14,32 @@ from .utils import cross_entropy, accuracy
 # ------------------------------------------------------------------
 def load_mnist(cfg, dataset_dir: str = './datasets') -> Tuple[tf.data.Dataset, tf.data.Dataset, List[int], Callable, Callable]:
     """Load MNIST train and test datasets into memory."""
-    num_iters, batch_size, num_eval_iters = cfg['num_iters'], cfg['batch_size'], cfg['num_eval_iters']
-    train_ds = tfds.load('mnist', split='train', data_dir=dataset_dir)
-    if num_eval_iters != -1: 
-        percent = min(int(100 * num_eval_iters * batch_size / len(test_ds)), 100)
-        test_ds = tfds.load('mnist', split=f'test[:{percent}%]', data_dir=dataset_dir)
+    num_iters, batch_size, num_eval_iters, full_batch = cfg['num_iters'], cfg['batch_size'], cfg['num_eval_iters'], cfg['full_batch']
+    
+    if full_batch:
+        train_ds = tfds.load('mnist', split='train', data_dir=dataset_dir)
+        train_ds = train_ds.map(lambda sample: {'x': tf.cast(sample['image'],
+                                                            tf.float32) / 255.,
+                                            'y': sample['label']}) # normalize train set
+        train_ds = train_ds.shuffle(1024).take(batch_size).cache().batch(batch_size).repeat(num_iters).ignore_errors(log_warning=False)
+        test_ds = None
     else:
+        train_ds = tfds.load('mnist', split='train', data_dir=dataset_dir)
         test_ds = tfds.load('mnist', split='test', data_dir=dataset_dir)
-    
-    train_ds = train_ds.map(lambda sample: {'x': tf.cast(sample['image'],
-                                                           tf.float32) / 255.,
-                                          'y': sample['label']}) # normalize train set
-    test_ds = test_ds.map(lambda sample: {'x': tf.cast(sample['image'],
-                                                         tf.float32) / 255.,
-                                        'y': sample['label']}) # normalize test set
-    
-    num_epochs = int(1 + (num_iters * batch_size) / len(train_ds))
-    train_ds = train_ds.repeat(num_epochs).shuffle(1024).batch(batch_size, drop_remainder=True).take(num_iters).prefetch(tf.data.AUTOTUNE)
-    test_ds = test_ds.shuffle(1024).batch(batch_size, drop_remainder=True).prefetch(tf.data.AUTOTUNE)
+        if num_eval_iters != -1: 
+            percent = min(int(100 * num_eval_iters * batch_size / len(test_ds)), 100); del test_ds
+            test_ds = tfds.load('mnist', split=f'test[:{percent}%]', data_dir=dataset_dir)
+        
+        train_ds = train_ds.map(lambda sample: {'x': tf.cast(sample['image'],
+                                                            tf.float32) / 255.,
+                                            'y': sample['label']}) # normalize train set
+        test_ds = test_ds.map(lambda sample: {'x': tf.cast(sample['image'],
+                                                            tf.float32) / 255.,
+                                            'y': sample['label']}) # normalize test set
+        
+        num_epochs = int(1 + (num_iters * batch_size) / len(train_ds))
+        train_ds = train_ds.repeat(num_epochs).shuffle(1024).batch(batch_size, drop_remainder=True).take(num_iters).prefetch(tf.data.AUTOTUNE)
+        test_ds = test_ds.shuffle(1024).batch(batch_size, drop_remainder=True).prefetch(tf.data.AUTOTUNE)
     
     return train_ds, test_ds, jnp.zeros((1, 28, 28, 1)), cross_entropy, {'loss': cross_entropy, 'acc': accuracy}  # train dataset, test dataset, unbatched input dimensions, loss function, eval metrics
 
