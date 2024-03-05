@@ -12,7 +12,7 @@ from .utils import cross_entropy, accuracy
 # ------------------------------------------------------------------
 def load_cifar10(cfg, dataset_dir: str = './datasets') -> Tuple[tf.data.Dataset, tf.data.Dataset, List[int], Callable, Callable]:
     """Load CIFAR-10 train and test datasets into memory."""
-    num_iters, batch_size, num_eval_iters = cfg['num_iters'], cfg['batch_size'], cfg['num_eval_iters']
+    num_iters, batch_size, num_eval_iters, full_batch = cfg['num_iters'], cfg['batch_size'], cfg['num_eval_iters'], cfg['full_batch']
     
     if full_batch:
         train_ds = tfds.load('cifar10', split='train', data_dir=dataset_dir)
