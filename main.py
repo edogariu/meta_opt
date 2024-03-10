@@ -23,6 +23,7 @@ import optax
 
 # configuration and seeds for each trial
 SEEDS = range(50)
+NAME = 'cifar_fullbatch'
 CFG = {
     # training options
     'workload': 'CIFAR',
@@ -34,7 +35,7 @@ CFG = {
     'reset_every': 1000,
 
     # experiment options
-    'experiment_name': 'cifar_fullbatch',
+    'experiment_name': NAME,
     'load_checkpoint': False,
     'overwrite': True,  # whether to allow us to overwrite existing checkpoints or throw errors
     'directory': DIR,
@@ -43,6 +44,7 @@ CFG = {
 
 if __name__ == '__main__':
     idx = int(os.environ["SLURM_ARRAY_TASK_ID"])
+    CFG['experiment_name'] = f'{NAME}_{idx}'
     results = make(CFG)
     
     # uncomment the ones to run, with correctly chosen hyperparameters
