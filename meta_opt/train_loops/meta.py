@@ -55,7 +55,8 @@ def train_meta_opt(cfg,
 
     t0 = perf_counter()
     last_eval_step = None
-    for t, batch in enumerate(pbar := tqdm.tqdm(train_ds.as_numpy_iterator(), total=cfg['num_iters'])):
+    pbar = tqdm.tqdm(train_ds.as_numpy_iterator(), total=cfg['num_iters'])
+    for t, batch in enumerate(pbar):
         if not counterfactual: t *= HH
 
         if check(t, 'reset_every'):

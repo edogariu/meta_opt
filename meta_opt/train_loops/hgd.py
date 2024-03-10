@@ -28,7 +28,8 @@ def train_hgd(cfg, initial_lr: float, hypergrad_lr: float):
     prev_grads = None
     t0 = perf_counter()
     last_eval_step = None
-    for t, batch in enumerate(pbar := tqdm.tqdm(train_ds.as_numpy_iterator(), total=args['num_iters'])):
+    pbar = tqdm.tqdm(train_ds.as_numpy_iterator(), total=args['num_iters'])
+    for t, batch in enumerate(pbar):
 
         if t % args['reset_every'] == 0:
             reset_rng, rng = jax.random.split(rng)
