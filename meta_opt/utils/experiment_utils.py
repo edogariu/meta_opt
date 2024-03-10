@@ -74,6 +74,7 @@ def save_checkpoint(cfg, results, checkpoint_name: str = ''):
     with open(filename, 'wb') as f:
         pkl.dump(results, f)
         print(f'{bcolors.OKBLUE}{bcolors.BOLD}Saved checkpoint {checkpoint_name} to {filename}{bcolors.ENDC}')
+        
 
 def process_results(cfg, results):
     # clean the stats
@@ -116,6 +117,12 @@ def process_results(cfg, results):
     else:
         print(f'{bcolors.FAIL}{bcolors.BOLD}cannot save processed results with existing processed results and `overwrite=False`{bcolors.ENDC}')
     return ret
+
+def get_final_cstate(processed_results, experiment_name: str):
+    assert 'M' in processed_results, 'no existing meta experiment'
+    p = processed_results['M'][experiment_name]
+    assert len(p) > 0, f'{experiment_name} is not a meta experiment'
+    return p['avg']
 
 
 def animate(results, Ms, downsample, bounds):
@@ -172,10 +179,17 @@ def plot(results, processed_results, keys_to_plot, anim_downsample_factor=200, a
                 continue
             ts, avgs, stds = processed_results[stat_key][experiment_name]['t'], processed_results[stat_key][experiment_name]['avg'], processed_results[stat_key][experiment_name]['std']
             if avgs.ndim == 2:  # how to handle stats that are vectors (such as the Ms for scalar meta-opt)
-                Ms[experiment_name] = (ts, avgs)
-                ax[i].plot(ts, avgs.sum(axis=-1), label=experiment_name)
-                stds = ((stds ** 2).sum(axis=-1)) ** 0.5
-                ax[i].fill_between(ts, avgs.sum(axis=-1) - 1.96 * stds, avgs.sum(axis=-1) + 1.96 * stds, alpha=0.2)
+                Ms[experiment_name] = (ts, avgs, stds)
+                
+                _t, _a, _s = range(avgs.shape[1]), avgs[-1][::-1], stds[-1][::-1]
+                ax[i].plot(_t, _a, label=experiment_name)
+                ax[i].fill_between(_t, _a - 1.96 * _s, _a + 1.96 * _s, alpha=0.2)
+                ax[i]
+                
+                # ax[i].plot(ts, avgs.sum(axis=-1), label=experiment_name)
+                # stds = ((stds ** 2).sum(axis=-1)) ** 0.5
+                # ax[i].fill_between(ts, avgs.sum(axis=-1) - 1.96 * stds, avgs.sum(axis=-1) + 1.96 * stds, alpha=0.2)
+                
                 # for j in range(avgs.shape[1]):
                 #     ax[i].plot(ts, avgs[:, j], label=f'{experiment_name} {str(j)}')
                 #     ax[i].fill_between(ts, avgs[:, j] - 1.96 * stds[:, j], avgs[:, j] + 1.96 * stds[:, j], alpha=0.2)

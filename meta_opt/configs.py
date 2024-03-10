@@ -23,7 +23,7 @@ MNIST_FULLBATCH = {
 
     # experiment options
     'experiment_name': 'mnist_fullbatch',
-    'load_checkpoint': False,
-    'overwrite': True,  # whether to allow us to overwrite existing checkpoints or throw errors
+    'load_checkpoint': True,
+    'overwrite': False,  # whether to allow us to overwrite existing checkpoints or throw errors
     'directory': DIR,
 }
