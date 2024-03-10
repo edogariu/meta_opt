@@ -22,7 +22,7 @@ import dill as pkl
 import optax
 
 # configuration and seeds for each trial
-SEEDS = [0,]  # the length of this list is the number of trials we will run :)
+SEEDS = range(50)
 CFG = {
     # training options
     'workload': 'CIFAR',
@@ -42,30 +42,30 @@ CFG = {
 
 
 if __name__ == '__main__':
+    idx = int(os.environ["SLURM_ARRAY_TASK_ID"])
     results = make(CFG)
     
     # uncomment the ones to run, with correctly chosen hyperparameters
-    for s in SEEDS:
-        CFG['seed'] = s
-        
-        # ours
-        opt = optax.inject_hyperparams(optax.adam)(learning_rate=4e-4, b1=0.9, b2=0.999)
-        results['cf'].append(train_meta_opt(CFG, counterfactual=True, H=32, HH=2, meta_optimizer=opt, initial_lr=0.1))
-        results['cf_3'].append(train_meta_opt(CFG, counterfactual=True, H=32, HH=3, meta_optimizer=opt, initial_lr=0.1))
-        results['ncf'].append(train_meta_opt(CFG, counterfactual=False, H=32, HH=2, meta_optimizer=opt, initial_lr=0.1))
+    s = SEEDS[idx]
+    CFG['seed'] = s
+    
+    # ours
+    opt = optax.inject_hyperparams(optax.adam)(learning_rate=4e-4, b1=0.9, b2=0.999)
+    results['cf'].append(train_meta_opt(CFG, counterfactual=True, H=32, HH=2, meta_optimizer=opt, initial_lr=0.1))
+    results['cf_3'].append(train_meta_opt(CFG, counterfactual=True, H=32, HH=3, meta_optimizer=opt, initial_lr=0.1))
+    results['ncf'].append(train_meta_opt(CFG, counterfactual=False, H=32, HH=2, meta_optimizer=opt, initial_lr=0.1))
 
-        # standard benchmarks
-        benchmarks = {
-            'sgd': optax.inject_hyperparams(optax.sgd)(learning_rate=0.2),
-            'momentum': optax.chain(optax.add_decayed_weights(1e-4), optax.inject_hyperparams(optax.sgd)(learning_rate=0.1, momentum=0.9)),
-            'adamw': optax.inject_hyperparams(optax.adamw)(learning_rate=1e-3, b1=0.9, b2=0.999, weight_decay=1e-4),
-            # 'rmsprop': optax.inject_hyperparams(optax.rmsprop)(learning_rate=1e-3),
-        }
-        for k, opt in benchmarks.items(): results[k].append(train_standard_opt(CFG, opt))
+    # standard benchmarks
+    benchmarks = {
+        'sgd': optax.inject_hyperparams(optax.sgd)(learning_rate=0.2),
+        'momentum': optax.chain(optax.add_decayed_weights(1e-4), optax.inject_hyperparams(optax.sgd)(learning_rate=0.1, momentum=0.9)),
+        'adamw': optax.inject_hyperparams(optax.adamw)(learning_rate=1e-3, b1=0.9, b2=0.999, weight_decay=1e-4),
+        # 'rmsprop': optax.inject_hyperparams(optax.rmsprop)(learning_rate=1e-3),
+    }
+    for k, opt in benchmarks.items(): results[k].append(train_standard_opt(CFG, opt))
 
-        # other
-        results['hgd'].append(train_hgd(CFG, initial_lr=0.1, hypergrad_lr=1e-3))
+    # other
+    results['hgd'].append(train_hgd(CFG, initial_lr=0.1, hypergrad_lr=1e-3))
 
-        save_checkpoint(CFG, results, checkpoint_name=f'seed {s}')
-
+    save_checkpoint(CFG, results, checkpoint_name=f'seed {s}')
     processed_results = process_results(CFG, results)
