@@ -50,6 +50,7 @@ if __name__ == '__main__':
     # uncomment the ones to run, with correctly chosen hyperparameters
     s = SEEDS[idx]
     CFG['seed'] = s
+    print(f'running with seed {s}')
     
     # ours
     opt = optax.inject_hyperparams(optax.adam)(learning_rate=4e-4, b1=0.9, b2=0.999)
