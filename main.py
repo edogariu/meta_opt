@@ -32,7 +32,7 @@ CFG = {
     'num_eval_iters': -1,
     'batch_size': 512,
     'full_batch': True,
-    'reset_every': 2000,
+    'reset_every': 500,
 
     # experiment options
     'experiment_name': NAME,
