@@ -5,7 +5,7 @@
 #SBATCH --cpus-per-task=1        # cpu-cores per task (>1 if multi-threaded tasks)
 #SBATCH --mem-per-cpu=4G         # memory per cpu-core (4G is default)
 #SBATCH --gres=gpu:1
-#SBATCH --time=02:00:00          # total run time limit (HH:MM:SS)
+#SBATCH --time=03:00:00          # total run time limit (HH:MM:SS)
 #SBATCH --array=0-7              # job array with index values 0, 1, 2
 #SBATCH --mail-type=all
 #SBATCH --mail-user=edogariu@princeton.edu
