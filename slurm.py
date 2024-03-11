@@ -29,7 +29,8 @@ from scripts.main_cifar_pretrained import CFG, run
 SEEDS = range(500)
 if __name__ == '__main__':
     idx = int(os.environ["SLURM_ARRAY_TASK_ID"])
-    CFG['experiment_name'] = f'{NAME}_{idx}'
+    name = CFG['experiment_name']
+    CFG['experiment_name'] = f'{name}_{idx}'
     s = SEEDS[idx]
     
     run([s,], CFG)    
