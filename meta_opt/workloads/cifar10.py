@@ -35,7 +35,7 @@ def load_cifar10(cfg, dataset_dir: str = './datasets') -> Tuple[tf.data.Dataset,
                                                             tf.float32) / 255.,
                                             'y': sample['label']}) # normalize test set
         
-        num_epochs = int(1 + (num_iters * batch_size) / len(train_ds))
+        num_epochs = int(1 + (num_iters * batch_size) / 50000)  # hardcoded train dataset length because `tfds` on della is mean :(
         train_ds = train_ds.repeat(num_epochs).shuffle(1024).batch(batch_size, drop_remainder=True).take(num_iters).prefetch(tf.data.AUTOTUNE)
         test_ds = test_ds.shuffle(1024).batch(batch_size, drop_remainder=True).prefetch(tf.data.AUTOTUNE)
     
