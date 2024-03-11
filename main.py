@@ -23,16 +23,16 @@ import optax
 
 # configuration and seeds for each trial
 SEEDS = range(50)
-NAME = 'cifar_fullbatch'
+NAME = 'cifar_pretrained'
 CFG = {
     # training options
     'workload': 'CIFAR',
     'num_iters': 20000,
-    'eval_every': -1,
+    'eval_every': 200,
     'num_eval_iters': -1,
     'batch_size': 512,
-    'full_batch': True,
-    'reset_every': 500,
+    'full_batch': False,
+    'reset_every': 10000,
 
     # experiment options
     'experiment_name': NAME,
@@ -43,6 +43,9 @@ CFG = {
 
 
 if __name__ == '__main__':
+    processed_results = pkl.load(open('{}/data/cifar_fullbatch_processed.pkl'.format(CFG['directory']), 'rb'))
+    initial_cparams = get_final_cparams(processed_results, 'cf')
+    
     idx = int(os.environ["SLURM_ARRAY_TASK_ID"])
     CFG['experiment_name'] = f'{NAME}_{idx}'
     results = make(CFG)
@@ -54,9 +57,9 @@ if __name__ == '__main__':
     
     # ours
     opt = optax.inject_hyperparams(optax.sgd)(learning_rate=2e-4)
-    results['cf'].append(train_meta_opt(CFG, counterfactual=True, H=32, HH=2, meta_optimizer=opt, initial_lr=0.1))
-    # results['cf_3'].append(train_meta_opt(CFG, counterfactual=True, H=32, HH=3, meta_optimizer=opt, initial_lr=0.1))
-    results['ncf'].append(train_meta_opt(CFG, counterfactual=False, H=32, HH=2, meta_optimizer=opt, initial_lr=0.1))
+    results['cf'].append(train_meta_opt(CFG, counterfactual=True, H=32, HH=2, meta_optimizer=opt, initial_lr=0.1, cparams_initial=initial_cparams))
+    results['frozen'].append(train_meta_opt(CFG, counterfactual=False, H=32, HH=1, meta_optimizer=optax.inject_hyperparams(optax.sgd)(learning_rate=0), initial_lr=0.1, cparams_initial=initial_cparams))
+    results['ncf'].append(train_meta_opt(CFG, counterfactual=False, H=32, HH=2, meta_optimizer=opt, initial_lr=0.1,  cparams_initial=initial_cparams))
 
     # standard benchmarks
     benchmarks = {

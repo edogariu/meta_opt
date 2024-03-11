@@ -134,7 +134,7 @@ def animate(results, Ms, downsample, bounds):
     _Ms = {k: (np.array(v[0]), v[1]) for k, v in Ms.items()}
     H_max = max([v[1].shape[1] for v in _Ms.values()])
     T = list(results.values())[0][0]['args']['num_iters']
-    name = results['experiment_name']
+    workload = list(results.values())[0][0]['args']['workload']
     for t in range(0, T, downsample_factor):
         temp = {}
         for k, (ts, vals) in _Ms.items(): temp[k] = vals[max(0, np.argmax(ts > t) - 1)]
@@ -162,7 +162,7 @@ def animate(results, Ms, downsample, bounds):
             ls[k].set_data(x, y[::-1])
             # line.set_label(i)
         # legend.get_texts()[0].set_text(i * downsample_factor) #Update label each at frame
-        ax.set_title(f'timestep #{i * downsample_factor} of meta-opt on {name}')
+        ax.set_title(f'timestep #{i * downsample_factor} of meta-opt on {workload}')
         return list(ls.values())
 
     anim = animation.FuncAnimation(fig, animate, init_func = init,
