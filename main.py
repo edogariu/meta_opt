@@ -30,7 +30,7 @@ CFG = {
     'num_iters': 10000,
     'eval_every': -1,
     'num_eval_iters': -1,
-    'batch_size': 256,
+    'batch_size': 512,
     'full_batch': True,
     'reset_every': 1000,
 
@@ -53,9 +53,9 @@ if __name__ == '__main__':
     print(f'running with seed {s}')
     
     # ours
-    opt = optax.inject_hyperparams(optax.adam)(learning_rate=4e-4, b1=0.9, b2=0.999)
+    opt = optax.inject_hyperparams(optax.sgd)(learning_rate=4e-4)
     results['cf'].append(train_meta_opt(CFG, counterfactual=True, H=32, HH=2, meta_optimizer=opt, initial_lr=0.1))
-    results['cf_3'].append(train_meta_opt(CFG, counterfactual=True, H=32, HH=3, meta_optimizer=opt, initial_lr=0.1))
+    # results['cf_3'].append(train_meta_opt(CFG, counterfactual=True, H=32, HH=3, meta_optimizer=opt, initial_lr=0.1))
     results['ncf'].append(train_meta_opt(CFG, counterfactual=False, H=32, HH=2, meta_optimizer=opt, initial_lr=0.1))
 
     # standard benchmarks
