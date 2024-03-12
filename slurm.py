@@ -22,7 +22,7 @@ import optax
 
 
 # ==================================================
-from scripts.main_cifar_pretrained import CFG, run
+from scripts.main_cifar_wd import CFG, run
 # ==================================================
 
 
