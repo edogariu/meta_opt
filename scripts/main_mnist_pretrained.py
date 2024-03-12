@@ -19,27 +19,29 @@ import optax
 
 # ==================================================
 # configuration and seeds for each trial
-SEEDS = [0, 1, 2, 3, 4, 5]
+SEEDS = [0, 1, 2, 3, 4, 5, 6]
 
-NAME = 'mnist_fullbatch'
+NAME = 'mnist_pretrained'
 CFG = {
     # training options
     'workload': 'MNIST',
     'num_iters': 20000,
-    'eval_every': -1,
+    'eval_every': 200,
     'num_eval_iters': -1,
     'batch_size': 512,
-    'full_batch': True,
-    'reset_every': 500,
+    'full_batch': False,
+    'reset_every': 2000,
 
     # experiment options
     'experiment_name': NAME,
     'load_checkpoint': False,
-    'overwrite': False,  # whether to allow us to overwrite existing checkpoints or throw errors
+    'overwrite': True,  # whether to allow us to overwrite existing checkpoints or throw errors
     'directory': DIR,
 }
 
 def run(seeds, cfg):
+    processed_results = pkl.load(open('{}/data/mnist_fullbatch_processed.pkl'.format(cfg['directory']), 'rb'))
+    initial_cparams = get_final_cparams(processed_results, 'ncf')
     results = make(cfg)
     
     # uncomment the ones to run, with correctly chosen hyperparameters
@@ -50,10 +52,10 @@ def run(seeds, cfg):
         # ours
         opt = optax.inject_hyperparams(optax.sgd)(learning_rate=2e-4)
         results['cf'].append(train_meta_opt(CFG, counterfactual=True, H=32, HH=2, meta_optimizer=opt))
-        results['cf_3'].append(train_meta_opt(CFG, counterfactual=True, H=32, HH=3, meta_optimizer=opt))
-        results['cf_0.1'].append(train_meta_opt(CFG, counterfactual=True, H=32, HH=2, meta_optimizer=opt, initial_lr=0.1))
         results['ncf'].append(train_meta_opt(CFG, counterfactual=False, H=32, HH=2, meta_optimizer=opt))
-        results['ncf_0.1'].append(train_meta_opt(CFG, counterfactual=False, H=32, HH=2, meta_optimizer=opt, initial_lr=0.1))
+        results['cf_pretrained'].append(train_meta_opt(CFG, counterfactual=True, H=32, HH=2, meta_optimizer=opt, cparams_initial=initial_cparams))
+        results['ncf_pretrained'].append(train_meta_opt(CFG, counterfactual=False, H=32, HH=2, meta_optimizer=opt,  cparams_initial=initial_cparams))
+        results['frozen'].append(train_meta_opt(CFG, counterfactual=False, H=32, HH=1, meta_optimizer=optax.inject_hyperparams(optax.sgd)(learning_rate=0), cparams_initial=initial_cparams))
 
         # standard benchmarks
         benchmarks = {
