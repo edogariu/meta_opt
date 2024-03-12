@@ -52,8 +52,8 @@ def run(seeds, cfg):
         for w in wds:
             opt = optax.inject_hyperparams(optax.sgd)(learning_rate=2e-4)
             opt = optax.chain(optax.add_decayed_weights(w), opt)
-            results[f'cf_{w}'].append(train_meta_opt(CFG, counterfactual=True, H=32, HH=2, meta_optimizer=opt, initial_lr=0.1, cparams_initial=initial_cparams))
-            results[f'ncf_{w}'].append(train_meta_opt(CFG, counterfactual=False, H=32, HH=2, meta_optimizer=opt, initial_lr=0.1,  cparams_initial=initial_cparams))
+            results[f'cf_{w}'].append(train_meta_opt(CFG, counterfactual=True, H=32, HH=2, meta_optimizer=opt, initial_lr=0.1))
+            results[f'ncf_{w}'].append(train_meta_opt(CFG, counterfactual=False, H=32, HH=2, meta_optimizer=opt, initial_lr=0.1))
 
         save_checkpoint(CFG, results, checkpoint_name=f'seed {s}')
     processed_results = process_results(CFG, results)
