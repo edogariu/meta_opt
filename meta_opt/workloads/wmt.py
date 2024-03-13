@@ -21,7 +21,7 @@ import flax.linen as jnn
 
 from meta_opt.workloads._wmt.input_pipeline import get_wmt_datasets
 from meta_opt.workloads._wmt.models import Transformer, TransformerConfig
-from meta_opt.workloads._wmt.train import initialize_cache, predict_step, tohost, per_host_sum_pmap, preferred_dtype
+from meta_opt.workloads._wmt.train import initialize_cache, predict_step, tohost, per_host_sum_pmap, preferred_dtype, create_learning_rate_schedule
 from meta_opt.workloads._wmt.bleu import bleu_partial, complete_bleu
 from meta_opt.workloads._wmt.decode import EOS_ID
 from meta_opt.workloads._wmt.default import get_small_config, get_medium_config, get_config
@@ -217,3 +217,15 @@ class WMT(jnn.Module):
 WMT.init = _wmt_init
 WMT.apply = _wmt_apply
 WMT.bleu = _wmt_bleu
+
+
+def rsqrt(lr: float = 0.002, warmup_steps: int = 1000, b1: float = 0.9, b2: float = 0.98, weight_decay: float = 0.0):
+    lr_schedule = create_learning_rate_schedule(lr, warmup_steps)
+    opt = optax.inject_hyperparams(optax.adamw)(
+          learning_rate=learning_rate_fn,
+          b1=b1,
+          b2=b2,
+          eps=1e-9,
+          weight_decay=weight_decay,
+      )
+    return opt

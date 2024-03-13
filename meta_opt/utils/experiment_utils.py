@@ -102,7 +102,7 @@ def process_results(cfg, results):
     args = {}
     for k, v in aggregated.items():  # for experiment
         for stat_key in v.keys():  # for stat
-            if stat_key in ['args', 'bleu']:
+            if stat_key in ['args']:
                 args[k] = v[stat_key]
                 continue
             if k not in ret[stat_key]: ret[stat_key][k] = {}
@@ -171,7 +171,7 @@ def animate(results, Ms, downsample, bounds):
 
 def plot(results, processed_results, keys_to_plot, plots_to_make, anim_downsample_factor=200, anim_bounds=(-0.4, 0.1), smoothing=None):
     
-    for k in plots_to_make.keys(): assert k in ['loss', 'eval_loss', 'eval_acc', 'param_sq_norm', 'grad_sq_norm', 'timestamp', 'M', 'hypergrad', 'lr', 'anim']
+    for k in plots_to_make.keys(): assert k in ['loss', 'eval_loss', 'eval_acc', 'param_sq_norm', 'grad_sq_norm', 'timestamp', 'M', 'hypergrad', 'lr', 'anim', 'bleu']
     
     fig, ax = plt.subplots(len(plots_to_make), 1, figsize=(10, 6 * len(plots_to_make)))
     Ms = {}
@@ -189,7 +189,6 @@ def plot(results, processed_results, keys_to_plot, plots_to_make, anim_downsampl
                 _t, _a, _s = range(avgs.shape[1]), avgs[-1][::-1], stds[-1][::-1]
                 ax[i].plot(_t, _a, label=label)
                 ax[i].fill_between(_t, _a - 1.96 * _s, _a + 1.96 * _s, alpha=0.2)
-                ax[i]
                 
                 # ax[i].plot(ts, avgs.sum(axis=-1), label=experiment_name)
                 # stds = ((stds ** 2).sum(axis=-1)) ** 0.5
