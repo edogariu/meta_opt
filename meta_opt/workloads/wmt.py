@@ -70,8 +70,8 @@ def load_wmt(cfg, dataset_dir: str = './datasets') -> Tuple[tf.data.Dataset, tf.
     input_shape = (config.per_device_batch_size, config.max_target_length)
     example_input = jnp.ones(input_shape, jnp.float32)
     
-    loss_fn = weighted_cross_entropy
-    metrics = {'loss': weighted_cross_entropy,
+    loss_fn = lambda yhat, y: weighted_cross_entropy(yhat, y, label_smoothing=config.label_smoothing)
+    metrics = {'loss': loss_fn,
                'acc': weighted_accuracy}
     
     return train_ds, eval_ds, example_input, loss_fn, metrics, tokenizer  # train dataset, test dataset, unbatched input dimensions, loss function, eval metrics, tokenizer
