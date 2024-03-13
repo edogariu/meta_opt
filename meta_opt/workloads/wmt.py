@@ -140,7 +140,7 @@ def _wmt_bleu(model, tstate, predict_ds):
         # Handle final odd-sized batch by padding instead of dropping it.
         cur_pred_batch_size = pred_batch["inputs"].shape[0]
         cache = initialize_cache(pred_batch["inputs"], cfg.max_len, cfg)  # predict mode
-        predicted = predict_step(pred_batch, tstate.params, cache, eos_id=model.eos_id, max_decode_len=cfg.max_len, config=cfg, beam_size=4)
+        predicted = predict_step(pred_batch['inputs'], tstate.params, cache, eos_id=model.eos_id, max_decode_len=cfg.max_len, config=cfg, beam_size=4)
         predicted = tohost(predicted)
         inputs = tohost(pred_batch["inputs"])
         targets = tohost(pred_batch["targets"])
