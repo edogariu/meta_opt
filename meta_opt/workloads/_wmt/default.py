@@ -122,7 +122,7 @@ def get_mini_config():
   cfg.emb_dim = 256
   cfg.mlp_dim = 512
   cfg.num_heads = 8
-  cfg.num_layers = 4
+  cfg.num_layers = 3
   return cfg
 
 def metrics():
