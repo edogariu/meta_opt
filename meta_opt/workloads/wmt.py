@@ -66,8 +66,8 @@ def load_wmt(cfg, dataset_dir: str = './datasets') -> Tuple[tf.data.Dataset, tf.
         vocab_size=config.vocab_size,
         max_corpus_chars=config.max_corpus_chars,
     )
-    train_ds = train_ds.map(tokenizer.TokenizeOp(sp_tokenizer), num_parallel_calls=AUTOTUNE)
-    eval_ds = eval_ds.map(tokenizer.TokenizeOp(sp_tokenizer), num_parallel_calls=AUTOTUNE)
+    train_ds = train_ds.map(tokenizer.TokenizeOp(tokenizer), num_parallel_calls=tf.data.AUTOTUNE)
+    eval_ds = eval_ds.map(tokenizer.TokenizeOp(tokenizer), num_parallel_calls=tf.data.AUTOTUNE)
     batch_size = config.per_device_batch_size * n_devices
     config.vocab_size = int(tokenizer.vocab_size())
 
