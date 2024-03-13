@@ -24,7 +24,7 @@ from meta_opt.workloads._wmt.models import Transformer, TransformerConfig
 from meta_opt.workloads._wmt.train import initialize_cache, predict_step, tohost, per_host_sum_pmap, preferred_dtype
 from meta_opt.workloads._wmt.bleu import bleu_partial, complete_bleu
 from meta_opt.workloads._wmt.decode import EOS_ID
-from meta_opt.workloads._wmt.default import get_mini_config as get_config
+from meta_opt.workloads._wmt.default import get_small_config, get_medium_config, get_config
 
 from meta_opt.workloads.utils import weighted_cross_entropy, weighted_accuracy
 
@@ -173,10 +173,14 @@ class WMT(jnn.Module):
     tokenizer: tftxt.SentencepieceTokenizer
     eos_id: int
     
-    def __init__(self, experiment_config, tokenizer):
+    def __init__(self, experiment_config, tokenizer, size: str):
         num_iters, batch_size, num_eval_iters = experiment_config['num_iters'], experiment_config['batch_size'], experiment_config['num_eval_iters']
         
-        config = get_config()
+        if size == 'small': config = get_small_config()
+        elif size == 'medium': config = get_medium_config()
+        elif size == 'large': config = get_config()
+        else: raise NotImplementedError(size)
+        
         vocab_path = os.path.join(experiment_config['directory'], 'datasets')
         if vocab_path is None:
             vocab_path = os.path.join(vocab_path, "sentencepiece_model")
