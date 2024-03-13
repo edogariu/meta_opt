@@ -59,6 +59,9 @@ def load_wmt(cfg, dataset_dir: str = './datasets') -> Tuple[tf.data.Dataset, tf.
     train_ds = tfds.load(config.dataset_name, split='train', data_dir=os.path.join(cfg['directory'], 'datasets'))
     eval_ds = tfds.load(config.eval_dataset_name, split='test', data_dir=os.path.join(cfg['directory'], 'datasets'))
     
+    train_ds = train_ds.map(NormalizeFeatureNamesOp(train_ds.info, reverse_translation=reverse_translation), num_parallel_calls=tf.data.AUTOTUNE)
+    eval_ds = eval_ds.map(NormalizeFeatureNamesOp(eval_ds.info, reverse_translation=reverse_translation), num_parallel_calls=tf.data.AUTOTUNE)
+    
     # Tokenize data.
     tokenizer = load_or_train_tokenizer(
         train_ds,
