@@ -69,14 +69,13 @@ def load_wmt(cfg, dataset_dir: str = './datasets') -> Tuple[tf.data.Dataset, tf.
         vocab_size=config.vocab_size,
         max_corpus_chars=config.max_corpus_chars,
     )
-    train_ds = train_ds.map(TokenizeOp(tokenizer), num_parallel_calls=tf.data.AUTOTUNE)
-    eval_ds = eval_ds.map(TokenizeOp(tokenizer), num_parallel_calls=tf.data.AUTOTUNE)
     batch_size = config.per_device_batch_size * n_devices
     config.vocab_size = int(tokenizer.vocab_size())
 
     # make dataloaders
     max_length = config.max_target_length
-    def make_ds(ds, n: int, pack_examples: bool):
+    def make_ds(ds, train: bool, n: int):
+        ds = ds.map(TokenizeOp(tokenizer), num_parallel_calls=tf.data.AUTOTUNE)
         def length_filter(max_len):
             def filter_fn(x):
                 source, target = x['inputs'], x['targets']
@@ -84,27 +83,23 @@ def load_wmt(cfg, dataset_dir: str = './datasets') -> Tuple[tf.data.Dataset, tf.
                 return tf.less(l, max_len + 1)
             return filter_fn
         if max_length > 0: ds = ds.filter(length_filter(max_length))
-        if pack_examples:
+        if train:
             ds = pack_dataset(ds, max_length)
-            ds = ds.batch(batch_size, drop_remainder=pack_examples)
+            ds = ds.batch(batch_size, drop_remainder=True)
         else:  # simple (static-shape) padded batching
             ds = ds.padded_batch(
                 batch_size,
                 padded_shapes={'inputs': max_length, 'targets': max_length},
                 padding_values={'inputs': 0, 'targets': 0},
-                drop_remainder=pack_examples,
+                drop_remainder=False,
             )
         
         ds = ds.repeat(1 + int(n / len(ds))).take(n).shuffle(1024).prefetch(tf.data.AUTOTUNE)
+        ds = ds.map(lambda sample: {'x': sample, 'y': sample['targets']})
         return ds
         
-    train_ds = make_ds(train_ds, num_iters, True)
-    eval_ds = make_ds(eval_ds, num_eval_iters, False)
-
-    train_ds = train_ds.map(lambda sample: {'x': sample,
-                                            'y': sample['targets']})
-    eval_ds = eval_ds.map(lambda sample: {'x': sample,
-                                            'y': sample['targets']})
+    train_ds = make_ds(train_ds, True, num_iters)
+    eval_ds = make_ds(eval_ds, False, num_eval_iters)
     
     input_shape = (config.per_device_batch_size, config.max_target_length)
     example_input = jnp.ones(input_shape, jnp.float32)
