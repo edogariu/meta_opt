@@ -135,7 +135,8 @@ def _wmt_bleu(model, tstate, predict_ds):
     sources, references, predictions = [], [], []
     cfg = model.config.replace(deterministic=True, decode=True)
     for pred_batch in predict_ds:
-        pred_batch = jax.tree_util.tree_map(lambda x: x._numpy(), pred_batch['x'])  # pylint: disable=protected-access
+        # pred_batch = jax.tree_util.tree_map(lambda x: x._numpy(), pred_batch['x'])  # pylint: disable=protected-access
+        pred_batch = pred_batch['x']
         # Handle final odd-sized batch by padding instead of dropping it.
         cur_pred_batch_size = pred_batch["inputs"].shape[0]
         cache = initialize_cache(pred_batch["inputs"], cfg.max_len, cfg)  # predict mode
