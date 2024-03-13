@@ -223,7 +223,7 @@ WMT.bleu = _wmt_bleu
 def rsqrt(lr: float = 0.002, warmup_steps: int = 1000, b1: float = 0.9, b2: float = 0.98, weight_decay: float = 0.0):
     lr_schedule = create_learning_rate_schedule(lr, warmup_steps)
     opt = optax.inject_hyperparams(optax.adamw)(
-          learning_rate=learning_rate_fn,
+          learning_rate=lr_schedule,
           b1=b1,
           b2=b2,
           eps=1e-9,
