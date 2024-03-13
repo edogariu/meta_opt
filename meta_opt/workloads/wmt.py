@@ -19,12 +19,13 @@ import jax.numpy as jnp
 import ml_collections
 import flax.linen as jnn
 
-from meta_opt.workloads._wmt.input_pipeline import get_wmt_datasets
+from meta_opt.workloads._wmt.input_pipeline import get_wmt_datasets, pack_dataset
 from meta_opt.workloads._wmt.models import Transformer, TransformerConfig
 from meta_opt.workloads._wmt.train import initialize_cache, predict_step, tohost, per_host_sum_pmap, preferred_dtype
 from meta_opt.workloads._wmt.bleu import bleu_partial, complete_bleu
 from meta_opt.workloads._wmt.decode import EOS_ID
 from meta_opt.workloads._wmt.default import get_mini_config as get_config
+import meta_opt.workloads._wmt.tokenizer as _tokenizer
 
 from meta_opt.workloads.utils import weighted_cross_entropy, weighted_accuracy
 
@@ -53,17 +54,54 @@ def load_wmt(cfg, dataset_dir: str = './datasets') -> Tuple[tf.data.Dataset, tf.
     config.num_eval_steps = num_eval_iters
     config.seed = cfg['seed']
     config.per_device_batch_size = batch_size
-    config.vocab_path = os.path.join(cfg['directory'], 'datasets', 'tokenizer.pth')
-    train_ds, eval_ds, _, tokenizer = get_wmt_datasets(config, n_devices=1, vocab_path=os.path.join(cfg['directory'], 'datasets'))
-    config.vocab_size = int(tokenizer.vocab_size())
+    config.vocab_path = os.path.join(cfg['directory'], 'datasets', 'tokenizer.pth')    
     
+    train_ds = tfds.load(config.dataset_name, split='train', data_dir=os.path.join(cfg['directory'], 'datasets'))
+    eval_ds = tfds.load(config.eval_dataset_name, split='test', data_dir=os.path.join(cfg['directory'], 'datasets'))
+    
+    # Tokenize data.
+    tokenizer = _tokenizer.load_or_train_tokenizer(
+        train_ds,
+        vocab_path=config.vocab_path,
+        vocab_size=config.vocab_size,
+        max_corpus_chars=config.max_corpus_chars,
+    )
+    train_ds = train_ds.map(tokenizer.TokenizeOp(sp_tokenizer), num_parallel_calls=AUTOTUNE)
+    eval_ds = eval_ds.map(tokenizer.TokenizeOp(sp_tokenizer), num_parallel_calls=AUTOTUNE)
+    batch_size = config.per_device_batch_size * n_devices
+    config.vocab_size = int(tokenizer.vocab_size())
+
+    # make dataloaders
+    max_length = config.max_target_length
+    def make_ds(ds, n: int, pack_examples: bool):
+        def length_filter(max_len):
+            def filter_fn(x):
+                source, target = x['inputs'], x['targets']
+                l = tf.maximum(tf.shape(source)[0], tf.shape(target)[0])
+                return tf.less(l, max_len + 1)
+            return filter_fn
+        if max_length > 0: ds = ds.filter(length_filter(max_length))
+        if pack_examples:
+            ds = pack_dataset(ds, max_length)
+            ds = ds.batch(batch_size, drop_remainder=pack_examples)
+        else:  # simple (static-shape) padded batching
+            ds = ds.padded_batch(
+                batch_size,
+                padded_shapes={'inputs': max_length, 'targets': max_length},
+                padding_values={'inputs': 0, 'targets': 0},
+                drop_remainder=pack_examples,
+            )
+        
+        ds = ds.repeat(1 + int(n / len(ds))).take(n).shuffle(1024).prefetch(tf.data.AUTOTUNE)
+        return ds
+        
+    train_ds = make_ds(train_ds, num_iters, True)
+    eval_ds = make_ds(eval_ds, num_eval_iters, False)
+
     train_ds = train_ds.map(lambda sample: {'x': sample,
                                             'y': sample['targets']})
     eval_ds = eval_ds.map(lambda sample: {'x': sample,
                                             'y': sample['targets']})
-    
-    train_ds = train_ds.take(num_iters)
-    # eval_ds = eval_ds.take(num_eval_iters)
     
     input_shape = (config.per_device_batch_size, config.max_target_length)
     example_input = jnp.ones(input_shape, jnp.float32)
