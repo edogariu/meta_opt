@@ -118,7 +118,7 @@ def _wmt_apply(model, variables, inputs, train: bool, rngs={}, mutable=[]):
         mutable=mutable,
     )        
     if isinstance(logits, Tuple): logits = logits[0]
-    assert isinstance(logits, jnp.ndarray)
+    assert isinstance(logits, jnp.ndarray), logits
     return logits
 
 def _decode_tokens(toks, eos_id, tokenizer):
