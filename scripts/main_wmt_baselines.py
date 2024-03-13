@@ -23,13 +23,13 @@ SEEDS = [0,]  # the length of this list is the number of trials we will run :)
 CFG = {
     # training options
     'workload': 'WMT',
-    'num_iters': 20000,
-    'eval_every': 200,
+    'num_iters': 24000,
+    'eval_every': 400,
     'num_eval_iters': 30,
-    'bleu_every': 1000,
-    'batch_size': 256,
+    'bleu_every': 1500,
+    'batch_size': 64,
     'full_batch': False,
-    'reset_every': 20000,
+    'reset_every': 24000,
 
     # experiment options
     'experiment_name': 'wmt_baselines',
