@@ -39,9 +39,9 @@ import numpy as np
 import optax
 import tensorflow as tf
 
-import meta_opt.workloads._wmt.bleu
-import meta_opt.workloads._wmt.decode
-import meta_opt.workloads._wmt.input_pipeline
+import meta_opt.workloads._wmt.bleu as bleu
+import meta_opt.workloads._wmt.decode as decode
+import meta_opt.workloads._wmt.input_pipeline as input_pipeline
 from meta_opt.workloads._wmt.models import *
 
 
