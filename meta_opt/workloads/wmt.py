@@ -28,6 +28,10 @@ from meta_opt.workloads._wmt.default import get_mini_config as get_config
 
 from meta_opt.workloads.utils import weighted_cross_entropy, weighted_accuracy
 
+# ================================================================================================
+# this whole thing is taken and adapted from https://github.com/google/flax/tree/main/examples/wmt 
+# ================================================================================================
+
 
 # ------------------------------------------------------------------
 # ------------------------- Dataset --------------------------------

@@ -22,6 +22,7 @@ def weighted_accuracy(logits, targets):
     return acc
 
 def weighted_cross_entropy(logits, targets):
+    print(logits)
     weights = jnp.where(targets > 0, 1, 0).astype(jnp.float32)
     loss, weight_sum = compute_weighted_cross_entropy(logits, targets, weights)
     mean_loss = loss / weight_sum
