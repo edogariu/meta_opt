@@ -86,7 +86,7 @@ def eval(tstate, dataset):
             yhat, y = forward(tstate, batch)[1], batch['y']
             for k, v in tstate.metric_fns.items(): eval_metrics[k] += v(yhat, y)
             n += 1
-    except tf.errors.OutOfRangeError: pass
+    except e: pass
     for k in eval_metrics.keys(): eval_metrics[k] /= n
     return dict(eval_metrics)
 
