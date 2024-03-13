@@ -82,6 +82,7 @@ def eval(tstate, dataset):
     n = 0
     for batch in dataset:
         yhat, y = forward(tstate, batch)[1], batch['y']
+        print(yhat)
         for k, v in tstate.metric_fns.items(): eval_metrics[k] += v(yhat, y)
         n += 1
     for k in eval_metrics.keys(): eval_metrics[k] /= n
