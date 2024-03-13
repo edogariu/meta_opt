@@ -44,6 +44,6 @@ def get_workload(cfg, optimizer):
         
     args.update({'model': str(model), 
                  'num_params': sum(x.size for x in jax.tree_util.tree_leaves(tstate.params))})
-    # print(args['num_params'], 'params in the model!')
+    print(args['num_params'], 'params in the model!')
 
     return tstate, train_ds, test_ds, rng, args

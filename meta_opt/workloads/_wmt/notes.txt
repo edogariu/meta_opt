@@ -5,3 +5,4 @@ things i needed to change to get it to work
 - add __init__.py to wmt folder
 - move configs/default.py out to wmt/default.py
 - changed vocab_path to config.vocab_path in get_wmt_datasets (the argument to make the tokenizer)
+- added get_mini_config to default.py

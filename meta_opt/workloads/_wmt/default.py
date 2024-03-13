@@ -116,6 +116,15 @@ def get_config():
   return config
 
 
+def get_mini_config():
+  cfg = get_config()
+  cfg.qkv_dim = 256
+  cfg.emb_dim = 256
+  cfg.mlp_dim = 512
+  cfg.num_heads = 8
+  cfg.num_layers = 4
+  return cfg
+
 def metrics():
   return [
       'train_loss',

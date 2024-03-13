@@ -24,7 +24,7 @@ from meta_opt.workloads._wmt.models import Transformer, TransformerConfig
 from meta_opt.workloads._wmt.train import initialize_cache, predict_step, tohost, per_host_sum_pmap, preferred_dtype
 from meta_opt.workloads._wmt.bleu import bleu_partial, complete_bleu
 from meta_opt.workloads._wmt.decode import EOS_ID
-from meta_opt.workloads._wmt.default import get_config
+from meta_opt.workloads._wmt.default import get_mini_config as get_config
 
 from meta_opt.workloads.utils import weighted_cross_entropy, weighted_accuracy
 
