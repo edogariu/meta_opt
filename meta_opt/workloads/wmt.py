@@ -18,6 +18,7 @@ import jax
 import jax.numpy as jnp
 import ml_collections
 import flax.linen as jnn
+import optax
 
 from meta_opt.workloads._wmt.input_pipeline import get_wmt_datasets
 from meta_opt.workloads._wmt.models import Transformer, TransformerConfig
