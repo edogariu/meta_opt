@@ -25,7 +25,7 @@ from meta_opt.workloads._wmt.train import initialize_cache, predict_step, tohost
 from meta_opt.workloads._wmt.bleu import bleu_partial, complete_bleu
 from meta_opt.workloads._wmt.decode import EOS_ID
 from meta_opt.workloads._wmt.default import get_mini_config as get_config
-from meta_opt.workloads._wmt.tokenizer import TokenizeOp
+from meta_opt.workloads._wmt.tokenizer import TokenizeOp, load_or_train_tokenizer
 
 from meta_opt.workloads.utils import weighted_cross_entropy, weighted_accuracy
 
@@ -60,7 +60,7 @@ def load_wmt(cfg, dataset_dir: str = './datasets') -> Tuple[tf.data.Dataset, tf.
     eval_ds = tfds.load(config.eval_dataset_name, split='test', data_dir=os.path.join(cfg['directory'], 'datasets'))
     
     # Tokenize data.
-    tokenizer = _tokenizer.load_or_train_tokenizer(
+    tokenizer = load_or_train_tokenizer(
         train_ds,
         vocab_path=config.vocab_path,
         vocab_size=config.vocab_size,
