@@ -42,11 +42,12 @@ def create_train_state(rng, model: jnn.Module, example_input: jnp.ndarray, optim
     return reset_model(rng, tstate)
 
 
-@jax.jit
+# @jax.jit
 def forward(tstate, batch):
     variables = {'params': tstate.params, 'batch_stats': tstate.batch_stats}
     variables.update(tstate.other_vars)
     yhat = tstate.apply_fn(variables, batch['x'], train=False,)
+    print(yhat)
     loss = tstate.loss_fn(yhat, batch['y'])
     return loss, yhat
 
@@ -82,7 +83,6 @@ def eval(tstate, dataset):
     n = 0
     for batch in dataset:
         yhat, y = forward(tstate, batch)[1], batch['y']
-        print(yhat)
         for k, v in tstate.metric_fns.items(): eval_metrics[k] += v(yhat, y)
         n += 1
     for k in eval_metrics.keys(): eval_metrics[k] /= n
