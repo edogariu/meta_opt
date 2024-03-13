@@ -80,6 +80,8 @@ def train_meta_opt(cfg,
             s['param_sq_norm'] = pytree_sq_norm(tstate.params)
             s['grad_sq_norm'] = pytree_sq_norm(grads)
             last_eval_step = t
+        if 'bleu_every' in args and check(t, 'bleu_every') and t != 0:
+            s['bleu'] = tstate.model.bleu(tstate, test_ds.as_numpy_iterator())
 
         # log the value of the Ms
         s['M'] = meta_opt.cstate.cparams['M']

@@ -41,6 +41,9 @@ def train_standard_opt(cfg, optimizer):
             s['param_sq_norm'] = pytree_sq_norm(tstate.params)
             s['grad_sq_norm'] = pytree_sq_norm(grads)
             last_eval_step = t
+        if 'bleu_every' in args and t % args['bleu_every'] == 0 and t != 0:
+            s['bleu'] = tstate.model.bleu(tstate, test_ds.as_numpy_iterator())
+            print(s['bleu'])
 
         stats[t] = s
         pbar.set_postfix({'loss': round(s['loss'].item(), 3), 

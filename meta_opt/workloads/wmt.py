@@ -163,7 +163,7 @@ def _wmt_bleu(model, tstate, predict_ds):
     exemplars = ""
     for n in np.random.choice(np.arange(len(predictions)), 8):
         exemplars += f"{sources[n]}\n\n{references[n]}\n\n{predictions[n]}\n\n"
-    print(exemplars)
+    # print(exemplars)
     
     return bleu_score
 

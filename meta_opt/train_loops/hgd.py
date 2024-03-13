@@ -52,6 +52,8 @@ def train_hgd(cfg, initial_lr: float, hypergrad_lr: float):
             s['param_sq_norm'] = pytree_sq_norm(tstate.params)
             s['grad_sq_norm'] = pytree_sq_norm(grads)
             last_eval_step = t
+        if 'bleu_every' in args and t % args['bleu_every'] == 0 and t != 0:
+            s['bleu'] = tstate.model.bleu(tstate, test_ds.as_numpy_iterator())
         s['hypergrad'] = hypergrad
         s['lr'] = float(tstate.opt_state.hyperparams['learning_rate'])
         stats[t] = s
