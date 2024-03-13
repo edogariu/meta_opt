@@ -19,7 +19,7 @@ import jax.numpy as jnp
 import ml_collections
 import flax.linen as jnn
 
-from meta_opt.workloads._wmt.input_pipeline import get_wmt_datasets, pack_dataset
+from meta_opt.workloads._wmt.input_pipeline import get_wmt_datasets, pack_dataset, NormalizeFeatureNamesOp
 from meta_opt.workloads._wmt.models import Transformer, TransformerConfig
 from meta_opt.workloads._wmt.train import initialize_cache, predict_step, tohost, per_host_sum_pmap, preferred_dtype
 from meta_opt.workloads._wmt.bleu import bleu_partial, complete_bleu
