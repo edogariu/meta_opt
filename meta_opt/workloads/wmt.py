@@ -128,26 +128,26 @@ def _decode_tokens(toks, eos_id, tokenizer):
     valid_toks = toks[: np.argmax(toks == eos_id) + 1].astype(np.int32)
     return tokenizer.detokenize(valid_toks).numpy().decode("utf-8")
 
-def _wmt_bleu(tstate, predict_ds):
+def _wmt_bleu(model, tstate, predict_ds):
     """Translates the `predict_ds` and calculates the BLEU score, among other metrics."""
     
     logging.info("Translating evaluation dataset.")
     sources, references, predictions = [], [], []
-    cfg = tstate.model.config.replace(deterministic=True, decode=True)
+    cfg = model.config.replace(deterministic=True, decode=True)
     for pred_batch in predict_ds:
         pred_batch = jax.tree_util.tree_map(lambda x: x._numpy(), pred_batch['x'])  # pylint: disable=protected-access
         # Handle final odd-sized batch by padding instead of dropping it.
         cur_pred_batch_size = pred_batch["inputs"].shape[0]
         cache = initialize_cache(pred_batch["inputs"], cfg.max_len, cfg)  # predict mode
-        predicted = predict_step(pred_batch, tstate.params, cache, eos_id=tstate.model.eos_id, max_decode_len=cfg.max_len, config=cfg, beam_size=4)
+        predicted = predict_step(pred_batch, tstate.params, cache, eos_id=model.eos_id, max_decode_len=cfg.max_len, config=cfg, beam_size=4)
         predicted = tohost(predicted)
         inputs = tohost(pred_batch["inputs"])
         targets = tohost(pred_batch["targets"])
         # Iterate through non-padding examples of batch.
         for i, s in enumerate(predicted[:cur_pred_batch_size]):
-            sources.append(_decode_tokens(inputs[i], tstate.model.eos_id, tstate.model.tokenizer))
-            references.append(_decode_tokens(targets[i], tstate.model.eos_id, tstate.model.tokenizer))
-            predictions.append(_decode_tokens(s, tstate.model.eos_id, tstate.model.tokenizer))
+            sources.append(_decode_tokens(inputs[i], model.eos_id, model.tokenizer))
+            references.append(_decode_tokens(targets[i], model.eos_id, model.tokenizer))
+            predictions.append(_decode_tokens(s, model.eos_id, model.tokenizer))
     logging.info(
         "Translation: %d predictions %d references %d sources.",
         len(predictions),
