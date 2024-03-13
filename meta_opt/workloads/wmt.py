@@ -24,6 +24,7 @@ from meta_opt.workloads._wmt.models import Transformer, TransformerConfig
 from meta_opt.workloads._wmt.train import initialize_cache, predict_step, tohost, per_host_sum_pmap, preferred_dtype
 from meta_opt.workloads._wmt.bleu import bleu_partial, complete_bleu
 from meta_opt.workloads._wmt.decode import EOS_ID
+from meta_opt.workloads._wmt.default import get_mini_config as get_config
 
 from meta_opt.workloads.utils import weighted_cross_entropy, weighted_accuracy
 
@@ -38,7 +39,6 @@ def load_wmt(cfg, dataset_dir: str = './datasets') -> Tuple[tf.data.Dataset, tf.
     if not os.path.isfile(f'{main_dir}/meta_opt/workloads/_wmt/default.py'): 
         shutil.copyfile(f'{main_dir}/meta_opt/workloads/_wmt/configs/default.py', f'{main_dir}/meta_opt/workloads/_wmt/default.py')
         print('copied `default.py` into correct place!')
-    from meta_opt.workloads._wmt.default import get_config
     
     # TODO ADD FULL BATCH
     if full_batch: raise NotImplementedError('WARNING: I DIDNT IMPLEMENT FULL BATCH FOR WMT YET')
@@ -167,7 +167,6 @@ class WMT(jnn.Module):
     def __init__(self, experiment_config, tokenizer):
         num_iters, batch_size, num_eval_iters = experiment_config['num_iters'], experiment_config['batch_size'], experiment_config['num_eval_iters']
         
-        from meta_opt.workloads._wmt.default import get_config
         config = get_config()
         vocab_path = os.path.join(experiment_config['directory'], 'datasets')
         if vocab_path is None:

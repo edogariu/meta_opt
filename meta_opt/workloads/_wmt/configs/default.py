@@ -127,3 +127,14 @@ def metrics():
       'steps_per_sec',
       'train_learning_rate',
   ]
+
+
+def get_mini_config():
+  config = get_config()
+  config.num_layers = 3
+  config.qkv_dim = 128
+  config.emb_dim = 128
+  config.mlp_dim = 256
+  config.num_heads = 4
+  return config
+

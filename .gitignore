@@ -7,3 +7,4 @@ data/*
 datasets/*
 build
 *.egg-info
+slurm*.out
