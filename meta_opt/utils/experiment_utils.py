@@ -1,4 +1,4 @@
-from typing import Tuple
+from typing import Tuple, Dict
 from collections import defaultdict
 from copy import deepcopy
 import dill as pkl
@@ -169,21 +169,25 @@ def animate(results, Ms, downsample, bounds):
                         frames = T // downsample_factor, interval = downsample_factor, blit = True)
     return anim
 
-def plot(results, processed_results, keys_to_plot, anim_downsample_factor=200, anim_bounds=(-0.4, 0.1)):
-    fig, ax = plt.subplots(len(processed_results), 1, figsize=(10, 32))
+def plot(results, processed_results, keys_to_plot, plots_to_make, anim_downsample_factor=200, anim_bounds=(-0.4, 0.1), smoothing=None):
+    
+    for k in plots_to_make.keys(): assert k in ['loss', 'eval_loss', 'eval_acc', 'param_sq_norm', 'grad_sq_norm', 'timestamp', 'M', 'hypergrad', 'lr', 'anim']
+    
+    fig, ax = plt.subplots(len(plots_to_make), 1, figsize=(10, 6 * len(plots_to_make)))
     Ms = {}
-    for i, stat_key in enumerate(processed_results.keys()):
-        ax[i].set_title(stat_key)
+    for i, (stat_key, name) in enumerate(plots_to_make.items()):
+        ax[i].set_title(name)
         for experiment_name in processed_results[stat_key].keys():
-            if (isinstance(keys_to_plot, list) and experiment_name not in keys_to_plot) or (isinstance(keys_to_plot, str) and not re.match(keys_to_plot, experiment_name)): 
-                # print(f'skipped {experiment_name}')
+            if (isinstance(keys_to_plot, Dict) and experiment_name not in keys_to_plot) or (isinstance(keys_to_plot, str) and not re.match(keys_to_plot, experiment_name)): 
                 continue
+            if isinstance(keys_to_plot, Dict): label = keys_to_plot[experiment_name]
+            else: label = experiment_name
             ts, avgs, stds = processed_results[stat_key][experiment_name]['t'], processed_results[stat_key][experiment_name]['avg'], processed_results[stat_key][experiment_name]['std']
             if avgs.ndim == 2:  # how to handle stats that are vectors (such as the Ms for scalar meta-opt)
-                Ms[experiment_name] = (ts, avgs, stds)
+                Ms[label] = (ts, avgs, stds)
                 
                 _t, _a, _s = range(avgs.shape[1]), avgs[-1][::-1], stds[-1][::-1]
-                ax[i].plot(_t, _a, label=experiment_name)
+                ax[i].plot(_t, _a, label=label)
                 ax[i].fill_between(_t, _a - 1.96 * _s, _a + 1.96 * _s, alpha=0.2)
                 ax[i]
                 
@@ -195,14 +199,17 @@ def plot(results, processed_results, keys_to_plot, anim_downsample_factor=200, a
                 #     ax[i].plot(ts, avgs[:, j], label=f'{experiment_name} {str(j)}')
                 #     ax[i].fill_between(ts, avgs[:, j] - 1.96 * stds[:, j], avgs[:, j] + 1.96 * stds[:, j], alpha=0.2)
             else:
-                if stat_key in ['loss', 'grad_sq_norm', 'eval_acc', 'eval_loss']:
-                    n = 4
-                    kernel = np.array([1 / n,] * n)
-                    avgs = np.convolve(avgs, kernel)[n // 2:n // 2 + avgs.shape[0]]
-                    stds = np.convolve(stds ** 2, kernel ** 2)[n // 2:n // 2 + stds.shape[0]] ** 0.5
-                ax[i].plot(ts, avgs, label=experiment_name)
+                if smoothing is not None:
+                    if stat_key in ['loss', 'grad_sq_norm', 'eval_acc', 'eval_loss']:
+                        n = smoothing
+                        kernel = np.array([1 / n,] * n)
+                        avgs = np.convolve(avgs, kernel)[n // 2:n // 2 + avgs.shape[0]]
+                        stds = np.convolve(stds ** 2, kernel ** 2)[n // 2:n // 2 + stds.shape[0]] ** 0.5
+                ax[i].plot(ts, avgs, label=label)
                 ax[i].fill_between(ts, avgs - 1.96 * stds, avgs + 1.96 * stds, alpha=0.2)
     for a in ax: a.legend()
-    anim = animate(results, Ms, anim_downsample_factor, anim_bounds)
-    plt.close()
+    if anim_bounds is not None and 'anim' in plots_to_make: 
+        anim = animate(results, Ms, anim_downsample_factor, anim_bounds)
+        plt.close()
+    else: anim = None
     return (fig, ax), anim

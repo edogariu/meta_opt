@@ -1,0 +1,7 @@
+things i needed to change to get it to work
+
+- change `get_raw_datasets()` in input_pipeline to actually just use tfds.load, including adding vocab_path and config to args
+- change all the imports
+- add __init__.py to wmt folder
+- move configs/default.py out to wmt/default.py
+- changed vocab_path to config.vocab_path in get_wmt_datasets (the argument to make the tokenizer)

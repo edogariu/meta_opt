@@ -11,6 +11,7 @@ scipy
 flax
 optax
 tqdm
+tokenizer
 utils_flax
 ml_collections
 clu

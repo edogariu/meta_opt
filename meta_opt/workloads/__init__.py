@@ -9,6 +9,7 @@ from meta_opt.utils.experiment_utils import _set_seed, bcolors
 from .nonconvex_quadratic import load_ncq, NCQ, add_projection
 from .mnist import load_mnist, MLP, CNN
 from .cifar10 import load_cifar10, VGG16
+from .wmt import load_wmt, WMT
 
 def get_workload(cfg, optimizer):
     rng, cfg['seed'] = _set_seed(cfg['seed'])
@@ -28,6 +29,10 @@ def get_workload(cfg, optimizer):
     elif cfg['workload'] == 'CIFAR':
         train_ds, test_ds, example_input, loss_fn, metric_fns = load_cifar10(cfg, dataset_dir=os.path.join(directory, 'datasets'))
         model = VGG16()
+    elif cfg['workload'] == 'WMT':
+        train_ds, test_ds, example_input, loss_fn, metric_fns, tokenizer = load_wmt(cfg, dataset_dir=os.path.join(directory, 'datasets'))
+        model = WMT(cfg, tokenizer)
+        if cfg['full_batch']: raise NotImplementedError('full batch on WMT')
     else:
         raise NotImplementedError(cfg['workload'])
 
