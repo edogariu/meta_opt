@@ -46,6 +46,7 @@ def load_wmt(cfg, dataset_dir: str = './datasets') -> Tuple[tf.data.Dataset, tf.
     
     # TODO ADD FULL BATCH
     if full_batch: raise NotImplementedError('WARNING: I DIDNT IMPLEMENT FULL BATCH FOR WMT YET')
+    assert num_eval_iters > 0, 'WARNING: I DIDNT IMPLEMENT THIS EITHER'
     
     config = get_config()
     config.num_train_steps = num_iters
