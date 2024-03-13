@@ -9,7 +9,6 @@ for subdir in ['data', 'figs', 'datasets']:
 
 from meta_opt.train_loops import train_standard_opt, train_hgd, train_meta_opt
 from meta_opt.utils.experiment_utils import make, save_checkpoint, process_results, bcolors, plot, get_final_cparams
-import meta_opt.configs as configs
 
 import re
 import matplotlib.pyplot as plt
@@ -25,7 +24,7 @@ CFG = {
     'workload': 'WMT',
     'num_iters': 24000,
     'eval_every': 400,
-    'num_eval_iters': 30,
+    'num_eval_iters': 20,
     'bleu_every': 1500,
     'batch_size': 64,
     'full_batch': False,

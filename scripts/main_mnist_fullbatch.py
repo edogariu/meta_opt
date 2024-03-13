@@ -9,7 +9,6 @@ for subdir in ['data', 'figs', 'datasets']:
 
 from meta_opt.train_loops import train_standard_opt, train_hgd, train_meta_opt
 from meta_opt.utils.experiment_utils import make, save_checkpoint, process_results, bcolors, plot, get_final_cparams
-import meta_opt.configs as configs
 
 import re
 import matplotlib.pyplot as plt
