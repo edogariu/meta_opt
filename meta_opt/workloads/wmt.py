@@ -141,9 +141,8 @@ def _wmt_bleu(model, tstate, predict_ds):
         cur_pred_batch_size = pred_batch["inputs"].shape[0]
         cache = initialize_cache(pred_batch["inputs"], cfg.max_len, cfg)  # predict mode
         predicted = predict_step(pred_batch['inputs'], tstate.params, cache, eos_id=model.eos_id, max_decode_len=cfg.max_len, config=cfg, beam_size=4)
-        predicted = tohost(predicted)
-        inputs = tohost(pred_batch["inputs"])
-        targets = tohost(pred_batch["targets"])
+        inputs = pred_batch["inputs"]
+        targets = pred_batch["targets"]
         # Iterate through non-padding examples of batch.
         for i, s in enumerate(predicted[:cur_pred_batch_size]):
             sources.append(_decode_tokens(inputs[i], model.eos_id, model.tokenizer))
