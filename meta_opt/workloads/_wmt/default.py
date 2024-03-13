@@ -118,9 +118,9 @@ def get_config():
 
 def get_medium_config():
   cfg = get_config()
-  cfg.qkv_dim = 256
-  cfg.emb_dim = 256
-  cfg.mlp_dim = 512
+  cfg.qkv_dim = 512
+  cfg.emb_dim = 512
+  cfg.mlp_dim = 1024
   cfg.num_heads = 8
   cfg.num_layers = 4
   return cfg
