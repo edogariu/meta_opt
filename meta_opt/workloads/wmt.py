@@ -93,7 +93,7 @@ def load_wmt(cfg, dataset_dir: str = './datasets') -> Tuple[tf.data.Dataset, tf.
                 drop_remainder=False,
             )
         
-        ds = ds.repeat(1 + int(n / len(ds))).take(n).shuffle(1024).prefetch(tf.data.AUTOTUNE)
+        ds = ds.repeat(5).take(n).shuffle(1024).prefetch(tf.data.AUTOTUNE)
         ds = ds.map(lambda sample: {'x': sample, 'y': sample['targets']})
         return ds
         
