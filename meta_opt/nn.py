@@ -2,6 +2,7 @@ from typing import Tuple, Callable, Dict
 import functools
 from collections import defaultdict
 
+import tensorflow as tf
 import jax
 import jax.numpy as jnp
 
@@ -80,10 +81,12 @@ def train_step(tstate, batch):
 def eval(tstate, dataset):
     eval_metrics = defaultdict(float)
     n = 0
-    for batch in dataset:
-        yhat, y = forward(tstate, batch)[1], batch['y']
-        for k, v in tstate.metric_fns.items(): eval_metrics[k] += v(yhat, y)
-        n += 1
+    try:
+        for batch in dataset:
+            yhat, y = forward(tstate, batch)[1], batch['y']
+            for k, v in tstate.metric_fns.items(): eval_metrics[k] += v(yhat, y)
+            n += 1
+    except tf.errors.OutOfRangeError: pass
     for k in eval_metrics.keys(): eval_metrics[k] /= n
     return dict(eval_metrics)
 

@@ -329,8 +329,8 @@ def preprocess_wmt_data(
         drop_remainder=drop_remainder,
     )
 
-  # if prefetch_size:
-  #   dataset = dataset.prefetch(prefetch_size)
+  if prefetch_size:
+    dataset = dataset.prefetch(prefetch_size)
 
   return dataset
 
