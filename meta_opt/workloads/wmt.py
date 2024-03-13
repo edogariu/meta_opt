@@ -69,7 +69,6 @@ def load_wmt(cfg, dataset_dir: str = './datasets') -> Tuple[tf.data.Dataset, tf.
         vocab_size=config.vocab_size,
         max_corpus_chars=config.max_corpus_chars,
     )
-    batch_size = config.per_device_batch_size * n_devices
     config.vocab_size = int(tokenizer.vocab_size())
 
     # make dataloaders
