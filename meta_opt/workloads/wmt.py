@@ -61,6 +61,9 @@ def load_wmt(cfg, dataset_dir: str = './datasets') -> Tuple[tf.data.Dataset, tf.
     eval_ds = eval_ds.map(lambda sample: {'x': sample,
                                             'y': sample['targets']})
     
+    train_ds = train_ds.take(num_iters)
+    eval_ds = eval_ds.take(num_eval_iters)
+    
     input_shape = (config.per_device_batch_size, config.max_target_length)
     example_input = jnp.ones(input_shape, jnp.float32)
     
