@@ -25,7 +25,7 @@ from meta_opt.workloads._wmt.train import initialize_cache, predict_step, tohost
 from meta_opt.workloads._wmt.bleu import bleu_partial, complete_bleu
 from meta_opt.workloads._wmt.decode import EOS_ID
 from meta_opt.workloads._wmt.default import get_mini_config as get_config
-import meta_opt.workloads._wmt.tokenizer as _tokenizer
+from meta_opt.workloads._wmt.tokenizer import TokenizeOp
 
 from meta_opt.workloads.utils import weighted_cross_entropy, weighted_accuracy
 
@@ -66,8 +66,8 @@ def load_wmt(cfg, dataset_dir: str = './datasets') -> Tuple[tf.data.Dataset, tf.
         vocab_size=config.vocab_size,
         max_corpus_chars=config.max_corpus_chars,
     )
-    train_ds = train_ds.map(tokenizer.TokenizeOp(tokenizer), num_parallel_calls=tf.data.AUTOTUNE)
-    eval_ds = eval_ds.map(tokenizer.TokenizeOp(tokenizer), num_parallel_calls=tf.data.AUTOTUNE)
+    train_ds = train_ds.map(TokenizeOp(tokenizer), num_parallel_calls=tf.data.AUTOTUNE)
+    eval_ds = eval_ds.map(TokenizeOp(tokenizer), num_parallel_calls=tf.data.AUTOTUNE)
     batch_size = config.per_device_batch_size * n_devices
     config.vocab_size = int(tokenizer.vocab_size())
 
