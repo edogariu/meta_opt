@@ -42,7 +42,7 @@ import tensorflow as tf
 import meta_opt.workloads._wmt.bleu
 import meta_opt.workloads._wmt.decode
 import meta_opt.workloads._wmt.input_pipeline
-import meta_opt.workloads._wmt.models
+from meta_opt.workloads._wmt.models import *
 
 
 class TrainState(train_state.TrainState):
@@ -210,7 +210,7 @@ def train_step(
 
   def loss_fn(params):
     """loss function used for training."""
-    logits = models.Transformer(config).apply(
+    logits = Transformer(config).apply(
         {"params": params},
         inputs,
         targets,
@@ -266,7 +266,7 @@ def eval_step(params, batch, config, label_smoothing=0.0):
   """Calculate evaluation metrics on a batch."""
   inputs, targets = batch["inputs"], batch["targets"]
   weights = jnp.where(targets > 0, 1.0, 0.0)
-  logits = models.Transformer(config).apply({"params": params}, inputs, targets)
+  logits = Transformer(config).apply({"params": params}, inputs, targets)
 
   return compute_metrics(logits, targets, weights, label_smoothing)
 
@@ -274,7 +274,7 @@ def eval_step(params, batch, config, label_smoothing=0.0):
 def initialize_cache(inputs, max_decode_len, config):
   """Initialize a cache for a given input shape and max decode length."""
   target_shape = (inputs.shape[0], max_decode_len) + inputs.shape[2:]
-  initial_variables = models.Transformer(config).init(
+  initial_variables = Transformer(config).init(
       jax.random.key(0),
       jnp.ones(inputs.shape, config.dtype),
       jnp.ones(target_shape, config.dtype),
@@ -293,8 +293,8 @@ def predict_step(
   # i.e. if we denote each batch element subtensor as el[n]:
   # [el0, el1, el2] --> beamsize=2 --> [el0,el0,el1,el1,el2,el2]
   encoded_inputs = decode.flat_batch_beam_expand(
-      models.Transformer(config).apply(
-          {"params": params}, inputs, method=models.Transformer.encode
+      Transformer(config).apply(
+          {"params": params}, inputs, method=Transformer.encode
       ),
       beam_size,
   )
@@ -303,13 +303,13 @@ def predict_step(
   def tokens_ids_to_logits(flat_ids, flat_cache):
     """Token slice to logits from decoder model."""
     # --> [batch * beam, 1, vocab]
-    flat_logits, new_vars = models.Transformer(config).apply(
+    flat_logits, new_vars = Transformer(config).apply(
         {"params": params, "cache": flat_cache},
         encoded_inputs,
         raw_inputs,  # only needed for input padding mask
         flat_ids,
         mutable=["cache"],
-        method=models.Transformer.decode,
+        method=Transformer.decode,
     )
     new_flat_cache = new_vars["cache"]
     # Remove singleton sequence-length dimension:
@@ -499,7 +499,7 @@ def train_and_evaluate(config: ml_collections.ConfigDict, workdir: str):
 
   # Build Model and Optimizer
   # ---------------------------------------------------------------------------
-  train_config = models.TransformerConfig(
+  train_config = TransformerConfig(
       vocab_size=vocab_size,
       output_vocab_size=vocab_size,
       share_embeddings=config.share_embeddings,
@@ -527,7 +527,7 @@ def train_and_evaluate(config: ml_collections.ConfigDict, workdir: str):
   input_shape = (config.per_device_batch_size, config.max_target_length)
   target_shape = (config.per_device_batch_size, config.max_target_length)
 
-  m = models.Transformer(eval_config)
+  m = Transformer(eval_config)
   initial_variables = jax.jit(m.init)(
       init_rng,
       jnp.ones(input_shape, jnp.float32),
