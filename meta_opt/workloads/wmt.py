@@ -56,7 +56,7 @@ def load_wmt(cfg, dataset_dir: str = './datasets') -> Tuple[tf.data.Dataset, tf.
     config.per_device_batch_size = batch_size
     config.vocab_path = os.path.join(cfg['directory'], 'datasets', 'tokenizer.pth')
     
-    train_ds, eval_ds, _, tokenizer = get_wmt_datasets(config, n_devices=1, vocab_path=os.path.join(cfg['directory'], 'datasets'))
+    train_ds, eval_ds, _, tokenizer = get_wmt_datasets(config, n_devices=1, vocab_path=os.path.join(cfg['directory'], 'datasets'), reverse_translation=config.reverse_translation)
     config.vocab_size = int(tokenizer.vocab_size())
     
     train_ds = train_ds.map(lambda sample: {'x': sample,
