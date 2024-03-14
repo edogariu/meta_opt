@@ -82,6 +82,7 @@ def train_meta_opt(cfg,
             last_eval_step = t
         if 'bleu_every' in args and check(t, 'bleu_every') and t != 0:
             s['bleu'] = tstate.model.bleu(tstate, test_ds.as_numpy_iterator())
+        s['lr'] = float(tstate.opt_state.hyperparams['learning_rate'])
 
         # log the value of the Ms
         s['M'] = meta_opt.cstate.cparams['M']

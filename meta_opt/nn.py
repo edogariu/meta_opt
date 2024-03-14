@@ -52,16 +52,13 @@ def forward(tstate, batch):
     return loss, yhat
 
 
-# @jax.jit
-print('trainstep ISNT JITTED!!!')
+@jax.jit
 def train_step(tstate, batch):    
     
     if tstate.rng is not None:  # some rng hacking that is very anti-jax :)
         next_key, dropout_key = jax.random.split(tstate.rng)
         tstate = tstate.replace(rng=next_key)
     else: dropout_key = None
-    
-    print('lr at beginning:', tstate.opt_state.hyperparams['learning_rate'])
     
     # define grad fn
     def loss_fn(params):
@@ -76,7 +73,6 @@ def train_step(tstate, batch):
     # get loss and grads
     (loss, (yhat, updates)), grads = jax.jit(jax.value_and_grad(loss_fn, has_aux=True))(tstate.params)
     tstate = tstate.apply_gradients(grads=grads)
-    print('lr after update:', tstate.opt_state.hyperparams['learning_rate'])
     tstate = tstate.replace(batch_stats=updates['batch_stats'])
     return tstate, (loss, grads)
 
