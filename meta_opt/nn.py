@@ -53,6 +53,7 @@ def forward(tstate, batch):
 
 
 # @jax.jit
+print('trainstep ISNT JITTED!!!')
 def train_step(tstate, batch):    
     
     if tstate.rng is not None:  # some rng hacking that is very anti-jax :)
