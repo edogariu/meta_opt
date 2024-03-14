@@ -166,7 +166,7 @@ def _wmt_bleu(model, tstate, predict_ds):
         exemplars += f"{sources[n]}\n\n{references[n]}\n\n{predictions[n]}\n\n"
     # print(exemplars)
     
-    return bleu_score
+    return bleu_score, exemplars
 
 
 class WMT(jnn.Module):

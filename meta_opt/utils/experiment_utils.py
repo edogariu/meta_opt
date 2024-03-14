@@ -102,7 +102,7 @@ def process_results(cfg, results):
     args = {}
     for k, v in aggregated.items():  # for experiment
         for stat_key in v.keys():  # for stat
-            if stat_key in ['args']:
+            if stat_key in ['args', 'bleu_exemplars']:
                 args[k] = v[stat_key]
                 continue
             if k not in ret[stat_key]: ret[stat_key][k] = {}

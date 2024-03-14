@@ -42,10 +42,9 @@ def train_standard_opt(cfg, optimizer):
             s['grad_sq_norm'] = pytree_sq_norm(grads)
             last_eval_step = t
         if 'bleu_every' in args and t % args['bleu_every'] == 0 and t != 0:
-            s['bleu'] = tstate.model.bleu(tstate, test_ds.as_numpy_iterator())
-            print(s['bleu'])
+            s['bleu'], s['bleu_exemplars'] = tstate.model.bleu(tstate, test_ds.as_numpy_iterator())
+            print(s['bleu'], s['bleu_exemplars'])
         s['lr'] = float(tstate.opt_state.hyperparams['learning_rate'])
-        if t % 100 == 0: print(t, 'lr={}'.format(s['lr']))
 
         stats[t] = s
         pbar.set_postfix({'loss': round(s['loss'].item(), 3), 
