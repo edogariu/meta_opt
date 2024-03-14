@@ -18,6 +18,7 @@ class TrainState(train_state.TrainState):
     example_input: jnp.ndarray
     rng: jnp.ndarray
     other_vars: Dict[str, jnp.ndarray]
+    step: int
 
 def reset_model(rng, tstate: TrainState):
     init_rng, dropout_rng, rng = jax.random.split(rng, 3)
@@ -25,7 +26,7 @@ def reset_model(rng, tstate: TrainState):
     params, batch_stats = variables['params'], variables['batch_stats'] if 'batch_stats' in variables else {}  # initialize parameters by passing a template input
     other_vars = {k: v for k, v in variables.items() if k not in ['params', 'batch_stats']}
     opt_state = tstate.tx.init(params)
-    tstate = tstate.replace(params=params, batch_stats=batch_stats, opt_state=opt_state, other_vars=other_vars, rng=rng)
+    tstate = tstate.replace(params=params, batch_stats=batch_stats, opt_state=opt_state, other_vars=other_vars, rng=rng, step=0)
     return tstate
 
 def create_train_state(rng, model: jnn.Module, example_input: jnp.ndarray, optimizer, loss_fn, metric_fns={}):
@@ -39,7 +40,8 @@ def create_train_state(rng, model: jnn.Module, example_input: jnp.ndarray, optim
                                loss_fn=jax.tree_util.Partial(loss_fn), 
                                metric_fns={k: jax.tree_util.Partial(v) for k, v in metric_fns.items()},
                                other_vars={},
-                               rng=None)
+                               rng=None,
+                               step=0)
     return reset_model(rng, tstate)
 
 
@@ -52,13 +54,15 @@ def forward(tstate, batch):
     return loss, yhat
 
 
-@jax.jit
+# @jax.jit
 def train_step(tstate, batch):    
     
     if tstate.rng is not None:  # some rng hacking that is very anti-jax :)
         next_key, dropout_key = jax.random.split(tstate.rng)
         tstate = tstate.replace(rng=next_key)
     else: dropout_key = None
+    
+    print('lr at beginning:', tstate.opt_state.hyperparams['learning_rate'])
     
     # define grad fn
     def loss_fn(params):
@@ -73,7 +77,10 @@ def train_step(tstate, batch):
     # get loss and grads
     (loss, (yhat, updates)), grads = jax.value_and_grad(loss_fn, has_aux=True)(tstate.params)
     tstate = tstate.apply_gradients(grads=grads)
-    tstate = tstate.replace(batch_stats=updates['batch_stats'])
+    print('lr after update:', tstate.opt_state.hyperparams['learning_rate'])
+    _lr = tstate.opt_state.hyperparams['learning_rate'](tstate.step)
+    print('lr after calling step:', tstate.opt_state.hyperparams['learning_rate'], f'(it had a value of {_lr})')
+    tstate = tstate.replace(batch_stats=updates['batch_stats'], step=tstate.step+1)
     return tstate, (loss, grads)
 
 
