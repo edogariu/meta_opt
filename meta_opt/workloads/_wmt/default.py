@@ -146,6 +146,13 @@ def get_miniscule_config():
   cfg.max_predict_length = 32
   return cfg
 
+def get_big_short_config():
+  cfg = get_config()
+  cfg.max_target_length = 64
+  cfg.max_eval_target_length = 64
+  cfg.max_predict_length = 64
+  return cfg
+
 def metrics():
   return [
       'train_loss',
