@@ -45,7 +45,7 @@ def train_standard_opt(cfg, optimizer):
             s['bleu'] = tstate.model.bleu(tstate, test_ds.as_numpy_iterator())
             print(s['bleu'])
         s['lr'] = float(tstate.opt_state.hyperparams['learning_rate'])
-        print(s['lr'])
+        if t % 100 == 0: print(t, 'lr={}'.format(s['lr']))
 
         stats[t] = s
         pbar.set_postfix({'loss': round(s['loss'].item(), 3), 
