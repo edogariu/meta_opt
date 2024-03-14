@@ -25,7 +25,7 @@ from meta_opt.workloads._wmt.models import Transformer, TransformerConfig
 from meta_opt.workloads._wmt.train import initialize_cache, predict_step, tohost, per_host_sum_pmap, preferred_dtype, create_learning_rate_schedule
 from meta_opt.workloads._wmt.bleu import bleu_partial, complete_bleu
 from meta_opt.workloads._wmt.decode import EOS_ID
-from meta_opt.workloads._wmt.default import get_small_config, get_medium_config, get_config
+from meta_opt.workloads._wmt.default import get_small_config, get_medium_config, get_config, get_miniscule_config
 
 from meta_opt.workloads.utils import weighted_cross_entropy, weighted_accuracy
 
@@ -180,6 +180,7 @@ class WMT(jnn.Module):
         if size == 'small': config = get_small_config()
         elif size == 'medium': config = get_medium_config()
         elif size == 'large': config = get_config()
+        elif size == 'miniscule': config = get_miniscule_config()
         else: raise NotImplementedError(size)
         
         vocab_path = os.path.join(experiment_config['directory'], 'datasets')
