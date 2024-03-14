@@ -77,8 +77,6 @@ def train_step(tstate, batch):
     (loss, (yhat, updates)), grads = jax.jit(jax.value_and_grad(loss_fn, has_aux=True))(tstate.params)
     tstate = tstate.apply_gradients(grads=grads)
     print('lr after update:', tstate.opt_state.hyperparams['learning_rate'])
-    _lr = tstate.opt_state.hyperparams['learning_rate'](tstate.step)
-    print('lr after calling step:', tstate.opt_state.hyperparams['learning_rate'], f'(it had a value of {_lr})')
     tstate = tstate.replace(batch_stats=updates['batch_stats'])
     return tstate, (loss, grads)
 
