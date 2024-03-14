@@ -89,7 +89,8 @@ def train_meta_opt(cfg,
         s['M'] = meta_opt.cstate.cparams['M']
         stats[t] = s
         pbar.set_postfix({'loss': round(s['loss'].item(), 3), 
-                          'eval_loss': round(stats[last_eval_step]['eval_loss'].item(), 3) if last_eval_step is not None else 'N/A'})
+                          'eval_loss': round(stats[last_eval_step]['eval_loss'].item(), 3) if last_eval_step is not None else 'N/A',
+                          'lr': round(s['lr'], 5),},)
         if not counterfactual: pbar.update(HH)
 
     return dict(stats)

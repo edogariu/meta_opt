@@ -49,6 +49,7 @@ def train_standard_opt(cfg, optimizer):
         stats[t] = s
         pbar.set_postfix({'loss': round(s['loss'].item(), 3), 
                           'eval_loss': round(stats[last_eval_step]['eval_loss'].item(), 3) if last_eval_step is not None else 'N/A',
+                          'lr': round(s['lr'], 5)
                           })
 
     return dict(stats)
