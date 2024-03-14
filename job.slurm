@@ -13,4 +13,4 @@ module purge
 module load anaconda3/2023.9
 conda activate meta-opt
 
-python slurm.py
+python main.py
