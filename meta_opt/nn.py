@@ -18,7 +18,6 @@ class TrainState(train_state.TrainState):
     example_input: jnp.ndarray
     rng: jnp.ndarray
     other_vars: Dict[str, jnp.ndarray]
-    step: int
 
 def reset_model(rng, tstate: TrainState):
     init_rng, dropout_rng, rng = jax.random.split(rng, 3)
@@ -26,7 +25,7 @@ def reset_model(rng, tstate: TrainState):
     params, batch_stats = variables['params'], variables['batch_stats'] if 'batch_stats' in variables else {}  # initialize parameters by passing a template input
     other_vars = {k: v for k, v in variables.items() if k not in ['params', 'batch_stats']}
     opt_state = tstate.tx.init(params)
-    tstate = tstate.replace(params=params, batch_stats=batch_stats, opt_state=opt_state, other_vars=other_vars, rng=rng, step=0)
+    tstate = tstate.replace(params=params, batch_stats=batch_stats, opt_state=opt_state, other_vars=other_vars, rng=rng)
     return tstate
 
 def create_train_state(rng, model: jnn.Module, example_input: jnp.ndarray, optimizer, loss_fn, metric_fns={}):
@@ -40,8 +39,7 @@ def create_train_state(rng, model: jnn.Module, example_input: jnp.ndarray, optim
                                loss_fn=jax.tree_util.Partial(loss_fn), 
                                metric_fns={k: jax.tree_util.Partial(v) for k, v in metric_fns.items()},
                                other_vars={},
-                               rng=None,
-                               step=0)
+                               rng=None,)
     return reset_model(rng, tstate)
 
 
@@ -80,7 +78,7 @@ def train_step(tstate, batch):
     print('lr after update:', tstate.opt_state.hyperparams['learning_rate'])
     _lr = tstate.opt_state.hyperparams['learning_rate'](tstate.step)
     print('lr after calling step:', tstate.opt_state.hyperparams['learning_rate'], f'(it had a value of {_lr})')
-    tstate = tstate.replace(batch_stats=updates['batch_stats'], step=tstate.step+1)
+    tstate = tstate.replace(batch_stats=updates['batch_stats'])
     return tstate, (loss, grads)
 
 
