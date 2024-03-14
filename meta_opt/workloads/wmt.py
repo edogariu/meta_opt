@@ -33,6 +33,16 @@ from meta_opt.workloads.utils import weighted_cross_entropy, weighted_accuracy
 # this whole thing is taken and adapted from https://github.com/google/flax/tree/main/examples/wmt 
 # ================================================================================================
 
+def get_model_config(experiment_config):
+    assert 'transformer_size' in experiment_config
+    k = experiment_config['transformer_size']
+    d = {'small': get_small_config,
+         'medium': get_medium_config,
+         'large': get_config,
+         'miniscule': get_miniscule_config,
+    }
+    assert k in d, f'key {k} is not a valid size'
+    return d[k]()
 
 # ------------------------------------------------------------------
 # ------------------------- Dataset --------------------------------
@@ -49,7 +59,7 @@ def load_wmt(cfg, dataset_dir: str = './datasets') -> Tuple[tf.data.Dataset, tf.
     if full_batch: raise NotImplementedError('WARNING: I DIDNT IMPLEMENT FULL BATCH FOR WMT YET')
     assert num_eval_iters > 0, 'WARNING: I DIDNT IMPLEMENT THIS EITHER'
     
-    config = get_config()
+    config = get_model_config(cfg)
     config.num_train_steps = num_iters
     config.num_eval_steps = num_eval_iters
     config.seed = cfg['seed']
@@ -177,11 +187,7 @@ class WMT(jnn.Module):
     def __init__(self, experiment_config, tokenizer, size: str):
         num_iters, batch_size, num_eval_iters = experiment_config['num_iters'], experiment_config['batch_size'], experiment_config['num_eval_iters']
         
-        if size == 'small': config = get_small_config()
-        elif size == 'medium': config = get_medium_config()
-        elif size == 'large': config = get_config()
-        elif size == 'miniscule': config = get_miniscule_config()
-        else: raise NotImplementedError(size)
+        config = get_model_config(experiment_config)
         
         vocab_path = os.path.join(experiment_config['directory'], 'datasets')
         if vocab_path is None:
