@@ -25,8 +25,6 @@ def train_standard_opt(cfg, optimizer):
     pbar = tqdm.tqdm(train_ds.as_numpy_iterator(), total=args['num_iters'])
     for t, batch in enumerate(pbar):
         
-        print(batch)
-
         if t % args['reset_every'] == 0:
             reset_rng, rng = jax.random.split(rng)
             tstate = reset_model(reset_rng, tstate)
