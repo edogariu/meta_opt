@@ -26,7 +26,7 @@ CFG = {
     'num_iters': 80000,
     'eval_every': 1000,
     'num_eval_iters': 20,
-    'bleu_every': 2000,
+    'bleu_every': 4000,
     'batch_size': 64,
     'full_batch': False,
     'reset_every': 24000,
