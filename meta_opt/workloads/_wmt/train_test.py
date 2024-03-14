@@ -21,8 +21,8 @@ import jax
 import tensorflow as tf
 import tensorflow_datasets as tfds
 
-import meta_opt.workloads._wmt.default
-import meta_opt.workloads._wmt.train
+import meta_opt.workloads._wmt.default as default
+import meta_opt.workloads._wmt.train as train
 
 
 jax.config.update('jax_disable_most_optimizations', True)
