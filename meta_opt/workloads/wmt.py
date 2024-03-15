@@ -25,7 +25,7 @@ from meta_opt.workloads._wmt.models import Transformer, TransformerConfig
 from meta_opt.workloads._wmt.train import initialize_cache, predict_step, tohost, per_host_sum_pmap, preferred_dtype, create_learning_rate_schedule
 from meta_opt.workloads._wmt.bleu import bleu_partial, complete_bleu
 from meta_opt.workloads._wmt.decode import EOS_ID
-from meta_opt.workloads._wmt.default import get_small_config, get_medium_config, get_config, get_miniscule_config, get_big_short_config
+from meta_opt.workloads._wmt.default import get_small_config, get_base_config, get_big_config, get_miniscule_config, get_base_short_config
 
 from meta_opt.workloads.utils import weighted_cross_entropy, weighted_accuracy
 
@@ -37,10 +37,10 @@ def get_model_config(experiment_config):
     assert 'transformer_size' in experiment_config
     k = experiment_config['transformer_size']
     d = {'small': get_small_config,
-         'medium': get_medium_config,
-         'large': get_config,
+         'base': get_base_config,
+         'big': get_big_config,
          'miniscule': get_miniscule_config,
-         'big_short': get_big_short_config,
+         'base_short': get_base_short_config,
     }
     assert k in d, f'key {k} is not a valid size'
     return d[k]()

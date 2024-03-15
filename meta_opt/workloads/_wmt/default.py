@@ -17,7 +17,7 @@
 import ml_collections
 
 
-def get_config():
+def get_big_config():
   """Get the default hyperparameter configuration."""
   config = ml_collections.ConfigDict()
 
@@ -116,18 +116,18 @@ def get_config():
   return config
 
 
-def get_medium_config():
-  cfg = get_config()
-  cfg.qkv_dim = 512
+def get_base_config():
+  cfg = get_big_config()
+  cfg.qkv_dim = 64
   cfg.emb_dim = 512
-  cfg.mlp_dim = 1024
+  cfg.mlp_dim = 2048
   cfg.num_heads = 8
-  cfg.num_layers = 4
+  cfg.num_layers = 6
   return cfg
 
 def get_small_config():
-  cfg = get_config()
-  cfg.qkv_dim = 128
+  cfg = get_big_config()
+  cfg.qkv_dim = 64
   cfg.emb_dim = 128
   cfg.mlp_dim = 256
   cfg.num_heads = 4
@@ -135,8 +135,8 @@ def get_small_config():
   return cfg
 
 def get_miniscule_config():
-  cfg = get_config()
-  cfg.qkv_dim = 128
+  cfg = get_big_config()
+  cfg.qkv_dim = 64
   cfg.emb_dim = 128
   cfg.mlp_dim = 512
   cfg.num_heads = 2
@@ -146,8 +146,8 @@ def get_miniscule_config():
   cfg.max_predict_length = 32
   return cfg
 
-def get_big_short_config():
-  cfg = get_config()
+def get_base_short_config():
+  cfg = get_base_config()
   cfg.max_target_length = 32
   cfg.max_eval_target_length = 32
   cfg.max_predict_length = 32
