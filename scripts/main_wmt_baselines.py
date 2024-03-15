@@ -49,7 +49,7 @@ def run(seeds, cfg):
             # 'dadamw': optax.inject_hyperparams(optax.contrib.dadapt_adamw)(),
             # 'mechadamw': optax.contrib.mechanize(optax.inject_hyperparams(optax.adamw)(learning_rate=1e-3, b1=0.9, b2=0.999, weight_decay=1e-4)),
             # 'rmsprop': optax.inject_hyperparams(optax.rmsprop)(learning_rate=1e-3),
-            'rsqrt': rsqrt(),
+            'rsqrt': rsqrt(lr=0.004, warmup_steps=4000),
         }
         for k, opt in benchmarks.items(): results[k].append(train_standard_opt(CFG, opt))
 
