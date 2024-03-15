@@ -234,7 +234,7 @@ def rsqrt(lr: float = 0.002, warmup_steps: int = 1000, b1: float = 0.9, b2: floa
           learning_rate=lr_schedule,
           b1=b1,
           b2=b2,
-          eps=1e-9,
+          eps=1e-8,
           weight_decay=weight_decay,
       )
     return opt

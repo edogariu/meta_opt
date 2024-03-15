@@ -26,7 +26,7 @@ import jax
 from ml_collections import config_flags
 import tensorflow as tf
 
-import meta_opt.workloads._wmt.train
+import meta_opt.workloads._wmt.train as train
 
 
 FLAGS = flags.FLAGS
