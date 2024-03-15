@@ -32,7 +32,6 @@ def get_workload(cfg, optimizer):
     elif cfg['workload'] == 'WMT':
         train_ds, test_ds, example_input, loss_fn, metric_fns, tokenizer = load_wmt(cfg, dataset_dir=os.path.join(directory, 'datasets'))
         model = WMT(cfg, tokenizer, size=cfg['transformer_size'])
-        if cfg['full_batch']: raise NotImplementedError('full batch on WMT')
     else:
         raise NotImplementedError(cfg['workload'])
 
