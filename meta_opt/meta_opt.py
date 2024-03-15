@@ -222,7 +222,7 @@ class MetaOpt:
                         batch,  # batch from step of gd that resulted in `tstate`
                         ):      
         # lazy initialize the history if it is still `None``
-        if self.batch_history is None: self.batch_history = {k: jnp.repeat(v[None], self.HH, axis=0) for k, v in batch.items()}
+        if self.batch_history is None: self.batch_history = {k: [v for _ in range(self.HH)] for k, v in batch.items()}
 
         # clip disturbances (K = 10 is very soft)
         K = 10; grads = jax.tree_map(lambda g: jnp.clip(g, -K, K), grads)
