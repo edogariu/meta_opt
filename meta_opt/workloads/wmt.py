@@ -72,12 +72,12 @@ def load_wmt(cfg, dataset_dir: str = './datasets') -> Tuple[tf.data.Dataset, tf.
     eval_ds = eval_ds.map(lambda sample: {'x': sample,
                                             'y': sample['targets']})
     
+    train_ds = train_ds.shuffle(1024)
     if full_batch:
-        train_ds = train_ds.take(1).repeat(num_iters)
+        train_ds = train_ds.take(1).cache().repeat(num_iters)
     else:
-        train_ds = train_ds.take(num_iters)
+        train_ds = train_ds.take(num_iters).prefetch(tf.data.AUTOTUNE)
         if num_eval_iters > 0: eval_ds = eval_ds.take(num_eval_iters)
-    # train_ds = train_ds.shuffle(1024)
     
     input_shape = (config.per_device_batch_size, config.max_target_length)
     example_input = jnp.ones(input_shape, jnp.float32)
