@@ -6,3 +6,4 @@ things i needed to change to get it to work
 - move configs/default.py out to wmt/default.py
 - changed vocab_path to config.vocab_path in get_wmt_datasets (the argument to make the tokenizer)
 - added get_*_config to default.py for the different sizes
+- turned off the `shuffle` setting when preprocessing wmt dataset. this fixes fullbatch

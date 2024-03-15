@@ -77,6 +77,7 @@ def load_wmt(cfg, dataset_dir: str = './datasets') -> Tuple[tf.data.Dataset, tf.
     else:
         train_ds = train_ds.take(num_iters)
         if num_eval_iters > 0: eval_ds = eval_ds.take(num_eval_iters)
+    # train_ds = train_ds.shuffle(1024)
     
     input_shape = (config.per_device_batch_size, config.max_target_length)
     example_input = jnp.ones(input_shape, jnp.float32)

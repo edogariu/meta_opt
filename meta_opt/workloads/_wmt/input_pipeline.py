@@ -381,7 +381,7 @@ def get_wmt_datasets(
 
   train_ds = preprocess_wmt_data(
       train_data,
-      shuffle=True,
+      shuffle=False,
       num_epochs=None,
       pack_examples=True,
       batch_size=batch_size,
