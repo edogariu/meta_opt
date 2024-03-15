@@ -83,14 +83,15 @@ def train_meta_opt(cfg,
         if 'bleu_every' in args and check(t, 'bleu_every') and t != 0:
             s['bleu'], s['bleu_exemplars'] = tstate.model.bleu(tstate, test_ds.as_numpy_iterator())
             print(s['bleu'], s['bleu_exemplars'])
-        s['lr'] = float(tstate.opt_state.hyperparams['learning_rate'])
+        # s['lr'] = float(tstate.opt_state.hyperparams['learning_rate'])
 
         # log the value of the Ms
         s['M'] = meta_opt.cstate.cparams['M']
         stats[t] = s
         pbar.set_postfix({'loss': round(s['loss'].item(), 3), 
                           'eval_loss': round(stats[last_eval_step]['eval_loss'].item(), 3) if last_eval_step is not None else 'N/A',
-                          'lr': round(s['lr'], 5),},)
+                        #   'lr': round(s['lr'], 5),
+                          },)
         if not counterfactual: pbar.update(HH)
 
     return dict(stats)
