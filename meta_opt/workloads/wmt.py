@@ -51,6 +51,7 @@ def get_model_config(experiment_config):
 def load_wmt(cfg, dataset_dir: str = './datasets') -> Tuple[tf.data.Dataset, tf.data.Dataset, List[int], Callable, Callable]:
     """Load WMT train and test datasets into memory."""
     num_iters, batch_size, num_eval_iters, full_batch, main_dir = cfg['num_iters'], cfg['batch_size'], cfg['num_eval_iters'], cfg['full_batch'], cfg['directory']
+    tf.random.set_seed(cfg['seed'])
     assert os.path.isdir(f'{main_dir}/meta_opt/workloads/_wmt'), 'WMT library is in the wrong place'
     if not os.path.isfile(f'{main_dir}/meta_opt/workloads/_wmt/default.py'): 
         shutil.copyfile(f'{main_dir}/meta_opt/workloads/_wmt/configs/default.py', f'{main_dir}/meta_opt/workloads/_wmt/default.py')
