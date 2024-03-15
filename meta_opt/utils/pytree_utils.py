@@ -15,6 +15,9 @@ def _append(arr, val):
 
 def append(arr, val):  # handle tuples as well
     if isinstance(arr, jnp.ndarray): return _append(arr, val)
+    elif isinstance(arr, list): 
+        arr.append(val)
+        return arr
     elif isinstance(arr, Tuple):
         arr = arr[1:] + (val,)
         return arr
