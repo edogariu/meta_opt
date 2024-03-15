@@ -56,9 +56,6 @@ def load_wmt(cfg, dataset_dir: str = './datasets') -> Tuple[tf.data.Dataset, tf.
         shutil.copyfile(f'{main_dir}/meta_opt/workloads/_wmt/configs/default.py', f'{main_dir}/meta_opt/workloads/_wmt/default.py')
         print('copied `default.py` into correct place!')
     
-    # TODO ADD FULL BATCH
-    if full_batch: raise NotImplementedError('WARNING: I DIDNT IMPLEMENT FULL BATCH FOR WMT YET')
-    
     config = get_model_config(cfg)
     config.num_train_steps = num_iters
     config.num_eval_steps = num_eval_iters
