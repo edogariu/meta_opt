@@ -78,7 +78,7 @@ def train_step(tstate, batch):
     if hasattr(tstate.model, 'radius'): 
         div = jnp.maximum(1., ((pytree_sq_norm(tstate.params) ** 0.5) / tstate.model.radius))
         params = jax.tree_util.tree_map(lambda p: p / div, tstate.params)
-    else: params = params
+    else: params = tstate.params
     tstate = tstate.replace(batch_stats=updates['batch_stats'], params=params)
     return tstate, (loss, grads)
 
