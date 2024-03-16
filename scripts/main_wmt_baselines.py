@@ -51,12 +51,14 @@ def run(seeds, cfg):
             # 'mechadamw': optax.contrib.mechanize(optax.inject_hyperparams(optax.adamw)(learning_rate=1e-3, b1=0.9, b2=0.999, weight_decay=1e-4)),
             # 'rmsprop': optax.inject_hyperparams(optax.rmsprop)(learning_rate=1e-3),
         }
-        for k, opt in benchmarks.items(): results[k].append(train_standard_opt(CFG, opt))
+        for k, opt in benchmarks.items(): 
+            results[k].append(train_standard_opt(CFG, opt))
+            save_checkpoint(CFG, results, checkpoint_name=f'seed {s}')
 
         # other
         results['hgd'].append(train_hgd(CFG, initial_lr=1.0, hypergrad_lr=1e-2))
-
         save_checkpoint(CFG, results, checkpoint_name=f'seed {s}')
+        
     processed_results = process_results(CFG, results)
 # ==================================================
 
