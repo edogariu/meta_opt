@@ -42,19 +42,19 @@ def run(seeds, cfg):
         print(f'running with seed {s}')
         
         # ours
-        opt = optax.inject_hyperparams(optax.sgd)(learning_rate=1e-4)
-        results['ncf'].append(train_meta_opt(CFG, counterfactual=False, H=32, HH=3, meta_optimizer=opt, initial_lr=0.4))
+        opt = optax.inject_hyperparams(optax.adam)(learning_rate=1e-3)
+        results['ncf_adam'].append(train_meta_opt(CFG, counterfactual=False, H=32, HH=3, meta_optimizer=opt, initial_lr=1.0))
         save_checkpoint(CFG, results, checkpoint_name=f'seed {s}')
         
         # standard benchmarks
         benchmarks = {
             # 'sgd': optax.inject_hyperparams(optax.sgd)(learning_rate=0.4),
             # 'momentum': optax.chain(optax.add_decayed_weights(1e-4), optax.inject_hyperparams(optax.sgd)(learning_rate=0.1, momentum=0.9)),
-            'adamw': optax.inject_hyperparams(optax.adamw)(learning_rate=1e-2, b1=0.9, b2=0.999, weight_decay=1e-4),
+            'adamw': optax.inject_hyperparams(optax.adamw)(learning_rate=1e-3, b1=0.9, b2=0.999, weight_decay=1e-4),
             # 'dadamw': optax.inject_hyperparams(optax.contrib.dadapt_adamw)(),
             # 'mechadamw': optax.contrib.mechanize(optax.inject_hyperparams(optax.adamw)(learning_rate=1e-3, b1=0.9, b2=0.999, weight_decay=1e-4)),
             # 'rmsprop': optax.inject_hyperparams(optax.rmsprop)(learning_rate=1e-3),
-            'rsqrt': rsqrt(lr=0.008, warmup_steps=1000),
+            # 'rsqrt': rsqrt(lr=0.008, warmup_steps=1000),
         }
         for k, opt in benchmarks.items(): 
             results[k].append(train_standard_opt(CFG, opt))
