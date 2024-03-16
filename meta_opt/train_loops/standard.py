@@ -46,6 +46,8 @@ def train_standard_opt(cfg, optimizer):
             print(s['bleu'], s['bleu_exemplars'])
         s['lr'] = float(tstate.opt_state.hyperparams['learning_rate'])
 
+        print(pytree_sq_norm(tstate.params))
+
         stats[t] = s
         pbar.set_postfix({'loss': round(s['loss'].item(), 3), 
                           'eval_loss': round(stats[last_eval_step]['eval_loss'].item(), 3) if last_eval_step is not None else 'N/A',

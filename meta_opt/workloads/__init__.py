@@ -6,7 +6,7 @@ import optax
 from meta_opt.nn import create_train_state
 from meta_opt.utils.experiment_utils import _set_seed, bcolors
 
-from .nonconvex_quadratic import load_ncq, NCQ, add_projection
+from .nonconvex_quadratic import load_ncq, NCQ
 from .mnist import load_mnist, MLP, CNN
 from .cifar10 import load_cifar10, VGG16
 from .wmt import load_wmt, WMT
@@ -21,8 +21,7 @@ def get_workload(cfg, optimizer):
         train_ds, test_ds, example_input, loss_fn, metric_fns = load_ncq(cfg)
         dim = 12
         A = jax.random.normal(jax.random.PRNGKey(1), (dim, dim))
-        model = NCQ(dim=dim, std=1e-5, A=A)
-        optimizer = optax.chain(optimizer, add_projection(radius=1.))
+        model = NCQ(dim=dim, std=1e-5, A=A, radius=1.0)
     elif cfg['workload'] == 'MNIST':
         train_ds, test_ds, example_input, loss_fn, metric_fns = load_mnist(cfg, dataset_dir=os.path.join(directory, 'datasets'))
         model = MLP([28 * 28, 100, 100, 10])

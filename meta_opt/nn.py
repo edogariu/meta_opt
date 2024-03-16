@@ -10,6 +10,8 @@ import flax.linen as jnn
 from flax import struct
 from flax.training import train_state
 
+from meta_opt.utils.pytree_utils import pytree_sq_norm
+
 class TrainState(train_state.TrainState):
     batch_stats: jnp.ndarray
     loss_fn: Callable[[Tuple[jnp.ndarray, jnp.ndarray]], float]
@@ -73,7 +75,11 @@ def train_step(tstate, batch):
     # get loss and grads
     (loss, (yhat, updates)), grads = jax.jit(jax.value_and_grad(loss_fn, has_aux=True))(tstate.params)
     tstate = tstate.apply_gradients(grads=grads)
-    tstate = tstate.replace(batch_stats=updates['batch_stats'])
+    if hasattr(tstate.model, 'radius'): 
+        div = jnp.maximum(1., ((pytree_sq_norm(tstate.params) ** 0.5) / tstate.model.radius))
+        params = jax.tree_util.tree_map(lambda p: p / div, tstate.params)
+    else: params = params
+    tstate = tstate.replace(batch_stats=updates['batch_stats'], params=params)
     return tstate, (loss, grads)
 
 

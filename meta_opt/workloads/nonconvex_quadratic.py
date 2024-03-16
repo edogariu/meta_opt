@@ -17,7 +17,7 @@ from meta_opt.utils.pytree_utils import pytree_sq_norm
 def load_ncq(cfg) -> Tuple[tf.data.Dataset, tf.data.Dataset, List[int], Callable, Callable]:    
     num_iters, seed = cfg['num_iters'], cfg['seed']
     def loss_fn(yhat, y): return yhat
-    ds = tf.data.Dataset.random(seed=seed).take(num_iters).map(lambda sample: {'x': 0, 'y': 0})  # empty dataset of correct format
+    ds = tf.data.Dataset.random(seed=seed).take(num_iters).map(lambda sample: {'x': jnp.ones((5,)), 'y': jnp.zeros((5,))}).batch(3).cache()  # empty dataset of correct format
     return ds, None, 0, loss_fn, {}  # train dataset, test dataset, unbatched input dimensions, loss function, eval metrics
 
 # ------------------------------------------------------------------
@@ -27,6 +27,7 @@ class NCQ(jnn.Module):
     dim: int
     std: float
     A: jnp.ndarray
+    radius: float
     
     @jnn.compact
     def __call__(self, x: jnp.ndarray, train=False):  # forward pass. x and train are dummy variables
