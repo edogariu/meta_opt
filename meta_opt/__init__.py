@@ -4,7 +4,7 @@ try:
     from google import colab  # for use in google colab!!
     DIR = os.path.abspath("./drive/My Drive/meta-opt")
 except: 
-    DIR = os.path.abspath("../")
+    DIR = os.path.abspath("./")
 assert os.path.isdir(DIR)
 
 # make sure we have the necessary folders
