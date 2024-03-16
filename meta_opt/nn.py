@@ -36,8 +36,8 @@ def create_train_state(rng, model: jnn.Module, example_input: jnp.ndarray, optim
                                batch_stats={},
                                tx=optimizer,
                                example_input=example_input, 
-                               loss_fn=jax.jit(jax.tree_util.Partial(loss_fn)), 
-                               metric_fns={k: jax.jit(jax.tree_util.Partial(v)) for k, v in metric_fns.items()},
+                               loss_fn=jax.tree_util.Partial(jax.jit(loss_fn)), 
+                               metric_fns={k: jax.tree_util.Partial(jax.jit(v)) for k, v in metric_fns.items()},
                                other_vars={},
                                rng=None,)
     return reset_model(rng, tstate)
