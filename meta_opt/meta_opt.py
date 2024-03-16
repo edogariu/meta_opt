@@ -23,7 +23,7 @@ class MetaOptGPCState(struct.PyTreeNode):
     
     @classmethod
     def create(cls, 
-               tstate,
+               params,
                m_method: str,
                H: int,
                HH: int,
@@ -33,8 +33,8 @@ class MetaOptGPCState(struct.PyTreeNode):
                ):
         # make controller
         if m_method == 'scalar': M = jnp.zeros((H,), dtype=dtype)
-        elif m_method == 'diagonal': M = jax.tree_map(lambda p: jnp.zeros((H, jnp.prod(jnp.array(p.shape))), dtype=dtype), tstate.params)
-        elif m_method == 'full': M = jax.tree_map(lambda p: jnp.zeros((H, jnp.prod(jnp.array(p.shape)), jnp.prod(jnp.array(p.shape))), dtype=dtype), tstate.params)
+        elif m_method == 'diagonal': M = jax.tree_map(lambda p: jnp.zeros((H, jnp.prod(jnp.array(p.shape))), dtype=dtype), params)
+        elif m_method == 'full': M = jax.tree_map(lambda p: jnp.zeros((H, jnp.prod(jnp.array(p.shape)), jnp.prod(jnp.array(p.shape))), dtype=dtype), params)
         else: raise NotImplementedError(m_method)
         cparams = {'M': M}
 
@@ -186,7 +186,7 @@ class MetaOpt:
     HH: int
 
     def __init__(self,
-                 initial_tstate,
+                 initial_params,
                  H: int, HH: int,
                  meta_optimizer,
                  m_method: str, 
@@ -197,7 +197,7 @@ class MetaOpt:
         self.t = 0
 
         assert m_method in ['scalar', 'diagonal', 'full']
-        self.cstate = MetaOptGPCState.create(initial_tstate, m_method, H, HH, meta_optimizer=meta_optimizer, grad_clip=grad_clip, dtype=dtype)
+        self.cstate = MetaOptGPCState.create(initial_params, m_method, H, HH, meta_optimizer=meta_optimizer, grad_clip=grad_clip, dtype=dtype)
         
         # if we dont do counterfactual steps, these will remain unused
         self.H, self.HH = H, HH
