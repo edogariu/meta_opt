@@ -19,7 +19,7 @@ CFG = {
     'eval_every': 1000,
     'num_eval_iters': 20,
     'batch_size': 16,
-    'full_batch': True,
+    'full_batch': False,
     'reset_every': int(1e9),
     
     # wmt options
