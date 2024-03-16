@@ -44,7 +44,7 @@ def run(seeds, cfg):
         # standard benchmarks
         benchmarks = {
             # 'rsqrt_0.002': rsqrt(lr=0.002, warmup_steps=4000),
-            'sgd': optax.inject_hyperparams(optax.sgd)(learning_rate=2.0),
+            'sgd_2.0': optax.inject_hyperparams(optax.sgd)(learning_rate=2.0),
             'sgd': optax.inject_hyperparams(optax.sgd)(learning_rate=1.0),
             # 'momentum': optax.chain(optax.add_decayed_weights(1e-4), optax.inject_hyperparams(optax.sgd)(learning_rate=0.1, momentum=0.9)),
             # 'adamw': optax.inject_hyperparams(optax.adamw)(learning_rate=1e-3, b1=0.9, b2=0.999, weight_decay=1e-4),
