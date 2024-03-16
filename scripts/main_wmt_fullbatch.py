@@ -50,7 +50,7 @@ def run(seeds, cfg):
         benchmarks = {
             'sgd': optax.inject_hyperparams(optax.sgd)(learning_rate=2.0),
             # 'momentum': optax.chain(optax.add_decayed_weights(1e-4), optax.inject_hyperparams(optax.sgd)(learning_rate=0.1, momentum=0.9)),
-            'adamw': optax.inject_hyperparams(optax.adamw)(learning_rate=1e-3, b1=0.9, b2=0.999, weight_decay=1e-4),
+            # 'adamw': optax.inject_hyperparams(optax.adamw)(learning_rate=1e-3, b1=0.9, b2=0.999, weight_decay=1e-4),
             # 'dadamw': optax.inject_hyperparams(optax.contrib.dadapt_adamw)(),
             # 'mechadamw': optax.contrib.mechanize(optax.inject_hyperparams(optax.adamw)(learning_rate=1e-3, b1=0.9, b2=0.999, weight_decay=1e-4)),
             # 'rmsprop': optax.inject_hyperparams(optax.rmsprop)(learning_rate=1e-3),
