@@ -193,7 +193,7 @@ class MetaOpt:
                  grad_clip: float,
                  dtype,
                  ):
-        self.grad_history = jax.tree_map(lambda p: jnp.zeros((H, *p.shape)), initial_tstate.params)
+        self.grad_history = jax.tree_map(lambda p: jnp.zeros((H, *p.shape)), initial_params)
         self.t = 0
 
         assert m_method in ['scalar', 'diagonal', 'full']
