@@ -48,7 +48,8 @@ class MetaOptGPCState(struct.PyTreeNode):
                    tx=tx, opt_state=opt_state)
 
 
-@jax.jit
+# @jax.jit
+print('_compute_control_scalar IS NOT JITTED')
 def _compute_control_scalar(M, disturbances): return jax.tree_map(lambda d: (jax.lax.expand_dims(M, range(1, d.ndim)) * d).sum(axis=0), disturbances)
 
 @jax.jit
@@ -82,16 +83,19 @@ def _compute_loss_counterfactual(cparams, H, HH, initial_tstate,
                                 batches,  # past HH batches, starting at the one that would have been used to evolve `initial_params`
                                 curr_batch,  #  the current one
                                 ):
-    # # the scanning way
-    # def _evolve(carry, batch):
-    #     tstate, h = carry
-    #     tstate, _ = train_step(tstate, batch)
-    #     params = add_pytrees(tstate.params, compute_control(cparams, slice_pytree(disturbances, h, H)))
-    #     tstate = tstate.replace(params=params)
-    #     return (tstate, h + 1), None
+    # the scanning way
+    def _evolve(carry, batch):
+        tstate, h = carry
+        temp, _ = train_step(tstate, batch)
+        del tstate
+        params = add_pytrees(temp.params, compute_control(cparams, slice_pytree(disturbances, h, H)))
+        tstate = temp.replace(params=params)
+        return (tstate, h + 1), None
     
-    # (tstate, _, _), _ = jax.lax.scan(_evolve, (initial_tstate, 0), batches)
-    # loss, _ = forward(tstate, curr_batch)
+    x = jnp.stack(batches['x'], axis=0)
+    y = jnp.stack(batches['y'], axis=0)
+    (tstate, _), _ = jax.lax.scan(_evolve, (initial_tstate, 0), {'x': x, 'y': y})
+    loss, _ = forward(tstate, curr_batch)
 
     # # the original way
     # tstate = initial_tstate
@@ -99,15 +103,15 @@ def _compute_loss_counterfactual(cparams, H, HH, initial_tstate,
     #     tstate = _hallucinate(cparams, tstate, slice_pytree(disturbances, h, H), {'x': batches['x'][h], 'y': batches['y'][h]})
     # loss, _ = forward(tstate, curr_batch)
     
-    # the memory-optimized way?
-    tstate = initial_tstate
-    for h in range(HH):
-        temp, _ = train_step(tstate, {'x': batches['x'][h], 'y': batches['y'][h]})
-        del tstate
-        params = add_pytrees(temp.params, compute_control(cparams, slice_pytree(disturbances, h, H)))
-        tstate = temp.replace(params=params)
-        del params, temp
-    loss, _ = forward(tstate, curr_batch)
+    # # the memory-optimized way?
+    # tstate = initial_tstate
+    # for h in range(HH):
+    #     temp, _ = train_step(tstate, {'x': batches['x'][h], 'y': batches['y'][h]})
+    #     del tstate
+    #     params = add_pytrees(temp.params, compute_control(cparams, slice_pytree(disturbances, h, H)))
+    #     tstate = temp.replace(params=params)
+    #     del params, temp
+    # loss, _ = forward(tstate, curr_batch)
     
     return loss
 
@@ -133,10 +137,11 @@ def counterfactual_update(cstate,
 # ----------------------------        the non-counterfactual way ----------------------------------------------------------------
 # -------------------------------------------------------------------------------------------------------------------------------
 
+@jax.jit
 def _roll_forward(tstate, batch, disturbances):
     tstate, (loss, grads) = train_step(tstate, batch)
-    # clip disturbances (K = 10 is very soft)
-    K = 10; grads = jax.tree_map(lambda g: jnp.clip(g, -K, K), grads)
+    # # clip disturbances (K = 10 is very soft)
+    # K = 10; grads = jax.tree_map(lambda g: jnp.clip(g, -K, K), grads)
     disturbances = jax.tree_map(append, disturbances, grads)
     return tstate, loss, disturbances
     
@@ -147,7 +152,7 @@ def _compute_loss_noncounterfactual(cparams,
                                     H, HH):
     
     # TODO compare this w jax.lax.scan
-    for _ in range(HH):
+    for h in range(HH):
         # roll forward and apply control
         tstate, loss, disturbances = _roll_forward(tstate, batch, disturbances)
         tstate = tstate.replace(params=add_pytrees(tstate.params, compute_control(cparams, disturbances)))
@@ -211,7 +216,9 @@ class MetaOpt:
             self.cstate, (tstate, loss, self.grad_history) = noncounterfactual_update(self.cstate, tstate, batch, self.grad_history)
         else: 
             for _ in range(self.cstate.HH): 
-                tstate, loss, self.grad_history = jax.jit(_roll_forward)(tstate, batch, self.grad_history)
+                tstate, loss, self.grad_history = _roll_forward(tstate, batch, self.grad_history)
+            control = compute_control(self.cstate.cparams, slice_pytree(self.grad_history, self.cstate.HH, self.cstate.H))  # use past H disturbances
+            tstate = tstate.replace(params=add_pytrees(tstate.params, control))
         self.t += self.cstate.HH
         return tstate, (loss, index_pytree(self.grad_history, -1))
     
@@ -225,13 +232,13 @@ class MetaOpt:
         if self.batch_history is None: self.batch_history = {k: [v for _ in range(self.HH)] for k, v in batch.items()}
 
         # clip disturbances (K = 10 is very soft)
-        K = 10; grads = jax.tree_map(lambda g: jnp.clip(g, -K, K), grads)
+        # K = 10; grads = jax.tree_map(lambda g: jnp.clip(g, -K, K), grads)
                      
         self.grad_history = jax.tree_map(append, self.grad_history, grads)
+        control = compute_control(self.cstate.cparams, slice_pytree(self.grad_history, self.cstate.HH, self.cstate.H))  # use past H disturbances
+        tstate = tstate.replace(params=add_pytrees(tstate.params, control))
 
         if self.t >= self.cstate.H + self.cstate.HH:
-            control = compute_control(self.cstate.cparams, slice_pytree(self.grad_history, self.cstate.HH, self.cstate.H))  # use past H disturbances
-            tstate = tstate.replace(params=add_pytrees(tstate.params, control))
             self.cstate = counterfactual_update(self.cstate, self.tstate_history[0], self.grad_history, self.batch_history, batch)
             
         self.tstate_history = append(self.tstate_history, tstate)
@@ -243,7 +250,7 @@ class MetaOpt:
         H, HH = self.cstate.H, self.cstate.HH
         self.grad_history = jax.tree_map(jnp.zeros_like, self.grad_history)
         self.t = 0
-        self.cstate = self.cstate.replace(opt_state=self.cstate.tx.init(self.cstate.cparams))
+        # self.cstate = self.cstate.replace(opt_state=self.cstate.tx.init(self.cstate.cparams))
         self.tstate_history = (None,) * (HH + 1)
         self.batch_history = None
         return self

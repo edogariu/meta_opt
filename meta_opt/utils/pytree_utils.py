@@ -61,3 +61,12 @@ def multiply_pytree_by_scalar(scalar, pytree):
 @jax.jit
 def pytree_sq_norm(pytree):
     return sum(jax.tree_util.tree_flatten(jax.tree_map(lambda p: (p * p).sum(), pytree))[0])
+
+@jax.jit
+def pytree_proj(pytree, p):
+    flat_pytree, unflatten_func = jax.flatten_util.ravel_pytree(pytree)
+    flat_p, _ = jax.flatten_util.ravel_pytree(p)
+    flat_p_normalized = flat_p / jnp.linalg.norm(flat_p)
+    # print(jnp.linalg.norm(flat_pytree), jnp.linalg.norm(flat_p_normalized * jnp.linalg.norm(flat_pytree) + flat_pytree))
+    flat_proj = flat_pytree + jnp.linalg.norm(flat_pytree) * flat_p_normalized
+    return unflatten_func(flat_proj)

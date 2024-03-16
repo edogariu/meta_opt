@@ -19,9 +19,10 @@ def get_workload(cfg, optimizer):
     # get dataset and model
     if cfg['workload'] == 'NONCONVEX_QUADRATIC':
         train_ds, test_ds, example_input, loss_fn, metric_fns = load_ncq(cfg)
-        dim = 12
+        dim = 64
         A = jax.random.normal(jax.random.PRNGKey(1), (dim, dim))
         model = NCQ(dim=dim, std=1e-5, A=A, radius=1.0)
+        model.radius = 1.0
     elif cfg['workload'] == 'MNIST':
         train_ds, test_ds, example_input, loss_fn, metric_fns = load_mnist(cfg, dataset_dir=os.path.join(directory, 'datasets'))
         model = MLP([28 * 28, 100, 100, 10])

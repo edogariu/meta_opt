@@ -42,13 +42,13 @@ def run(seeds, cfg):
         print(f'running with seed {s}')
         
         # ours
-        opt = optax.inject_hyperparams(optax.adam)(learning_rate=1e-3)
-        results['ncf_adam'].append(train_meta_opt(CFG, counterfactual=False, H=32, HH=3, meta_optimizer=opt, initial_lr=1.0))
-        save_checkpoint(CFG, results, checkpoint_name=f'seed {s}')
+        # opt = optax.inject_hyperparams(optax.adam)(learning_rate=1e-3)
+        # results['ncf_adam'].append(train_meta_opt(CFG, counterfactual=False, H=32, HH=3, meta_optimizer=opt, initial_lr=1.0))
+        # save_checkpoint(CFG, results, checkpoint_name=f'seed {s}')
         
         # standard benchmarks
         benchmarks = {
-            # 'sgd': optax.inject_hyperparams(optax.sgd)(learning_rate=0.4),
+            'sgd': optax.inject_hyperparams(optax.sgd)(learning_rate=2.0),
             # 'momentum': optax.chain(optax.add_decayed_weights(1e-4), optax.inject_hyperparams(optax.sgd)(learning_rate=0.1, momentum=0.9)),
             'adamw': optax.inject_hyperparams(optax.adamw)(learning_rate=1e-3, b1=0.9, b2=0.999, weight_decay=1e-4),
             # 'dadamw': optax.inject_hyperparams(optax.contrib.dadapt_adamw)(),

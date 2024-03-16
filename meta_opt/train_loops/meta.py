@@ -9,7 +9,7 @@ import optax
 from meta_opt.meta_opt import MetaOpt
 from meta_opt.nn import reset_model, train_step, eval
 from meta_opt.workloads import get_workload
-from meta_opt.utils.pytree_utils import pytree_sq_norm
+from meta_opt.utils.pytree_utils import pytree_sq_norm, pytree_proj
 from meta_opt.utils.experiment_utils import get_opt_hyperparams
 
 # -------------------------------------------------------------------------------------------------
@@ -79,6 +79,9 @@ def train_meta_opt(cfg,
             for k, v in eval(tstate, test_ds.as_numpy_iterator()).items(): s[f'eval_{k}'] = v
             s['param_sq_norm'] = pytree_sq_norm(tstate.params)
             s['grad_sq_norm'] = pytree_sq_norm(grads)
+            if hasattr(tstate.model, 'radius'):
+                proj_grads = pytree_proj(grads, tstate.params)
+                s['proj_grad_sq_norm'] = pytree_sq_norm(proj_grads)
             last_eval_step = t
         if 'bleu_every' in args and check(t, 'bleu_every') and t != 0:
             s['bleu'], s['bleu_exemplars'] = tstate.model.bleu(tstate, test_ds.as_numpy_iterator())

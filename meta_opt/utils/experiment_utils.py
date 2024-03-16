@@ -171,7 +171,7 @@ def animate(results, Ms, downsample, bounds):
 
 def plot(results, processed_results, keys_to_plot, plots_to_make, anim_downsample_factor=200, anim_bounds=(-0.4, 0.1), smoothing=None):
     
-    for k in plots_to_make.keys(): assert k in ['loss', 'eval_loss', 'eval_acc', 'param_sq_norm', 'grad_sq_norm', 'timestamp', 'M', 'hypergrad', 'lr', 'anim', 'bleu']
+    for k in plots_to_make.keys(): assert k in ['loss', 'eval_loss', 'eval_acc', 'param_sq_norm', 'grad_sq_norm', 'proj_grad_sq_norm', 'timestamp', 'M', 'hypergrad', 'lr', 'anim', 'bleu']
     
     fig, ax = plt.subplots(len(plots_to_make), 1, figsize=(10, 6 * len(plots_to_make)))
     Ms = {}
