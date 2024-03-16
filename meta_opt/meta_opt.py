@@ -48,8 +48,7 @@ class MetaOptGPCState(struct.PyTreeNode):
                    tx=tx, opt_state=opt_state)
 
 
-# @jax.jit
-print('_compute_control_scalar IS NOT JITTED')
+@jax.jit
 def _compute_control_scalar(M, disturbances): return jax.tree_map(lambda d: (jax.lax.expand_dims(M, range(1, d.ndim)) * d).sum(axis=0), disturbances)
 
 @jax.jit
@@ -77,7 +76,7 @@ def _hallucinate(cparams, tstate, disturbances, batch):
     tstate = tstate.replace(params=params)
     return tstate
 
-# @jax.jit
+@jax.jit
 def _compute_loss_counterfactual(cparams, H, HH, initial_tstate, 
                                 disturbances,  # past H + HH disturbances
                                 batches,  # past HH batches, starting at the one that would have been used to evolve `initial_params`

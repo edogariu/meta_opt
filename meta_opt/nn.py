@@ -45,8 +45,7 @@ def create_train_state(rng, model: jnn.Module, example_input: jnp.ndarray, optim
     return reset_model(rng, tstate)
 
 
-# @jax.jit
-print('project IS NOT JITTED')
+@jax.jit
 def project(tstate):
     if hasattr(tstate.model, 'radius'): 
         div = jnp.maximum(1., ((pytree_sq_norm(tstate.params) ** 0.5) / tstate.model.radius))
