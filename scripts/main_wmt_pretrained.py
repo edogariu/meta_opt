@@ -46,10 +46,10 @@ def run(seeds, cfg):
         initial_cparams = get_final_cparams(processed_results, 'ncf_adam')
         results = make(cfg)
         opt = optax.inject_hyperparams(optax.sgd)(learning_rate=0)
-        results['ncf_adam_frozen'].append(train_meta_opt(CFG, counterfactual=False, H=32, HH=1, meta_optimizer=opt, initial_lr=1.0, cparams_initial=initial_cparams))
+        results['ncf_adam_frozen'].append(train_meta_opt(CFG, counterfactual=False, H=8, HH=1, meta_optimizer=opt, initial_lr=1.0, cparams_initial=initial_cparams))
         save_checkpoint(CFG, results, checkpoint_name=f'seed {s}')
         opt = optax.inject_hyperparams(optax.adam)(learning_rate=4e-4)
-        results['ncf_adam'].append(train_meta_opt(CFG, counterfactual=False, H=32, HH=3, meta_optimizer=opt, initial_lr=1.0, cparams_initial=initial_cparams))
+        results['ncf_adam'].append(train_meta_opt(CFG, counterfactual=False, H=8, HH=3, meta_optimizer=opt, initial_lr=1.0, cparams_initial=initial_cparams))
         save_checkpoint(CFG, results, checkpoint_name=f'seed {s}')
         
         # standard benchmarks
@@ -65,8 +65,8 @@ def run(seeds, cfg):
         for k, opt in benchmarks.items(): results[k].append(train_standard_opt(CFG, opt))
 
         # other
-        results['hgd'].append(train_hgd(CFG, initial_lr=1.0, hypergrad_lr=1e-2))
-        save_checkpoint(CFG, results, checkpoint_name=f'seed {s}')
+        # results['hgd'].append(train_hgd(CFG, initial_lr=1.0, hypergrad_lr=1e-2))
+        # save_checkpoint(CFG, results, checkpoint_name=f'seed {s}')
 
     processed_results = process_results(CFG, results)
 # ==================================================
