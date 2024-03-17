@@ -27,7 +27,7 @@ CFG = {
     'transformer_size': 'base',
     
     # experiment options
-    'experiment_name': 'wmt_pretrained_base',
+    'experiment_name': 'wmt_pretrained_base_noadam',
     'load_checkpoint': True,
     'overwrite': True,  # whether to allow us to overwrite existing checkpoints or throw errors
     'directory': DIR,
