@@ -51,8 +51,8 @@ def run(seeds, cfg):
         # opt = optax.inject_hyperparams(optax.adam)(learning_rate=4e-4)
         # results['ncf_adam'].append(train_meta_opt(CFG, counterfactual=False, H=8, HH=3, meta_optimizer=opt, initial_lr=1.0, cparams_initial=initial_cparams))
         # save_checkpoint(CFG, results, checkpoint_name=f'seed {s}')
-        opt = optax.inject_hyperparams(optax.sgd)(learning_rate=2e-4)
-        results['ncf'].append(train_meta_opt(CFG, counterfactual=False, H=8, HH=3, meta_optimizer=opt, initial_lr=1.0, cparams_initial=initial_cparams))
+        opt = optax.inject_hyperparams(optax.adam)(learning_rate=4e-4)
+        results['ncf_adam_fresh'].append(train_meta_opt(CFG, counterfactual=False, H=8, HH=3, meta_optimizer=opt, initial_lr=1.0))
         save_checkpoint(CFG, results, checkpoint_name=f'seed {s}')
         
         # standard benchmarks

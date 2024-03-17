@@ -139,8 +139,8 @@ def counterfactual_update(cstate,
 @jax.jit
 def _roll_forward(tstate, batch, disturbances):
     tstate, (loss, grads) = train_step(tstate, batch)
-    # # clip disturbances (K = 10 is very soft)
-    # K = 10; grads = jax.tree_map(lambda g: jnp.clip(g, -K, K), grads)
+    # clip disturbances (K = 10 is very soft)
+    K = 10; grads = jax.tree_map(lambda g: jnp.clip(g, -K, K), grads)
     disturbances = jax.tree_map(append, disturbances, grads)
     return tstate, loss, disturbances
     
@@ -231,7 +231,7 @@ class MetaOpt:
         if self.batch_history is None: self.batch_history = {k: [v for _ in range(self.HH)] for k, v in batch.items()}
 
         # clip disturbances (K = 10 is very soft)
-        # K = 10; grads = jax.tree_map(lambda g: jnp.clip(g, -K, K), grads)
+        K = 10; grads = jax.tree_map(lambda g: jnp.clip(g, -K, K), grads)
                      
         self.grad_history = jax.tree_map(append, self.grad_history, grads)
         control = compute_control(self.cstate.cparams, slice_pytree(self.grad_history, self.cstate.HH, self.cstate.H))  # use past H disturbances
@@ -249,7 +249,7 @@ class MetaOpt:
         H, HH = self.cstate.H, self.cstate.HH
         self.grad_history = jax.tree_map(jnp.zeros_like, self.grad_history)
         self.t = 0
-        # self.cstate = self.cstate.replace(opt_state=self.cstate.tx.init(self.cstate.cparams))
+        self.cstate = self.cstate.replace(opt_state=self.cstate.tx.init(self.cstate.cparams))
         self.tstate_history = (None,) * (HH + 1)
         self.batch_history = None
         return self
