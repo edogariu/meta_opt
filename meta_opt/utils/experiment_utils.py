@@ -111,12 +111,15 @@ def process_results(cfg, results):
             ret[stat_key][k]['avg'] = np.mean(arr, axis=1)
             ret[stat_key][k]['std'] = np.std(arr, axis=1)
 
-    filename = '{}/data/{}_processed.pkl'.format(cfg['directory'], cfg['experiment_name'])
-    if cfg['overwrite'] or not os.path.isfile(filename): 
-        with open(filename, 'wb') as f: pkl.dump(ret, f)
-        print(f'{bcolors.OKGREEN}{bcolors.BOLD}Saved processed results to {filename}{bcolors.ENDC}')
+    if len(results) > 0:
+        filename = '{}/data/{}_processed.pkl'.format(cfg['directory'], cfg['experiment_name'])
+        if cfg['overwrite'] or not os.path.isfile(filename): 
+            with open(filename, 'wb') as f: pkl.dump(ret, f)
+            print(f'{bcolors.OKGREEN}{bcolors.BOLD}Saved processed results to {filename}{bcolors.ENDC}')
+        else:
+            print(f'{bcolors.FAIL}{bcolors.BOLD}cannot save processed results with existing processed results and `overwrite=False`{bcolors.ENDC}')
     else:
-        print(f'{bcolors.FAIL}{bcolors.BOLD}cannot save processed results with existing processed results and `overwrite=False`{bcolors.ENDC}')
+        print(f'{bcolors.FAIL}{bcolors.BOLD}trying to save empty results`{bcolors.ENDC}')
     return ret
 
 def get_final_cparams(processed_results, experiment_name: str):
