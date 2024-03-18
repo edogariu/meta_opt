@@ -241,7 +241,7 @@ class MetaOpt:
         if self.t >= self.cstate.H + self.cstate.HH:
             
             x = jnp.stack(self.batch_history['x'], axis=0)
-            y = jnp.stack(batself.batch_historyches['y'], axis=0)
+            y = jnp.stack(self.batch_history['y'], axis=0)
             batches = {'x': x, 'y': y}
             self.cstate = counterfactual_update(self.cstate, self.tstate_history[0], self.grad_history, batches, batch)
             
