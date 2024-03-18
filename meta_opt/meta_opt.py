@@ -81,25 +81,26 @@ def _compute_loss_counterfactual(cparams, H, HH, initial_tstate,
                                 batches,  # past HH batches, starting at the one that would have been used to evolve `initial_params`
                                 curr_batch,  #  the current one
                                 ):
-    # # the scanning way
-    # def _evolve(carry, batch):
-    #     tstate, h = carry
-    #     temp, _ = train_step(tstate, batch)
-    #     del tstate
-    #     params = add_pytrees(temp.params, compute_control(cparams, slice_pytree(disturbances, h, H)))
-    #     tstate = temp.replace(params=params)
-    #     return (tstate, h + 1), None
+    # the scanning way
+    def _evolve(carry, batch):
+        tstate, h = carry
+        temp, _ = train_step(tstate, batch)
+        del tstate
+        params = add_pytrees(temp.params, compute_control(cparams, slice_pytree(disturbances, h, H)))
+        tstate = temp.replace(params=params)
+        return (tstate, h + 1), None
     
     # x = jnp.stack(batches['x'], axis=0)
     # y = jnp.stack(batches['y'], axis=0)
-    # (tstate, _), _ = jax.lax.scan(_evolve, (initial_tstate, 0), {'x': x, 'y': y})
-    # loss, _ = forward(tstate, curr_batch)
-
-    # the original way
-    tstate = initial_tstate
-    for h in range(HH):
-        tstate = _hallucinate(cparams, tstate, slice_pytree(disturbances, h, H), {'x': batches['x'][h], 'y': batches['y'][h]})
+    # batches = {'x': x, 'y': y}
+    (tstate, _), _ = jax.lax.scan(_evolve, (initial_tstate, 0), batches)
     loss, _ = forward(tstate, curr_batch)
+
+    # # the original way
+    # tstate = initial_tstate
+    # for h in range(HH):
+    #     tstate = _hallucinate(cparams, tstate, slice_pytree(disturbances, h, H), {'x': batches['x'][h], 'y': batches['y'][h]})
+    # loss, _ = forward(tstate, curr_batch)
     
     # # the memory-optimized way?
     # tstate = initial_tstate
@@ -238,6 +239,12 @@ class MetaOpt:
         tstate = tstate.replace(params=add_pytrees(tstate.params, control))
 
         if self.t >= self.cstate.H + self.cstate.HH:
+            
+            x = jnp.stack(self.batch_history['x'], axis=0)
+            y = jnp.stack(batself.batch_historyches['y'], axis=0)
+            batches = {'x': x, 'y': y}
+            self.cstate = counterfactual_update(self.cstate, self.tstate_history[0], self.grad_history, batches, batch)
+            
             self.cstate = counterfactual_update(self.cstate, self.tstate_history[0], self.grad_history, self.batch_history, batch)
             
         self.tstate_history = append(self.tstate_history, tstate)
