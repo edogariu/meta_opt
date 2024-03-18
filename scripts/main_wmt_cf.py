@@ -24,10 +24,10 @@ CFG = {
     
     # wmt options
     'bleu_every': 5000,
-    'transformer_size': 'base',
+    'transformer_size': 'miniscule',
     
     # experiment options
-    'experiment_name': 'wmt_pretrained_cf',
+    'experiment_name': 'wmt_miniscule_cf',
     'load_checkpoint': True,
     'overwrite': True,  # whether to allow us to overwrite existing checkpoints or throw errors
     'directory': DIR,
