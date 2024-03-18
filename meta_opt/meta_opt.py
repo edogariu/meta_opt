@@ -76,24 +76,24 @@ def _hallucinate(cparams, tstate, disturbances, batch):
     tstate = tstate.replace(params=params)
     return tstate
 
-@jax.jit
-def _evolve(carry, batch):
-    tstate, h = carry
-    temp, _ = train_step(tstate, batch)
-    del tstate
-    params = add_pytrees(temp.params, compute_control(cparams, slice_pytree(disturbances, h, H)))
-    tstate = temp.replace(params=params)
-    return (tstate, h + 1), None
-
 def _compute_loss_counterfactual(cparams, H, HH, initial_tstate, 
                                 disturbances,  # past H + HH disturbances
                                 batches,  # past HH batches, starting at the one that would have been used to evolve `initial_params`
                                 curr_batch,  #  the current one
                                 ):
-    # the scanning way  
-    x = jnp.stack(batches['x'], axis=0)
-    y = jnp.stack(batches['y'], axis=0)
-    (tstate, _), _ = jax.lax.scan(_evolve, (initial_tstate, 0), {'x': x, 'y': y})
+    # the scanning way
+    def _evolve(carry, batch):
+        tstate, h = carry
+        temp, _ = train_step(tstate, batch)
+        del tstate
+        params = add_pytrees(temp.params, compute_control(cparams, slice_pytree(disturbances, h, H)))
+        tstate = temp.replace(params=params)
+        return (tstate, h + 1), None
+    
+    # x = jnp.stack(batches['x'], axis=0)
+    # y = jnp.stack(batches['y'], axis=0)
+    # batches = {'x': x, 'y': y}
+    (tstate, _), _ = jax.lax.scan(_evolve, (initial_tstate, 0), batches)
     loss, _ = forward(tstate, curr_batch)
 
     # # the original way
@@ -114,8 +114,8 @@ def _compute_loss_counterfactual(cparams, H, HH, initial_tstate,
     
     return loss
 
-# _grad_fn_counterfactual = jax.jit(jax.grad(_compute_loss_counterfactual, (0,)), static_argnames=['H', 'HH'])
-_grad_fn_counterfactual = jax.grad(_compute_loss_counterfactual, (0,))
+_grad_fn_counterfactual = jax.jit(jax.grad(_compute_loss_counterfactual, (0,)), static_argnames=['H', 'HH'])
+# _grad_fn_counterfactual = jax.grad(_compute_loss_counterfactual, (0,))
 
 # @jax.jit
 def counterfactual_update(cstate,
@@ -239,7 +239,11 @@ class MetaOpt:
         tstate = tstate.replace(params=add_pytrees(tstate.params, control))
 
         if self.t >= self.cstate.H + self.cstate.HH:
-            self.cstate = counterfactual_update(self.cstate, self.tstate_history[0], self.grad_history, self.batch_history, batch)
+            
+            x = jnp.stack(self.batch_history['x'], axis=0)
+            y = jnp.stack(self.batch_history['y'], axis=0)
+            batches = {'x': x, 'y': y}
+            self.cstate = counterfactual_update(self.cstate, self.tstate_history[0], self.grad_history, batches, batch)
             
         self.tstate_history = append(self.tstate_history, tstate)
         for k in self.batch_history.keys(): self.batch_history[k] = append(self.batch_history[k], batch[k]) 
