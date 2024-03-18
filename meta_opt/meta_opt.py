@@ -115,7 +115,7 @@ def _compute_loss_counterfactual(cparams, H, HH, initial_tstate,
 
 _grad_fn_counterfactual = jax.jit(jax.grad(_compute_loss_counterfactual, (0,)), static_argnames='H')
 
-@jax.jit
+# @jax.jit
 def counterfactual_update(cstate,
            initial_tstate,  # tstate from HH steps ago
            disturbances,  # past H + HH disturbances
