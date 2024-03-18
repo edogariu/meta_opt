@@ -82,7 +82,6 @@ def _compute_loss_counterfactual(cparams, H, HH, initial_tstate,
                                 curr_batch,  #  the current one
                                 ):
     # the scanning way
-    @jax.jit
     def _evolve(carry, batch):
         tstate, h = carry
         temp, _ = train_step(tstate, batch)
