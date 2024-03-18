@@ -116,7 +116,7 @@ def _compute_loss_counterfactual(cparams, H, HH, initial_tstate,
 # _grad_fn_counterfactual = jax.jit(jax.grad(_compute_loss_counterfactual, (0,)), static_argnames=['H', 'HH'])
 _grad_fn_counterfactual = jax.grad(_compute_loss_counterfactual, (0,))
 
-# @jax.jit
+@jax.jit
 def counterfactual_update(cstate,
            initial_tstate,  # tstate from HH steps ago
            disturbances,  # past H + HH disturbances
@@ -178,7 +178,7 @@ def noncounterfactual_update(cstate,
 # --------------------   DEFINE A META-OPT WRAPPER TO MAINTAIN PARAMS/GRADS  -----------------------------------------
 # --------------------------------------------------------------------------------------------------------------------
 
-# @jax.jit
+@jax.jit
 def prologue(cstate, grad_history, batch_history, tstate, grads, batch):
     if batch_history is None: batch_history = {k: [v for _ in range(cstate.HH)] for k, v in batch.items()}
     # clip disturbances (K = 10 is very soft)
@@ -189,7 +189,7 @@ def prologue(cstate, grad_history, batch_history, tstate, grads, batch):
     return grad_history, batch_history, control, tstate
 
 
-# @jax.jit
+@jax.jit
 def epilogue(tstate_history, batch_history, tstate, batch):
     tstate_history = append(tstate_history, tstate)
     for k in batch_history.keys(): batch_history[k] = append(batch_history[k], batch[k]) 
