@@ -245,7 +245,7 @@ class MetaOpt:
             batches = {'x': x, 'y': y}
             self.cstate = counterfactual_update(self.cstate, self.tstate_history[0], self.grad_history, batches, batch)
             
-            self.cstate = counterfactual_update(self.cstate, self.tstate_history[0], self.grad_history, self.batch_history, batch)
+            # self.cstate = counterfactual_update(self.cstate, self.tstate_history[0], self.grad_history, self.batch_history, batch)
             
         self.tstate_history = append(self.tstate_history, tstate)
         for k in self.batch_history.keys(): self.batch_history[k] = append(self.batch_history[k], batch[k]) 
