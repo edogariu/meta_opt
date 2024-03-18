@@ -185,6 +185,7 @@ def plot(results, processed_results, keys_to_plot, plots_to_make, anim_downsampl
                 continue
             if isinstance(keys_to_plot, Dict): label = keys_to_plot[experiment_name]
             else: label = experiment_name
+            
             ts, avgs, stds = processed_results[stat_key][experiment_name]['t'], processed_results[stat_key][experiment_name]['avg'], processed_results[stat_key][experiment_name]['std']
             if avgs.ndim == 2:  # how to handle stats that are vectors (such as the Ms for scalar meta-opt)
                 Ms[label] = (ts, avgs, stds)
