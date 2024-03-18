@@ -180,7 +180,7 @@ def noncounterfactual_update(cstate,
 
 @jax.jit
 def prologue(cstate, grad_history, batch_history, tstate, grads, batch):
-    if batch_history is None: batch_history = {k: [v for _ in range(self.HH)] for k, v in batch.items()}
+    if batch_history is None: batch_history = {k: [v for _ in range(cstate.HH)] for k, v in batch.items()}
         # clip disturbances (K = 10 is very soft)
     K = 10; grads = jax.tree_map(lambda g: jnp.clip(g, -K, K), grads)
     grad_history = jax.tree_map(append, grad_history, grads)
