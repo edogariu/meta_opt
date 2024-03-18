@@ -76,7 +76,6 @@ def _hallucinate(cparams, tstate, disturbances, batch):
     tstate = tstate.replace(params=params)
     return tstate
 
-@jax.jit
 def _compute_loss_counterfactual(cparams, H, HH, initial_tstate, 
                                 disturbances,  # past H + HH disturbances
                                 batches,  # past HH batches, starting at the one that would have been used to evolve `initial_params`
@@ -114,7 +113,7 @@ def _compute_loss_counterfactual(cparams, H, HH, initial_tstate,
     
     return loss
 
-_grad_fn_counterfactual = jax.grad(_compute_loss_counterfactual, (0,))
+_grad_fn_counterfactual = jax.jit(jax.grad(_compute_loss_counterfactual, (0,)), static_argnames='H')
 
 @jax.jit
 def counterfactual_update(cstate,
