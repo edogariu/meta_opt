@@ -221,30 +221,29 @@ class MetaOpt:
         self.t += self.cstate.HH
         return tstate, (loss, index_pytree(self.grad_history, -1))
     
+    @jax.jit
+    def _prologue(cstate, grad_history, batch_history, tstate, grads, batch):
+        if batch_history is None: batch_history = {k: [v for _ in range(self.HH)] for k, v in batch.items()}
+            # clip disturbances (K = 10 is very soft)
+        K = 10; grads = jax.tree_map(lambda g: jnp.clip(g, -K, K), grads)
+        grad_history = jax.tree_map(append, grad_history, grads)
+        control = compute_control(cstate.cparams, slice_pytree(grad_history, cstate.HH, cstate.H))  # use past H disturbances
+        tstate = tstate.replace(params=add_pytrees(tstate.params, control))
+        return grad_history, batch_history, control, tstate
+
+
+    @jax.jit
+    def _epilogue(tstate_history, batch_history, tstate, batch):
+        tstate_history = append(tstate_history, tstate)
+        for k in batch_history.keys(): batch_history[k] = append(batch_history[k], batch[k]) 
+        return tstate_history, batch_history
+    
     
     def counterfactual_step(self, 
                         tstate,  # tstate after a step of gd
                         grads,  # grads from the step of gd that resulted in `tstate`
                         batch,  # batch from step of gd that resulted in `tstate`
-                        ):   
-        
-        @jax.jit
-        def _prologue(cstate, grad_history, batch_history, tstate, grads, batch):
-            if batch_history is None: batch_history = {k: [v for _ in range(self.HH)] for k, v in batch.items()}
-             # clip disturbances (K = 10 is very soft)
-            K = 10; grads = jax.tree_map(lambda g: jnp.clip(g, -K, K), grads)
-            grad_history = jax.tree_map(append, grad_history, grads)
-            control = compute_control(cstate.cparams, slice_pytree(grad_history, cstate.HH, cstate.H))  # use past H disturbances
-            tstate = tstate.replace(params=add_pytrees(tstate.params, control))
-            return grad_history, batch_history, control, tstate
-    
-    
-        @jax.jit
-        def _epilogue(tstate_history, batch_history, tstate, batch):
-            tstate_history = append(tstate_history, tstate)
-            for k in batch_history.keys(): batch_history[k] = append(batch_history[k], batch[k]) 
-            return tstate_history, batch_history
-    
+                        ):       
     
         # # lazy initialize the history if it is still `None``
         # if self.batch_history is None: self.batch_history = {k: [v for _ in range(self.HH)] for k, v in batch.items()}
