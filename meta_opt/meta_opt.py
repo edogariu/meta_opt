@@ -189,7 +189,7 @@ def prologue(cstate, grad_history, batch_history, tstate, grads, batch):
     return grad_history, batch_history, control, tstate
 
 
-@jax.jit
+# @jax.jit
 def epilogue(tstate_history, batch_history, tstate, batch):
     tstate_history = append(tstate_history, tstate)
     for k in batch_history.keys(): batch_history[k] = append(batch_history[k], batch[k]) 
