@@ -178,7 +178,7 @@ def noncounterfactual_update(cstate,
 # --------------------   DEFINE A META-OPT WRAPPER TO MAINTAIN PARAMS/GRADS  -----------------------------------------
 # --------------------------------------------------------------------------------------------------------------------
 
-@jax.jit
+# @jax.jit
 def prologue(cstate, grad_history, batch_history, tstate, grads, batch):
     if batch_history is None: batch_history = {k: [v for _ in range(cstate.HH)] for k, v in batch.items()}
         # clip disturbances (K = 10 is very soft)
