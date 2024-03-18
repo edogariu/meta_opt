@@ -178,7 +178,7 @@ def noncounterfactual_update(cstate,
 # --------------------   DEFINE A META-OPT WRAPPER TO MAINTAIN PARAMS/GRADS  -----------------------------------------
 # --------------------------------------------------------------------------------------------------------------------
 
-@jax.jit
+# @jax.jit
 def prologue(cstate, grad_history, batch_history, tstate, grads, batch):
     if batch_history is None: batch_history = {k: [v for _ in range(cstate.HH)] for k, v in batch.items()}
     # clip disturbances (K = 10 is very soft)
@@ -189,7 +189,7 @@ def prologue(cstate, grad_history, batch_history, tstate, grads, batch):
     return grad_history, batch_history, control, tstate
 
 
-@jax.jit
+# @jax.jit
 def epilogue(tstate_history, batch_history, tstate, batch):
     tstate_history = append(tstate_history, tstate)
     for k in batch_history.keys(): batch_history[k] = append(batch_history[k], batch[k]) 
@@ -255,12 +255,12 @@ class MetaOpt:
         # control = compute_control(self.cstate.cparams, slice_pytree(self.grad_history, self.cstate.HH, self.cstate.H))  # use past H disturbances
         # tstate = tstate.replace(params=add_pytrees(tstate.params, control))
         
-        self.grad_history, self.batch_history, control, tstate = prologue(self.cstate, self.grad_history, self.batch_history, tstate, grads, batch)
+        # self.grad_history, self.batch_history, control, tstate = prologue(self.cstate, self.grad_history, self.batch_history, tstate, grads, batch)
 
         # if self.t >= self.cstate.H + self.cstate.HH:
         #     self.cstate = counterfactual_update(self.cstate, self.tstate_history[0], self.grad_history, self.batch_history, batch)
         
-        self.tstate_history, self.batch_history = epilogue(self.tstate_history, self.batch_history, tstate, batch)
+        # self.tstate_history, self.batch_history = epilogue(self.tstate_history, self.batch_history, tstate, batch)
             
         # self.tstate_history = append(self.tstate_history, tstate)
         # for k in self.batch_history.keys(): self.batch_history[k] = append(self.batch_history[k], batch[k]) 
