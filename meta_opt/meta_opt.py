@@ -255,7 +255,7 @@ class MetaOpt:
         # control = compute_control(self.cstate.cparams, slice_pytree(self.grad_history, self.cstate.HH, self.cstate.H))  # use past H disturbances
         # tstate = tstate.replace(params=add_pytrees(tstate.params, control))
         
-        self.grad_history, self.batch_history, control, tstatae = prologue(self.cstate, self.grad_history, self.batch_history, tstate, grads, batch)
+        self.grad_history, self.batch_history, control, tstate = prologue(self.cstate, self.grad_history, self.batch_history, tstate, grads, batch)
 
         # if self.t >= self.cstate.H + self.cstate.HH:
         #     self.cstate = counterfactual_update(self.cstate, self.tstate_history[0], self.grad_history, self.batch_history, batch)
