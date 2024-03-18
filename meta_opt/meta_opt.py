@@ -95,21 +95,21 @@ def _compute_loss_counterfactual(cparams, H, HH, initial_tstate,
     # (tstate, _), _ = jax.lax.scan(_evolve, (initial_tstate, 0), {'x': x, 'y': y})
     # loss, _ = forward(tstate, curr_batch)
 
-    # # the original way
-    # tstate = initial_tstate
-    # for h in range(HH):
-    #     tstate = _hallucinate(cparams, tstate, slice_pytree(disturbances, h, H), {'x': batches['x'][h], 'y': batches['y'][h]})
-    # loss, _ = forward(tstate, curr_batch)
-    
-    # the memory-optimized way?
+    # the original way
     tstate = initial_tstate
     for h in range(HH):
-        temp, _ = train_step(tstate, {'x': batches['x'][h], 'y': batches['y'][h]})
-        del tstate
-        params = add_pytrees(temp.params, compute_control(cparams, slice_pytree(disturbances, h, H)))
-        tstate = temp.replace(params=params)
-        del params, temp
+        tstate = _hallucinate(cparams, tstate, slice_pytree(disturbances, h, H), {'x': batches['x'][h], 'y': batches['y'][h]})
     loss, _ = forward(tstate, curr_batch)
+    
+    # # the memory-optimized way?
+    # tstate = initial_tstate
+    # for h in range(HH):
+    #     temp, _ = train_step(tstate, {'x': batches['x'][h], 'y': batches['y'][h]})
+    #     del tstate
+    #     params = add_pytrees(temp.params, compute_control(cparams, slice_pytree(disturbances, h, H)))
+    #     tstate = temp.replace(params=params)
+    #     del params, temp
+    # loss, _ = forward(tstate, curr_batch)
     
     return loss
 
