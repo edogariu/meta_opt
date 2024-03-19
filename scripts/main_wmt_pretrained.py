@@ -42,11 +42,11 @@ def run(seeds, cfg):
         print(f'running with seed {s}')
         
         # ours
-        processed_results = pkl.load(open('{}/data/wmt_fullbatch_cf.pkl'.format(cfg['directory']), 'rb'))
+        processed_results = pkl.load(open('{}/data/wmt_fullbatch_cf_processed.pkl'.format(cfg['directory']), 'rb'))
         initial_cparams = get_final_cparams(processed_results, 'cf_adam', idx=43000)
         results = make(cfg)
         opt = optax.inject_hyperparams(optax.sgd)(learning_rate=0)
-        results['cf_adam_frozen'].append(train_meta_opt(CFG, counterfactual=False, H=16, HH=1, meta_optimizer=opt, initial_lr=1.0, cparams_initial=initial_cparams, grad_clip=1))
+        results['cf_adam_frozen'].append(train_meta_opt(CFG, counterfactual=False, H=16, HH=1, meta_optimizer=opt, initial_lr=1.0, cparams_initial=initial_cparams, grad_clip=1.0))
         # save_checkpoint(CFG, results, checkpoint_name=f'seed {s}')
         # opt = optax.inject_hyperparams(optax.adam)(learning_rate=4e-4)
         # results['ncf_adam'].append(train_meta_opt(CFG, counterfactual=False, H=8, HH=3, meta_optimizer=opt, initial_lr=1.0, cparams_initial=initial_cparams))
