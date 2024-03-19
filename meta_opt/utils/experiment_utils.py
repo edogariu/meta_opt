@@ -122,11 +122,11 @@ def process_results(cfg, results):
         print(f'{bcolors.FAIL}{bcolors.BOLD}trying to save empty results`{bcolors.ENDC}')
     return ret
 
-def get_final_cparams(processed_results, experiment_name: str):
+def get_final_cparams(processed_results, experiment_name: str, idx=-1):
     assert 'M' in processed_results, 'no existing meta experiment'
     p = processed_results['M'][experiment_name]
     assert len(p) > 0, f'{experiment_name} is not a meta experiment'
-    return {'M': jnp.array(p['avg'][-1])}
+    return {'M': jnp.array(p['avg'][idx])}
 
 
 def animate(results, Ms, downsample, bounds):
