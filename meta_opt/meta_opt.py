@@ -256,12 +256,15 @@ class MetaOpt:
         # tstate = tstate.replace(params=add_pytrees(tstate.params, control))
         
         self.grad_history, self.batch_history, control, tstate = prologue(self.cstate, self.grad_history, self.batch_history, tstate, grads, batch)
-        print(len(self.batch_history['x']))
-
+        
         if self.t >= self.cstate.H + self.cstate.HH:
             self.cstate = counterfactual_update(self.cstate, self.tstate_history[0], self.grad_history, self.batch_history, batch)
         
         self.tstate_history, self.batch_history = epilogue(self.tstate_history, self.batch_history, tstate, batch)
+        
+        import sys
+        b, g, t = sys.getsizeof(self.batch_history), sys.getsizeof(self.grad_history), sys.getsizeof(self.tstate_history)
+        print(f'time={self.t}:     \n\tbatch_history={b}   \n\tgrad_history={g}      \n\ttstate_history={t}\n')
             
         # self.tstate_history = append(self.tstate_history, tstate)
         # for k in self.batch_history.keys(): self.batch_history[k] = append(self.batch_history[k], batch[k]) 
