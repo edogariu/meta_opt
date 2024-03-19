@@ -116,7 +116,7 @@ def _compute_loss_counterfactual(cparams, H, HH, initial_tstate,
 # _grad_fn_counterfactual = jax.jit(jax.grad(_compute_loss_counterfactual, (0,)), static_argnames=['H', 'HH'])
 _grad_fn_counterfactual = jax.grad(_compute_loss_counterfactual, (0,))
 
-# @jax.jit
+@jax.jit
 def counterfactual_update(cstate,
            initial_tstate,  # tstate from HH steps ago
            disturbances,  # past H + HH disturbances
@@ -262,9 +262,9 @@ class MetaOpt:
         
         self.tstate_history, self.batch_history = epilogue(self.tstate_history, self.batch_history, tstate, batch)
         
-        import sys
-        b, g, t = sys.getsizeof(self.batch_history), sys.getsizeof(self.grad_history), sys.getsizeof(self.tstate_history)
-        print(f'time={self.t}:     \n\tbatch_history={b}   \n\tgrad_history={g}      \n\ttstate_history={t}\n')
+        # import sys
+        # b, g, t = sys.getsizeof(self.batch_history), sys.getsizeof(self.grad_history), sys.getsizeof(self.tstate_history)
+        # print(f'time={self.t}:     \n\tbatch_history={b}   \n\tgrad_history={g}      \n\ttstate_history={t}\n')
             
         # self.tstate_history = append(self.tstate_history, tstate)
         # for k in self.batch_history.keys(): self.batch_history[k] = append(self.batch_history[k], batch[k]) 
