@@ -15,20 +15,20 @@ SEEDS = [0,]  # the length of this list is the number of trials we will run :)
 CFG = {
     # training options
     'workload': 'WMT',
-    'num_iters': 100000,
+    'num_iters': 90000,
     'eval_every': 1000,
     'num_eval_iters': 20,
     'batch_size': 16,
     'full_batch': False,
-    'reset_every': int(1e9),
+    'reset_every': 30000,
     
     # wmt options
     'bleu_every': 5000,
-    'transformer_size': 'miniscule',
+    'transformer_size': 'base',
     
     # experiment options
-    'experiment_name': 'wmt_miniscule_cf',
-    'load_checkpoint': True,
+    'experiment_name': 'wmt_metaopt',
+    'load_checkpoint': False,
     'overwrite': True,  # whether to allow us to overwrite existing checkpoints or throw errors
     'directory': DIR,
 }
@@ -49,7 +49,7 @@ def run(seeds, cfg):
         # results['ncf_adam_frozen'].append(train_meta_opt(CFG, counterfactual=False, H=8, HH=1, meta_optimizer=opt, initial_lr=1.0, cparams_initial=initial_cparams))
         # save_checkpoint(CFG, results, checkpoint_name=f'seed {s}')
         opt = optax.inject_hyperparams(optax.adam)(learning_rate=4e-4)
-        results['cf_adam'].append(train_meta_opt(CFG, counterfactual=True, H=8, HH=2, meta_optimizer=opt, initial_lr=1.0))
+        results['cf_adam'].append(train_meta_opt(CFG, counterfactual=True, H=32, HH=2, meta_optimizer=opt, initial_lr=1.0))
         save_checkpoint(CFG, results, checkpoint_name=f'seed {s}')
         # opt = optax.inject_hyperparams(optax.sgd)(learning_rate=2e-4)
         # results['ncf_adam'].append(train_meta_opt(CFG, counterfactual=False, H=16, HH=3, meta_optimizer=opt, initial_lr=1.0))
