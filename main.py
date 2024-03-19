@@ -1,6 +1,6 @@
 
 # ==================================================
-from scripts.main_wmt_cf import CFG, run
+from scripts.main_wmt_fullbatch import CFG, run
 # ==================================================
 
 
