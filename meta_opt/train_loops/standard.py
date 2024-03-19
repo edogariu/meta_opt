@@ -25,11 +25,6 @@ def train_standard_opt(cfg, optimizer):
     pbar = tqdm.tqdm(train_ds.as_numpy_iterator(), total=args['num_iters'])
     for t, batch in enumerate(pbar):
 
-        if t % args['reset_every'] == 0:
-            reset_rng, rng = jax.random.split(rng)
-            tstate = reset_model(reset_rng, tstate)
-            del reset_rng
-
         tstate, (loss, grads) = train_step(tstate, batch)
 
         # update all the stats
@@ -55,5 +50,8 @@ def train_standard_opt(cfg, optimizer):
                           'eval_loss': round(stats[last_eval_step]['eval_loss'].item(), 3) if last_eval_step is not None else 'N/A',
                           'lr': round(s['lr'], 5)
                           })
-
+        if t % args['reset_every'] == 0:
+            reset_rng, rng = jax.random.split(rng)
+            tstate = reset_model(reset_rng, tstate)
+            del reset_rng
     return dict(stats)

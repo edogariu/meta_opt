@@ -31,11 +31,6 @@ def train_hgd(cfg, initial_lr: float, hypergrad_lr: float):
     pbar = tqdm.tqdm(train_ds.as_numpy_iterator(), total=args['num_iters'])
     for t, batch in enumerate(pbar):
 
-        if t % args['reset_every'] == 0:
-            reset_rng, rng = jax.random.split(rng)
-            tstate = reset_model(reset_rng, tstate)
-            del reset_rng
-
         tstate, (loss, grads) = train_step(tstate, batch)
         if prev_grads is not None:
             hypergrad = -sum([(g1 * g2).sum() for g1, g2 in zip(jax.tree_util.tree_leaves(grads), jax.tree_util.tree_leaves(prev_grads))])
@@ -66,4 +61,9 @@ def train_hgd(cfg, initial_lr: float, hypergrad_lr: float):
                           'eval_loss': round(stats[last_eval_step]['eval_loss'].item(), 3) if last_eval_step is not None else 'N/A',
                           'lr': round(s['lr'], 5)})
 
+        if t % args['reset_every'] == 0:
+            reset_rng, rng = jax.random.split(rng)
+            tstate = reset_model(reset_rng, tstate)
+            del reset_rng
+    
     return dict(stats)

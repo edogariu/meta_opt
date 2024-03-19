@@ -59,12 +59,6 @@ def train_meta_opt(cfg,
     for t, batch in enumerate(pbar):
         if not counterfactual: t *= HH
 
-        if check(t, 'reset_every'):
-            reset_rng, rng = jax.random.split(rng)
-            tstate = reset_model(reset_rng, tstate)
-            meta_opt = meta_opt.episode_reset()
-            del reset_rng
-
         if counterfactual:
             tstate, (loss, grads) = train_step(tstate, batch)
             tstate = meta_opt.counterfactual_step(tstate, grads, batch)
@@ -97,4 +91,11 @@ def train_meta_opt(cfg,
                           },)
         if not counterfactual: pbar.update(HH)
 
+        if check(t, 'reset_every'):
+            reset_rng, rng = jax.random.split(rng)
+            tstate = reset_model(reset_rng, tstate)
+            meta_opt = meta_opt.episode_reset()
+            del reset_rng
+            
+            
     return dict(stats)
