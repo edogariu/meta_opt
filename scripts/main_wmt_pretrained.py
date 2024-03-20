@@ -11,7 +11,7 @@ import optax
 
 # ==================================================
 # configuration and seeds for each trial
-SEEDS = [0,]  # the length of this list is the number of trials we will run :)
+SEEDS = [10,]  # the length of this list is the number of trials we will run :)
 CFG = {
     # training options
     'workload': 'WMT',
