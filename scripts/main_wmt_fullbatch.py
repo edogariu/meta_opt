@@ -15,19 +15,19 @@ SEEDS = [0,]  # the length of this list is the number of trials we will run :)
 CFG = {
     # training options
     'workload': 'WMT',
-    'num_iters': 40000,
+    'num_iters': 200000,
     'eval_every': int(1e9),
     'num_eval_iters': -1,
-    'batch_size': 32,
+    'batch_size': 16,
     'full_batch': True,
-    'reset_every': 2000,
+    'reset_every': 4000,
     
     # wmt options
     'bleu_every': int(1e9),
     'transformer_size': 'base',
     
     # experiment options
-    'experiment_name': 'wmt_fullbatch_H=32',
+    'experiment_name': 'wmt_fullbatch_long',
     'load_checkpoint': True,
     'overwrite': True,  # whether to allow us to overwrite existing checkpoints or throw errors
     'directory': DIR,
@@ -43,7 +43,7 @@ def run(seeds, cfg):
         
         # ours
         opt = optax.inject_hyperparams(optax.adam)(learning_rate=1e-3)
-        results['cf_adam_1e-3'].append(train_meta_opt(CFG, counterfactual=True, H=32, HH=2, meta_optimizer=opt, initial_lr=1.0, grad_clip=1))
+        results['cf_adam_1e-3'].append(train_meta_opt(CFG, counterfactual=True, H=16, HH=2, meta_optimizer=opt, initial_lr=1.0, grad_clip=1))
         save_checkpoint(CFG, results, checkpoint_name=f'seed {s}')
         
         # standard benchmarks
