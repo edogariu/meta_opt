@@ -27,7 +27,7 @@ CFG = {
     'transformer_size': 'base',
     
     # experiment options
-    'experiment_name': 'wmt_fullbatch',
+    'experiment_name': 'wmt_fullbatch_2',
     'load_checkpoint': True,
     'overwrite': True,  # whether to allow us to overwrite existing checkpoints or throw errors
     'directory': DIR,
@@ -43,7 +43,7 @@ def run(seeds, cfg):
         
         # ours
         opt = optax.inject_hyperparams(optax.adam)(learning_rate=1e-3)
-        results['cf_adam_1e-3_clip0.5'].append(train_meta_opt(CFG, counterfactual=True, H=16, HH=2, meta_optimizer=opt, initial_lr=1.0, grad_clip=0.5))
+        results['cf_adam_1e-3_clip0.1'].append(train_meta_opt(CFG, counterfactual=True, H=16, HH=2, meta_optimizer=opt, initial_lr=1.0, grad_clip=0.1))
         save_checkpoint(CFG, results, checkpoint_name=f'seed {s}')
         
         # standard benchmarks
