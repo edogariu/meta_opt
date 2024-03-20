@@ -2,6 +2,7 @@ from meta_opt.train_loops import train_standard_opt, train_hgd, train_meta_opt
 from meta_opt.utils.experiment_utils import make, save_checkpoint, process_results, bcolors, plot, get_final_cparams
 from meta_opt import DIR
 
+import os
 import re
 import matplotlib.pyplot as plt
 import numpy as np
@@ -52,4 +53,12 @@ def run(seeds, cfg):
 
 
 if __name__ == '__main__':
+    try: 
+        idx = int(os.environ["SLURM_ARRAY_TASK_ID"])
+        name = CFG['experiment_name']
+        CFG['experiment_name'] = f'{name}_{idx}'
+        SEEDS = [idx,]  # set seed to the index
+    except:
+        pass  
+    
     run(SEEDS, CFG)

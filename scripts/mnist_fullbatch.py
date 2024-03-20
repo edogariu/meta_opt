@@ -10,29 +10,27 @@ import optax
 
 # ==================================================
 # configuration and seeds for each trial
-SEEDS = [0, 1, 2]
+SEEDS = [0, 1, 2, 3, 4, 5]
 
-NAME = 'cifar_pretrained'
+NAME = 'mnist_fullbatch'
 CFG = {
     # training options
-    'workload': 'CIFAR',
+    'workload': 'MNIST',
     'num_iters': 20000,
-    'eval_every': 200,
+    'eval_every': -1,
     'num_eval_iters': -1,
     'batch_size': 512,
-    'full_batch': False,
-    'reset_every': 10000,
+    'full_batch': True,
+    'reset_every': 500,
 
     # experiment options
     'experiment_name': NAME,
     'load_checkpoint': False,
-    'overwrite': True,  # whether to allow us to overwrite existing checkpoints or throw errors
+    'overwrite': False,  # whether to allow us to overwrite existing checkpoints or throw errors
     'directory': DIR,
 }
 
 def run(seeds, cfg):
-    processed_results = pkl.load(open('{}/data/cifar_fullbatch_processed.pkl'.format(cfg['directory']), 'rb'))
-    initial_cparams = get_final_cparams(processed_results, 'cf')
     results = make(cfg)
     
     # uncomment the ones to run, with correctly chosen hyperparameters
@@ -42,13 +40,15 @@ def run(seeds, cfg):
         
         # ours
         opt = optax.inject_hyperparams(optax.sgd)(learning_rate=2e-4)
-        results['cf'].append(train_meta_opt(CFG, counterfactual=True, H=32, HH=2, meta_optimizer=opt, initial_lr=0.1, cparams_initial=initial_cparams))
-        results['frozen'].append(train_meta_opt(CFG, counterfactual=False, H=32, HH=1, meta_optimizer=optax.inject_hyperparams(optax.sgd)(learning_rate=0), initial_lr=0.1, cparams_initial=initial_cparams))
-        results['ncf'].append(train_meta_opt(CFG, counterfactual=False, H=32, HH=2, meta_optimizer=opt, initial_lr=0.1,  cparams_initial=initial_cparams))
+        results['cf'].append(train_meta_opt(CFG, counterfactual=True, H=32, HH=2, meta_optimizer=opt))
+        results['cf_3'].append(train_meta_opt(CFG, counterfactual=True, H=32, HH=3, meta_optimizer=opt))
+        results['cf_0.1'].append(train_meta_opt(CFG, counterfactual=True, H=32, HH=2, meta_optimizer=opt, initial_lr=0.1))
+        results['ncf'].append(train_meta_opt(CFG, counterfactual=False, H=32, HH=2, meta_optimizer=opt))
+        results['ncf_0.1'].append(train_meta_opt(CFG, counterfactual=False, H=32, HH=2, meta_optimizer=opt, initial_lr=0.1))
 
         # standard benchmarks
         benchmarks = {
-            'sgd': optax.inject_hyperparams(optax.sgd)(learning_rate=0.2),
+            'sgd': optax.inject_hyperparams(optax.sgd)(learning_rate=0.4),
             'momentum': optax.chain(optax.add_decayed_weights(1e-4), optax.inject_hyperparams(optax.sgd)(learning_rate=0.1, momentum=0.9)),
             'adamw': optax.inject_hyperparams(optax.adamw)(learning_rate=1e-3, b1=0.9, b2=0.999, weight_decay=1e-4),
             # 'rmsprop': optax.inject_hyperparams(optax.rmsprop)(learning_rate=1e-3),
@@ -62,6 +62,14 @@ def run(seeds, cfg):
     processed_results = process_results(CFG, results)
 # ==================================================
 
-
+import os
 if __name__ == '__main__':
+    try: 
+        idx = int(os.environ["SLURM_ARRAY_TASK_ID"])
+        name = CFG['experiment_name']
+        CFG['experiment_name'] = f'{name}_{idx}'
+        SEEDS = [idx,]  # set seed to the index
+    except:
+        pass  
+    
     run(SEEDS, CFG)

@@ -11,24 +11,24 @@ import optax
 
 # ==================================================
 # configuration and seeds for each trial
-SEEDS = [1,]  # the length of this list is the number of trials we will run :)
+SEEDS = [10,]  # the length of this list is the number of trials we will run :)
 CFG = {
     # training options
     'workload': 'WMT',
-    'num_iters': 90000,
+    'num_iters': 100000,
     'eval_every': 1000,
     'num_eval_iters': 20,
     'batch_size': 16,
     'full_batch': False,
-    'reset_every': 30000,
+    'reset_every': int(1e9),
     
     # wmt options
     'bleu_every': 5000,
     'transformer_size': 'base',
     
     # experiment options
-    'experiment_name': 'wmt_cf',
-    'load_checkpoint': False,
+    'experiment_name': 'wmt_pretrained_cf_3',
+    'load_checkpoint': True,
     'overwrite': True,  # whether to allow us to overwrite existing checkpoints or throw errors
     'directory': DIR,
 }
@@ -42,16 +42,16 @@ def run(seeds, cfg):
         print(f'running with seed {s}')
         
         # ours
-        # processed_results = pkl.load(open('{}/data/wmt_fullbatch_processed.pkl'.format(cfg['directory']), 'rb'))
-        # initial_cparams = get_final_cparams(processed_results, 'ncf_adam')
+        processed_results = pkl.load(open('{}/data/wmt_fullbatch_cf_processed.pkl'.format(cfg['directory']), 'rb'))
+        initial_cparams = get_final_cparams(processed_results, 'cf_adam', idx=43000)
         results = make(cfg)
-        # opt = optax.inject_hyperparams(optax.sgd)(learning_rate=0)
-        # results['ncf_adam_frozen'].append(train_meta_opt(CFG, counterfactual=False, H=8, HH=1, meta_optimizer=opt, initial_lr=1.0, cparams_initial=initial_cparams))
-        # save_checkpoint(CFG, results, checkpoint_name=f'seed {s}')
-        opt = optax.inject_hyperparams(optax.adam)(learning_rate=1e-3)
-        results['cf_adam_1e-3'].append(train_meta_opt(CFG, counterfactual=True, H=16, HH=2, meta_optimizer=opt, initial_lr=1.0, grad_clip=0.5))
+        opt = optax.inject_hyperparams(optax.sgd)(learning_rate=0)
+        results['cf_adam_frozen'].append(train_meta_opt(CFG, counterfactual=False, H=16, HH=1, meta_optimizer=opt, initial_lr=1.0, cparams_initial=initial_cparams, grad_clip=0.1))
         save_checkpoint(CFG, results, checkpoint_name=f'seed {s}')
-        # opt = optax.inject_hyperparams(optax.sgd)(learning_rate=2e-4)
+        # opt = optax.inject_hyperparams(optax.adam)(learning_rate=4e-4)
+        # results['ncf_adam'].append(train_meta_opt(CFG, counterfactual=False, H=8, HH=3, meta_optimizer=opt, initial_lr=1.0, cparams_initial=initial_cparams))
+        # save_checkpoint(CFG, results, checkpoint_name=f'seed {s}')
+        # opt = optax.inject_hyperparams(optax.adam)(learning_rate=4e-4)
         # results['ncf_adam'].append(train_meta_opt(CFG, counterfactual=False, H=16, HH=3, meta_optimizer=opt, initial_lr=1.0))
         # save_checkpoint(CFG, results, checkpoint_name=f'seed {s}')
         
@@ -75,5 +75,14 @@ def run(seeds, cfg):
 # ==================================================
 
 
+import os
 if __name__ == '__main__':
+    try: 
+        idx = int(os.environ["SLURM_ARRAY_TASK_ID"])
+        name = CFG['experiment_name']
+        CFG['experiment_name'] = f'{name}_{idx}'
+        SEEDS = [idx,]  # set seed to the index
+    except:
+        pass  
+    
     run(SEEDS, CFG)
