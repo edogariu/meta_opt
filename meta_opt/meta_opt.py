@@ -9,6 +9,8 @@ from flax import struct
 from meta_opt.utils.pytree_utils import append, slice_pytree, index_pytree, add_pytrees, multiply_pytrees, multiply_pytree_by_scalar
 from meta_opt.nn import forward, train_step
 
+K = 1  # for clipping things
+
 # --------------------------------------------------------------------------------------------------------------------
 # --------------------   DEFINE THE GPC CONTROLLER TO USE IN META-OPT  -----------------------------------------------
 # --------------------------------------------------------------------------------------------------------------------
@@ -140,7 +142,7 @@ def counterfactual_update(cstate,
 def _roll_forward(tstate, batch, disturbances):
     tstate, (loss, grads) = train_step(tstate, batch)
     # clip disturbances (K = 10 is very soft)
-    K = 10; grads = jax.tree_map(lambda g: jnp.clip(g, -K, K), grads)
+    grads = jax.tree_map(lambda g: jnp.clip(g, -K, K), grads)
     disturbances = jax.tree_map(append, disturbances, grads)
     return tstate, loss, disturbances
     
@@ -178,18 +180,18 @@ def noncounterfactual_update(cstate,
 # --------------------   DEFINE A META-OPT WRAPPER TO MAINTAIN PARAMS/GRADS  -----------------------------------------
 # --------------------------------------------------------------------------------------------------------------------
 
-# @jax.jit
+@jax.jit
 def prologue(cstate, grad_history, batch_history, tstate, grads, batch):
     if batch_history is None: batch_history = {k: [v for _ in range(cstate.HH)] for k, v in batch.items()}
     # clip disturbances (K = 10 is very soft)
-    K = 10; grads = jax.tree_map(lambda g: jnp.clip(g, -K, K), grads)
+    grads = jax.tree_map(lambda g: jnp.clip(g, -K, K), grads)
     grad_history = jax.tree_map(append, grad_history, grads)
     control = compute_control(cstate.cparams, slice_pytree(grad_history, cstate.HH, cstate.H))  # use past H disturbances
     tstate = tstate.replace(params=add_pytrees(tstate.params, control))
     return grad_history, batch_history, control, tstate
 
 
-# @jax.jit
+@jax.jit
 def epilogue(tstate_history, batch_history, tstate, batch):
     tstate_history = append(tstate_history, tstate)
     for k in batch_history.keys(): batch_history[k] = append(batch_history[k], batch[k]) 
