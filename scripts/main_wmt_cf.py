@@ -15,19 +15,19 @@ SEEDS = [0,]  # the length of this list is the number of trials we will run :)
 CFG = {
     # training options
     'workload': 'WMT',
-    'num_iters': 50000,
+    'num_iters': 90000,
     'eval_every': 1000,
     'num_eval_iters': 20,
     'batch_size': 32,
     'full_batch': False,
-    'reset_every': int(1e9),
+    'reset_every': 30000,
     
     # wmt options
     'bleu_every': 5000,
     'transformer_size': 'base',
     
     # experiment options
-    'experiment_name': 'wmt_cf_adam',
+    'experiment_name': 'wmt_cf_adam_long',
     'load_checkpoint': False,
     'overwrite': True,  # whether to allow us to overwrite existing checkpoints or throw errors
     'directory': DIR,
