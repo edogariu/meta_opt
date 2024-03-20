@@ -27,7 +27,7 @@ CFG = {
     'transformer_size': 'base',
     
     # experiment options
-    'experiment_name': 'wmt_pretrained_cf_3',
+    'experiment_name': 'wmt_pretrained',
     'load_checkpoint': True,
     'overwrite': True,  # whether to allow us to overwrite existing checkpoints or throw errors
     'directory': DIR,
@@ -41,35 +41,20 @@ def run(seeds, cfg):
         CFG['seed'] = s
         print(f'running with seed {s}')
         
-        # ours
-        processed_results = pkl.load(open('{}/data/wmt_fullbatch_cf_processed.pkl'.format(cfg['directory']), 'rb'))
-        initial_cparams = get_final_cparams(processed_results, 'cf_adam', idx=43000)
-        results = make(cfg)
-        opt = optax.inject_hyperparams(optax.sgd)(learning_rate=0)
-        results['cf_adam_frozen'].append(train_meta_opt(CFG, counterfactual=False, H=16, HH=1, meta_optimizer=opt, initial_lr=1.0, cparams_initial=initial_cparams, grad_clip=0.1))
-        save_checkpoint(CFG, results, checkpoint_name=f'seed {s}')
-        # opt = optax.inject_hyperparams(optax.adam)(learning_rate=4e-4)
-        # results['ncf_adam'].append(train_meta_opt(CFG, counterfactual=False, H=8, HH=3, meta_optimizer=opt, initial_lr=1.0, cparams_initial=initial_cparams))
-        # save_checkpoint(CFG, results, checkpoint_name=f'seed {s}')
-        # opt = optax.inject_hyperparams(optax.adam)(learning_rate=4e-4)
-        # results['ncf_adam'].append(train_meta_opt(CFG, counterfactual=False, H=16, HH=3, meta_optimizer=opt, initial_lr=1.0))
-        # save_checkpoint(CFG, results, checkpoint_name=f'seed {s}')
+        INITIAL_PARAMS_EXPERIMENT_NAME = 'wmt_fullbatch'
+        INITIAL_PARAMS_RUN_NAME = 'cf_adam_1e-3_clip0.5'
+        INITIAL_PARAMS_TIMESTEP = 31000
         
-        # standard benchmarks
-        benchmarks = {
-            # 'sgd': optax.inject_hyperparams(optax.sgd)(learning_rate=1.4),
-            # 'momentum': optax.chain(optax.add_decayed_weights(1e-4), optax.inject_hyperparams(optax.sgd)(learning_rate=0.1, momentum=0.9)),
-            # 'adamw': optax.inject_hyperparams(optax.adamw)(learning_rate=4e-3, b1=0.9, b2=0.999, weight_decay=1e-4),
-            # 'dadamw': optax.inject_hyperparams(optax.contrib.dadapt_adamw)(),
-            # 'mechadamw': optax.contrib.mechanize(optax.inject_hyperparams(optax.adamw)(learning_rate=1e-3, b1=0.9, b2=0.999, weight_decay=1e-4)),
-            # 'rmsprop': optax.inject_hyperparams(optax.rmsprop)(learning_rate=1e-3),
-            # 'rsqrt': rsqrt(lr=0.004, warmup_steps=4000),
-        }
-        for k, opt in benchmarks.items(): results[k].append(train_standard_opt(CFG, opt))
-
-        # other
-        # results['hgd'].append(train_hgd(CFG, initial_lr=1.0, hypergrad_lr=1e-2))
-        # save_checkpoint(CFG, results, checkpoint_name=f'seed {s}')
+        processed_results = pkl.load(open('{}/data/{}_processed.pkl'.format(cfg['directory'], INITIAL_PARAMS_EXPERIMENT_NAME), 'rb'))
+        initial_cparams = get_final_cparams(processed_results, INITIAL_PARAMS_RUN_NAME, idx=INITIAL_PARAMS_TIMESTEP)
+        name = '{}/{}[{}]'.format(INITIAL_PARAMS_EXPERIMENT_NAME, INITIAL_PARAMS_RUN_NAME, INITIAL_PARAMS_TIMESTEP)
+        
+        results = make(cfg)
+        
+        opt = optax.inject_hyperparams(optax.sgd)(learning_rate=0)
+        results[f'frozen_{name}'].append(train_meta_opt(CFG, counterfactual=False, H=16, HH=1, meta_optimizer=opt, initial_lr=1.0, cparams_initial=initial_cparams, grad_clip=0.1))
+        save_checkpoint(CFG, results, checkpoint_name=f'seed {s}')
+        
 
     processed_results = process_results(CFG, results)
 # ==================================================
