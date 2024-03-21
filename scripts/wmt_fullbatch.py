@@ -42,8 +42,8 @@ def run(seeds, cfg):
         print(f'running with seed {s}')
         
         # ours
-        opt = optax.inject_hyperparams(optax.adam)(learning_rate=1e-3)
-        results['cf_adam_1e-3_clip=1.0'].append(train_meta_opt(CFG, counterfactual=True, H=16, HH=2, meta_optimizer=opt, initial_lr=1.0, grad_clip=1))
+        opt = optax.inject_hyperparams(optax.adam)(learning_rate=2e-4)
+        results['cf_adam_2e-4_clip=1.0'].append(train_meta_opt(CFG, counterfactual=True, H=16, HH=2, meta_optimizer=opt, initial_lr=1.0, grad_clip=1))
         save_checkpoint(CFG, results, checkpoint_name=f'seed {s}')
         
         # standard benchmarks
