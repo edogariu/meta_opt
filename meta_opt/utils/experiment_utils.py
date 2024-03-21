@@ -177,6 +177,7 @@ def plot(results, processed_results, keys_to_plot, plots_to_make, anim_downsampl
     for k in plots_to_make.keys(): assert k in ['loss', 'eval_loss', 'eval_acc', 'param_sq_norm', 'grad_sq_norm', 'proj_grad_sq_norm', 'timestamp', 'M', 'hypergrad', 'lr', 'anim', 'bleu']
     
     fig, ax = plt.subplots(len(plots_to_make), 1, figsize=(10, 6 * len(plots_to_make)))
+    if len(plots_to_make) == 1: ax = [ax,]
     Ms = {}
     for i, (stat_key, name) in enumerate(plots_to_make.items()):
         ax[i].set_title(name)
