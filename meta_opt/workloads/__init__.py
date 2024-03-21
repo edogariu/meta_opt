@@ -20,7 +20,7 @@ def get_workload(cfg, optimizer):
     if cfg['workload'] == 'NONCONVEX_QUADRATIC':
         train_ds, test_ds, example_input, loss_fn, metric_fns = load_ncq(cfg)
         dim = 64
-        A = jax.random.normal(jax.random.PRNGKey(1), (dim, dim))
+        A = jax.random.normal(jax.random.PRNGKey(cfg['seed']), (dim, dim))
         model = NCQ(dim=dim, std=1e-5, A=A, radius=1.0)
         model.radius = 1.0
     elif cfg['workload'] == 'MNIST':
