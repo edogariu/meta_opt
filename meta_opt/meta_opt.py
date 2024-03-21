@@ -9,7 +9,7 @@ from flax import struct
 from meta_opt.utils.pytree_utils import append, slice_pytree, index_pytree, add_pytrees, multiply_pytrees, multiply_pytree_by_scalar
 from meta_opt.nn import forward, train_step
 
-K = 1  # for clipping things
+K = 0.5  # for clipping things
 
 # --------------------------------------------------------------------------------------------------------------------
 # --------------------   DEFINE THE GPC CONTROLLER TO USE IN META-OPT  -----------------------------------------------
