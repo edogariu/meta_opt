@@ -172,7 +172,7 @@ def animate(results, Ms, downsample, bounds):
                         frames = T // downsample_factor, interval = downsample_factor, blit = True)
     return anim
 
-def plot(results, processed_results, keys_to_plot, plots_to_make, anim_downsample_factor=200, anim_bounds=(-0.4, 0.1), smoothing=None):
+def plot(results, processed_results, keys_to_plot, plots_to_make, anim_downsample_factor=200, anim_bounds=(-0.4, 0.1), smoothing:int=None, dash_baselines:bool=False):
     
     for k in plots_to_make.keys(): assert k in ['loss', 'eval_loss', 'eval_acc', 'param_sq_norm', 'grad_sq_norm', 'proj_grad_sq_norm', 'timestamp', 'M', 'hypergrad', 'lr', 'anim', 'bleu']
     
@@ -192,7 +192,7 @@ def plot(results, processed_results, keys_to_plot, plots_to_make, anim_downsampl
                 Ms[label] = (ts, avgs, stds)
                 
                 _t, _a, _s = range(avgs.shape[1]), avgs[-1][::-1], stds[-1][::-1]
-                ax[i].plot(_t, _a, label=label)
+                ax[i].plot(_t, _a, label=label, linestyle = ('dashed' if (dash_baselines and 'ours' not in label) else 'solid'))
                 ax[i].fill_between(_t, _a - 1.96 * _s, _a + 1.96 * _s, alpha=0.2)
                 
                 # ax[i].plot(ts, avgs.sum(axis=-1), label=experiment_name)
@@ -209,7 +209,7 @@ def plot(results, processed_results, keys_to_plot, plots_to_make, anim_downsampl
                         kernel = np.array([1 / n,] * n)
                         avgs = np.convolve(avgs, kernel)[n // 2:n // 2 + avgs.shape[0]]
                         stds = np.convolve(stds ** 2, kernel ** 2)[n // 2:n // 2 + stds.shape[0]] ** 0.5
-                ax[i].plot(ts, avgs, label=label)
+                ax[i].plot(ts, avgs, label=label, linestyle = ('dashed' if (dash_baselines and 'ours' not in label) else 'solid'))
                 ax[i].fill_between(ts, avgs - 1.96 * stds, avgs + 1.96 * stds, alpha=0.2)
     for a in ax: a.legend()
     if anim_bounds is not None and 'anim' in plots_to_make: 
