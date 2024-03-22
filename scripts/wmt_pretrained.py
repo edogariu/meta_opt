@@ -42,8 +42,8 @@ def run(seeds, cfg):
         print(f'running with seed {s}')
         
         INITIAL_PARAMS_EXPERIMENT_NAME = 'wmt_fullbatch_clip'
-        INITIAL_PARAMS_RUN_NAME = 'cf_adam_1e-3_clip=1.0'
-        INITIAL_PARAMS_TIMESTEP = 33000
+        INITIAL_PARAMS_RUN_NAME = 'cf_adam_6e-4_clip=1.0'
+        INITIAL_PARAMS_TIMESTEP = -1
         
         processed_results = pkl.load(open('{}/data/{}_processed.pkl'.format(cfg['directory'], INITIAL_PARAMS_EXPERIMENT_NAME), 'rb'))
         initial_cparams = get_final_cparams(processed_results, INITIAL_PARAMS_RUN_NAME, idx=INITIAL_PARAMS_TIMESTEP)
