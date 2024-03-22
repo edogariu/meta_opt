@@ -27,7 +27,7 @@ CFG = {
     'transformer_size': 'base',
     
     # experiment options
-    'experiment_name': 'wmt_fullbatch_clip',
+    'experiment_name': 'wmt_fullbatch',
     'load_checkpoint': True,
     'overwrite': True,  # whether to allow us to overwrite existing checkpoints or throw errors
     'directory': DIR,
@@ -41,20 +41,20 @@ def run(seeds, cfg):
         CFG['seed'] = s
         print(f'running with seed {s}')
         
-        # ours
-        opt = optax.inject_hyperparams(optax.adam)(learning_rate=6e-4)
-        results['cf_adam_6e-4_clip=1.0'].append(train_meta_opt(CFG, counterfactual=True, H=16, HH=2, meta_optimizer=opt, initial_lr=1.0, grad_clip=1))
-        save_checkpoint(CFG, results, checkpoint_name=f'seed {s}')
+        # # ours
+        # opt = optax.inject_hyperparams(optax.adam)(learning_rate=6e-4)
+        # results['cf_adam_6e-4_clip=1.0'].append(train_meta_opt(CFG, counterfactual=True, H=16, HH=2, meta_optimizer=opt, initial_lr=1.0, grad_clip=1))
+        # save_checkpoint(CFG, results, checkpoint_name=f'seed {s}')
         
         # standard benchmarks
         benchmarks = {
             # 'sgd': optax.inject_hyperparams(optax.sgd)(learning_rate=2.0),
             # 'momentum': optax.chain(optax.add_decayed_weights(0.1), optax.inject_hyperparams(optax.sgd)(learning_rate=0.1, momentum=0.9)),
-            # 'adamw': optax.inject_hyperparams(optax.adamw)(learning_rate=1e-3, b1=0.9, b2=0.999, weight_decay=1e-4),
-            # 'dadamw': optax.inject_hyperparams(optax.contrib.dadapt_adamw)(),
-            # 'mechadamw': optax.contrib.mechanize(optax.inject_hyperparams(optax.adamw)(learning_rate=1e-3, b1=0.9, b2=0.999, weight_decay=1e-4)),
+            'adamw': optax.inject_hyperparams(optax.adamw)(learning_rate=1e-3, b1=0.9, b2=0.999, weight_decay=1e-4),
+            'dadamw': optax.inject_hyperparams(optax.contrib.dadapt_adamw)(),
+            'mechadamw': optax.contrib.mechanize(optax.inject_hyperparams(optax.adamw)(learning_rate=1e-3, b1=0.9, b2=0.999, weight_decay=1e-4)),
             # 'rmsprop': optax.inject_hyperparams(optax.rmsprop)(learning_rate=1e-3),
-            # 'rsqrt': rsqrt(lr=0.008, warmup_steps=1000),
+            # 'rsqrt': rsqrt(lr=0.002, warmup_steps=1000),
         }
         for k, opt in benchmarks.items(): 
             results[k].append(train_standard_opt(CFG, opt))
