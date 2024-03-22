@@ -1,6 +1,6 @@
 #!/bin/bash
 # ============================================================================
-#SBATCH --job-name=wmt_pretrained     # create a short name for your job
+#SBATCH --job-name=wmt_pretrained_cf     # create a short name for your job
 # ============================================================================
 #SBATCH --nodes=1                # node count
 #SBATCH --ntasks=1               # total number of tasks across all nodes

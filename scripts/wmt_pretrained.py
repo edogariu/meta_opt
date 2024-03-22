@@ -27,7 +27,7 @@ CFG = {
     'transformer_size': 'base',
     
     # experiment options
-    'experiment_name': 'wmt_pretrained',
+    'experiment_name': 'wmt_pretrained_cf',
     'load_checkpoint': True,
     'overwrite': True,  # whether to allow us to overwrite existing checkpoints or throw errors
     'directory': DIR,
@@ -55,7 +55,7 @@ def run(seeds, cfg):
         # results[f'frozen_{name}'].append(train_meta_opt(CFG, counterfactual=False, H=16, HH=1, meta_optimizer=opt, initial_lr=1.0, cparams_initial=initial_cparams, grad_clip=0.1))
         # save_checkpoint(CFG, results, checkpoint_name=f'seed {s}')
         
-        opt = optax.inject_hyperparams(optax.adam)(learning_rate=4e-4)
+        opt = optax.inject_hyperparams(optax.adam)(learning_rate=1e-4)
         results[f'cf_{name}'].append(train_meta_opt(CFG, counterfactual=True, H=16, HH=2, meta_optimizer=opt, initial_lr=1.0, cparams_initial=initial_cparams, grad_clip=0.5))
         save_checkpoint(CFG, results, checkpoint_name=f'seed {s}')
         
