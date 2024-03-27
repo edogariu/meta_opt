@@ -22,14 +22,18 @@ def train_meta_opt(cfg,
                    H: int, HH: int, 
                    m_method: str = 'scalar', 
                    initial_lr: float = 1e-4, grad_clip = 10, dtype=jax.numpy.float32,
-                   cparams_initial = None): 
+                   cparams_initial = None, base_opt_type: str = 'sgd'): 
     
     """
     note that if we aren't counterfactual, we have to rescale the number of iterations by HH to account for taking HH training steps every noncounterfactual meta step
     """
     cfg = deepcopy(cfg)
     
-    optimizer = optax.chain(optax.add_decayed_weights(1e-5), optax.sgd(learning_rate=initial_lr))
+    if base_opt_type == 'sgd' or not counterfactual:
+        optimizer = optax.chain(optax.add_decayed_weights(1e-5), optax.sgd(learning_rate=initial_lr))  
+    else:
+        print('using adam for base optimizer')
+        optimizer = optax.adamw(learning_rate=initial_lr, weight_decay=1e-5)
     tstate, train_ds, test_ds, rng, args = get_workload(dict(cfg, **({'num_iters': cfg['num_iters'] // HH} if not counterfactual else {})), optimizer)
     meta_opt = MetaOpt(tstate.params, H=H, HH=HH, m_method=m_method, meta_optimizer=meta_optimizer, grad_clip=grad_clip, dtype=dtype)
     
@@ -49,7 +53,9 @@ def train_meta_opt(cfg,
                               'H': H,
                               'HH': HH,
                               'grad_clip': grad_clip,
-                              'dtype': dtype
+                              'dtype': dtype,
+                              'cparams_initial_supplied': cparams_initial is not None,
+                              'base_opt_type': base_opt_type,
                               }
     stats['args'] = args
 

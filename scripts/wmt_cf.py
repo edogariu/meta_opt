@@ -28,7 +28,7 @@ CFG = {
     
     # experiment options
     'experiment_name': 'wmt_cf',
-    'load_checkpoint': False,
+    'load_checkpoint': True,
     'overwrite': True,  # whether to allow us to overwrite existing checkpoints or throw errors
     'directory': DIR,
 }
@@ -48,12 +48,16 @@ def run(seeds, cfg):
         # opt = optax.inject_hyperparams(optax.sgd)(learning_rate=0)
         # results['ncf_adam_frozen'].append(train_meta_opt(CFG, counterfactual=False, H=8, HH=1, meta_optimizer=opt, initial_lr=1.0, cparams_initial=initial_cparams))
         # save_checkpoint(CFG, results, checkpoint_name=f'seed {s}')
-        opt = optax.inject_hyperparams(optax.sgd)(learning_rate=3e-4)
-        results['cf_sgd_3e-4_clip=1.0'].append(train_meta_opt(CFG, counterfactual=True, H=16, HH=2, meta_optimizer=opt, initial_lr=1.0, grad_clip=1.0))
-        save_checkpoint(CFG, results, checkpoint_name=f'seed {s}')
+        # opt = optax.inject_hyperparams(optax.sgd)(learning_rate=3e-4)
+        # results['cf_sgd_3e-4_clip=1.0'].append(train_meta_opt(CFG, counterfactual=True, H=16, HH=2, meta_optimizer=opt, initial_lr=1.0, grad_clip=1.0))
+        # save_checkpoint(CFG, results, checkpoint_name=f'seed {s}')
         # opt = optax.inject_hyperparams(optax.sgd)(learning_rate=2e-4)
         # results['ncf_adam'].append(train_meta_opt(CFG, counterfactual=False, H=16, HH=3, meta_optimizer=opt, initial_lr=1.0))
         # save_checkpoint(CFG, results, checkpoint_name=f'seed {s}')
+        
+        opt = optax.inject_hyperparams(optax.adam)(learning_rate=4e-4)
+        results['adam_cf_adam_4e-4'].append(train_meta_opt(CFG, counterfactual=True, H=16, HH=2, meta_optimizer=opt, initial_lr=0.001, grad_clip=1.0, base_opt_type='adam'))
+        save_checkpoint(CFG, results, checkpoint_name=f'seed {s}')
         
         # standard benchmarks
         benchmarks = {

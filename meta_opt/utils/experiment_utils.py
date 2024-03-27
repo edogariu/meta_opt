@@ -13,6 +13,23 @@ tf.config.experimental.set_visible_devices([], "GPU")
 import jax
 import jax.numpy as jnp
 
+PLOT_COLORS = {
+    'sgd': 'limegreen',
+    'momentum': 'grey',
+    'hgd': 'darkolivegreen',
+    'adamw': 'crimson',
+    'rsqrt': 'darkorange',
+    'd-adap': 'brown',
+    'mechanic': 'purple',
+    
+    'ours (pretrained)': 'royalblue',
+    'ours': 'lightseagreen',
+    
+    'ours (frozen)': 'royalblue',
+    'ours (counterfactual)': 'lightseagreen',
+    'ours (noncounterfactual)': 'cyan',
+}
+
 
 # some utilities
 def _set_seed(seed):
@@ -105,11 +122,17 @@ def process_results(cfg, results):
             if stat_key in ['args', 'bleu_exemplars']:
                 args[k] = v[stat_key]
                 continue
-            if k not in ret[stat_key]: ret[stat_key][k] = {}
-            ret[stat_key][k]['t'] = list(v[stat_key].keys())
-            arr = np.array(list(v[stat_key].values()))
-            ret[stat_key][k]['avg'] = np.mean(arr, axis=1)
-            ret[stat_key][k]['std'] = np.std(arr, axis=1)
+        
+            try:
+                arr = np.array(list(v[stat_key].values()))
+                if k not in ret[stat_key]: ret[stat_key][k] = {}
+                ret[stat_key][k]['t'] = list(v[stat_key].keys())
+                ret[stat_key][k]['avg'] = np.mean(arr, axis=1)
+                ret[stat_key][k]['std'] = np.std(arr, axis=1)
+            except:
+                pass
+
+
 
     if len(results) > 0:
         filename = '{}/data/{}_processed.pkl'.format(cfg['directory'], cfg['experiment_name'])
@@ -172,28 +195,33 @@ def animate(results, Ms, downsample, bounds):
                         frames = T // downsample_factor, interval = downsample_factor, blit = True)
     return anim
 
-def plot(results, processed_results, keys_to_plot, plots_to_make, anim_downsample_factor=200, anim_bounds=(-0.4, 0.1), smoothing:int=None, dash_baselines:bool=False):
-    
+def plot(results, processed_results, keys_to_plot, plots_to_make, anim_downsample_factor=200, anim_bounds=(-0.4, 0.1), smoothing:int=None, highlight_baselines:bool=False, fontsize:int=10, legend_location='upper right', M0_initial:float=0):
+    plt.rcParams.update({'font.size': int(fontsize / 1.5)})
+       
     for k in plots_to_make.keys(): assert k in ['loss', 'eval_loss', 'eval_acc', 'param_sq_norm', 'grad_sq_norm', 'proj_grad_sq_norm', 'timestamp', 'M', 'hypergrad', 'lr', 'anim', 'bleu']
     
-    fig, ax = plt.subplots(len(plots_to_make), 1, figsize=(10, 6 * len(plots_to_make)))
+    fig, ax = plt.subplots(len(plots_to_make), 1, figsize=(10, 8 * len(plots_to_make)))
     if len(plots_to_make) == 1: ax = [ax,]
     Ms = {}
     for i, (stat_key, name) in enumerate(plots_to_make.items()):
-        ax[i].set_title(name)
-        for experiment_name in processed_results[stat_key].keys():
-            if (isinstance(keys_to_plot, Dict) and experiment_name not in keys_to_plot) or (isinstance(keys_to_plot, str) and not re.match(keys_to_plot, experiment_name)): 
-                continue
-            if isinstance(keys_to_plot, Dict): label = keys_to_plot[experiment_name]
-            else: label = experiment_name
-            
+        # ax[i].set_title(name, fontsize=int(1.5 * fontsize))
+        
+        if isinstance(keys_to_plot, Dict): names = {k: v for k, v in keys_to_plot.items() if k in processed_results[stat_key]}
+        elif isinstance(keys_to_plot, str): names = {k: k for k in processed_results[stat_key].keys() if re.match(keys_to_plot, k)}
+        else: names = {k: k for k in processed_results[stat_key].keys()}
+        
+        for experiment_name, label in names.items():
+            if label in PLOT_COLORS: color = PLOT_COLORS[label]
+            else: color = None
+            highlight = (not highlight_baselines) or ('ours' in label)
             ts, avgs, stds = processed_results[stat_key][experiment_name]['t'], processed_results[stat_key][experiment_name]['avg'], processed_results[stat_key][experiment_name]['std']
             if avgs.ndim == 2:  # how to handle stats that are vectors (such as the Ms for scalar meta-opt)
                 Ms[label] = (ts, avgs, stds)
                 
                 _t, _a, _s = range(avgs.shape[1]), avgs[-1][::-1], stds[-1][::-1]
-                ax[i].plot(_t, _a, label=label, linestyle = ('dashed' if (dash_baselines and 'ours' not in label) else 'solid'))
-                ax[i].fill_between(_t, _a - 1.96 * _s, _a + 1.96 * _s, alpha=0.2)
+                _a[0] -= M0_initial
+                ax[i].plot(_t, _a, label=label, linewidth = 2.75 if highlight else 1.5, alpha = 1.0 if highlight else 0.5, color=color)
+                ax[i].fill_between(_t, _a - 1.96 * _s, _a + 1.96 * _s, alpha=0.2, color=color)
                 
                 # ax[i].plot(ts, avgs.sum(axis=-1), label=experiment_name)
                 # stds = ((stds ** 2).sum(axis=-1)) ** 0.5
@@ -202,16 +230,32 @@ def plot(results, processed_results, keys_to_plot, plots_to_make, anim_downsampl
                 # for j in range(avgs.shape[1]):
                 #     ax[i].plot(ts, avgs[:, j], label=f'{experiment_name} {str(j)}')
                 #     ax[i].fill_between(ts, avgs[:, j] - 1.96 * stds[:, j], avgs[:, j] + 1.96 * stds[:, j], alpha=0.2)
+                ax[i].set_xlabel('Number of Steps in the Past', fontsize=fontsize)
             else:
                 if smoothing is not None:
-                    if stat_key in ['loss', 'grad_sq_norm', 'eval_acc', 'eval_loss']:
-                        n = smoothing
+                    if isinstance(smoothing, Dict):
+                        if stat_key in smoothing: n = smoothing[stat_key]
+                        else: n = None
+                    elif isinstance(smoothing, int):
+                        if stat_key in ['loss', 'param_sq_norm', 'grad_sq_norm', 'proj_grad_sq_norm', 'eval_loss', 'eval_acc']:
+                            n = smoothing
+                    else: raise NotImplementedError(smoothing.__class__)
+                    if n is not None:
                         kernel = np.array([1 / n,] * n)
-                        avgs = np.convolve(avgs, kernel)[n // 2:n // 2 + avgs.shape[0]]
-                        stds = np.convolve(stds ** 2, kernel ** 2)[n // 2:n // 2 + stds.shape[0]] ** 0.5
-                ax[i].plot(ts, avgs, label=label, linestyle = ('dashed' if (dash_baselines and 'ours' not in label) else 'solid'))
-                ax[i].fill_between(ts, avgs - 1.96 * stds, avgs + 1.96 * stds, alpha=0.2)
-    for a in ax: a.legend()
+                        new_avgs = np.concatenate([avgs[:n][::-1], avgs, avgs[-n:]], axis=0)
+                        new_avgs = np.convolve(new_avgs, kernel)
+                        idx = int(0.5 * len(new_avgs) - 0.5 * avgs.shape[0])
+                        new_avgs = new_avgs[idx: idx + avgs.shape[0]]
+                        idx = int(0.5 * len(new_avgs) - 0.5 * stds.shape[0])
+                        stds = np.convolve(stds ** 2, kernel ** 2)[idx: idx + stds.shape[0]] ** 0.5
+                        avgs = new_avgs
+                ax[i].plot(ts, avgs, label=label, linewidth = 2.75 if highlight else 1.5, alpha = 1.0 if highlight else 0.5, color=color)
+                ax[i].fill_between(ts, avgs - 1.96 * stds, avgs + 1.96 * stds, alpha=0.2, color=color)
+                ax[i].set_xlabel('Timestep', fontsize=fontsize)
+            ax[i].set_ylabel(name, fontsize=fontsize)
+    for a in ax: 
+        a.legend(loc=legend_location, fontsize=fontsize)
+        a.tick_params(axis='both', which='major', pad=10)
     if anim_bounds is not None and 'anim' in plots_to_make: 
         anim = animate(results, Ms, anim_downsample_factor, anim_bounds)
         plt.close()
