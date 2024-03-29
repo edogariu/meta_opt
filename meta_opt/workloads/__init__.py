@@ -24,11 +24,11 @@ def get_workload(cfg, optimizer):
         model = NCQ(dim=dim, std=1e-5, A=A, radius=1.0)
         model.radius = 1.0
     elif cfg['workload'] == 'MNIST':
-        train_ds, test_ds, example_input, loss_fn, metric_fns = load_mnist(cfg, dataset_dir=os.path.join(directory, 'datasets'))
         if 'model' in cfg and cfg['model'] == 'tiny': 
             print("DOING THE TINY MODEY")
             model = MLP([28 * 28, 10])
         else: model = MLP([28 * 28, 100, 100, 10])
+        train_ds, test_ds, example_input, loss_fn, metric_fns = load_mnist(cfg, dataset_dir=os.path.join(directory, 'datasets'))
     elif cfg['workload'] == 'CIFAR':
         train_ds, test_ds, example_input, loss_fn, metric_fns = load_cifar10(cfg, dataset_dir=os.path.join(directory, 'datasets'))
         model = VGG16()
