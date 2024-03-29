@@ -25,8 +25,8 @@ def get_workload(cfg, optimizer):
         model.radius = 1.0
     elif cfg['workload'] == 'MNIST':
         if 'model' in cfg and cfg['model'] == 'tiny': 
-            print("DOING THE TINY MODEY")
-            model = MLP([28 * 28, 10])
+            print("DOING THE TINY MODEL")
+            model = MLP([28 * 28, 1, 1, 10])
         else: model = MLP([28 * 28, 100, 100, 10])
         train_ds, test_ds, example_input, loss_fn, metric_fns = load_mnist(cfg, dataset_dir=os.path.join(directory, 'datasets'))
     elif cfg['workload'] == 'CIFAR':
