@@ -37,7 +37,7 @@ CFG = {
     'experiment_name': None,
     'load_checkpoint': False,
     'overwrite': True,  # whether to allow us to overwrite existing checkpoints or throw errors
-    'directory': f'{DIR}/..',
+    'directory': DIR,
 } 
 
 
