@@ -155,7 +155,7 @@ if __name__ == '__main__':
     MODEL_SIZE = [28 * 28, 3, 10]
     TRAIN_IDXS = [0, 1000, 2500]
     DURATION = 90
-    SEED = 3
+    SEED = 5
 
     results = run_experiment(SEED, 
                             NAME, 
