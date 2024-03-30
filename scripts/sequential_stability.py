@@ -152,7 +152,7 @@ if __name__ == '__main__':
     MAX_LEN = 30  # for computational reasons, we will only compute with lengths up to this value
     DELTA = 0.1  # (1-delta) decay factor for state
     NAME = 'seq_stab_delta=0.1'
-    MODEL_SIZE = [28 * 28, 4, 10]
+    MODEL_SIZE = [28 * 28, 3, 10]
     TRAIN_IDXS = [0, 1000, 2500]
     DURATION = 90
     SEED = 3
