@@ -28,7 +28,7 @@ CFG = {
     'eval_every': int(1e9),
     'num_eval_iters': -1,
     'batch_size': 32,
-    'full_batch': True,
+    'full_batch': False,
     'reset_every': int(1e9),
     'model_size': None,
 
@@ -151,7 +151,7 @@ if __name__ == '__main__':
     
     MAX_LEN = 30  # for computational reasons, we will only compute with lengths up to this value
     DELTA = 0.1  # (1-delta) decay factor for state
-    NAME = 'seq_stab_delta=0.1'
+    NAME = 'seq_stab_delta=0.1_stochastic'
     MODEL_SIZE = [28 * 28, 3, 10]
     TRAIN_IDXS = [0, 1000, 2500]
     DURATION = 90
