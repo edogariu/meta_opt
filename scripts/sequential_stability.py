@@ -150,8 +150,8 @@ def run_experiment(seed, name, opt, exp_fn, max_len, model_size, train_idxs, dur
 if __name__ == '__main__':
     
     MAX_LEN = 30  # for computational reasons, we will only compute with lengths up to this value
-    DELTA = 0.05  # (1-delta) decay factor for state
-    NAME = 'seq_stab'
+    DELTA = 0.1  # (1-delta) decay factor for state
+    NAME = 'seq_stab_delta=0.1'
     MODEL_SIZE = [28 * 28, 4, 10]
     TRAIN_IDXS = [0, 1000, 2500]
     DURATION = 90
