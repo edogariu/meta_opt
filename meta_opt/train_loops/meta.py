@@ -22,7 +22,7 @@ def train_meta_opt(cfg,
                    H: int, HH: int, 
                    m_method: str = 'scalar', 
                    initial_lr: float = 1e-4, grad_clip = 10, dtype=jax.numpy.float32,
-                   cparams_initial = None, base_opt_type: str = 'sgd'): 
+                   cparams_initial = None, base_opt_type: str = 'sgd', disturbance_transformation: optax.GradientTransformation = None): 
     
     """
     note that if we aren't counterfactual, we have to rescale the number of iterations by HH to account for taking HH training steps every noncounterfactual meta step
@@ -34,8 +34,11 @@ def train_meta_opt(cfg,
     else:
         print('using adam for base optimizer')
         optimizer = optax.adamw(learning_rate=initial_lr, weight_decay=1e-5)
+    if disturbance_transformation is not None and counterfactual:
+        print(f'using {disturbance_transformation} to rescale gradients being passed to meta-opt!')
+        
     tstate, train_ds, test_ds, rng, args = get_workload(dict(cfg, **({'num_iters': cfg['num_iters'] // HH} if not counterfactual else {})), optimizer)
-    meta_opt = MetaOpt(tstate.params, H=H, HH=HH, m_method=m_method, meta_optimizer=meta_optimizer, grad_clip=grad_clip, dtype=dtype)
+    meta_opt = MetaOpt(tstate.params, H=H, HH=HH, m_method=m_method, meta_optimizer=meta_optimizer, grad_clip=grad_clip, dtype=dtype, grad_transformation=disturbance_transformation)
     
     if cparams_initial is not None: meta_opt.cstate = meta_opt.cstate.replace(cparams=cparams_initial)
 
@@ -50,6 +53,7 @@ def train_meta_opt(cfg,
     args['optimizer_args'] = {'initial_lr': initial_lr,
                               'm_method': m_method,
                               'meta_optimizer_args': get_opt_hyperparams(meta_opt.cstate.opt_state),
+                              'disturbance_rescale_args': None if meta_opt.grad_transformation is None else get_opt_hyperparams(meta_opt.grad_transformation_state),
                               'H': H,
                               'HH': HH,
                               'grad_clip': grad_clip,

@@ -1,6 +1,6 @@
 #!/bin/bash
 # ============================================================================
-#SBATCH --job-name=sequential_stability     # create a short name for your job
+#SBATCH --job-name=adam_test     # create a short name for your job
 # ============================================================================
 #SBATCH --nodes=1                # node count
 #SBATCH --ntasks=1               # total number of tasks across all nodes
@@ -16,5 +16,5 @@ module load anaconda3/2023.9
 conda activate meta-opt
 
 # ============================================================================
-python scripts/sequential_stability.py
+python scripts/scale_adam_test.py
 # ============================================================================

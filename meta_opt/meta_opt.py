@@ -202,6 +202,10 @@ class MetaOpt:
     cstate: MetaOptGPCState
     t: int
     
+    # tings for grad transformation 
+    grad_transformation: optax.GradientTransformation
+    grad_transformation_state: optax.ScaleByAdamState
+    
     # things for counterfactual updates; these won't be used for noncounterfactual
     tstate_history: Tuple
     batch_history: Tuple
@@ -213,14 +217,19 @@ class MetaOpt:
                  H: int, HH: int,
                  meta_optimizer,
                  m_method: str, 
-                 grad_clip: float,
+                 meta_grad_clip: float,
                  dtype,
+                 grad_transformation: optax.GradientTransformation = None,
                  ):
         self.grad_history = jax.tree_map(lambda p: jnp.zeros((H, *p.shape)), initial_params)
         self.t = 0
 
         assert m_method in ['scalar', 'diagonal', 'full']
-        self.cstate = MetaOptGPCState.create(initial_params, m_method, H, HH, meta_optimizer=meta_optimizer, grad_clip=grad_clip, dtype=dtype)
+        self.cstate = MetaOptGPCState.create(initial_params, m_method, H, HH, meta_optimizer=meta_optimizer, grad_clip=meta_grad_clip, dtype=dtype)
+        
+        # if we dont do grad transformation, these will remain unused
+        self.grad_transformation = grad_transformation
+        if self.grad_transformation is not None: self.grad_transformation_state = self.grad_transformation.init(initial_params)
         
         # if we dont do counterfactual steps, these will remain unused
         self.H, self.HH = H, HH
@@ -246,6 +255,8 @@ class MetaOpt:
                         grads,  # grads from the step of gd that resulted in `tstate`
                         batch,  # batch from step of gd that resulted in `tstate`
                         ):       
+        # transform grads as desired
+        if self.grad_transformation is not None: grads, self.grad_transformation_state = self.grad_transformation.update(grads, self.grad_transformation_state)
     
         # # lazy initialize the history if it is still `None``
         # if self.batch_history is None: self.batch_history = {k: [v for _ in range(self.HH)] for k, v in batch.items()}
@@ -276,6 +287,7 @@ class MetaOpt:
     def episode_reset(self):
         H, HH = self.cstate.H, self.cstate.HH
         self.grad_history = jax.tree_map(jnp.zeros_like, self.grad_history)
+        if self.grad_transformation is not None: self.grad_transformation_state = self.grad_transformation.init(self.tstate_history[0].params)
         self.t = 0
         self.cstate = self.cstate.replace(opt_state=self.cstate.tx.init(self.cstate.cparams))
         self.tstate_history = (None,) * (HH + 1)
