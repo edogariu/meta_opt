@@ -44,7 +44,7 @@ def run(seeds, cfg):
         for b2 in b2s:
             print(f'RUNNING WITH {b2}')
             opt = optax.inject_hyperparams(optax.adamw)(learning_rate=2e-4)
-            results[f'cf_{b2}'].append(train_meta_opt(CFG, counterfactual=True, H=32, HH=2, meta_optimizer=opt, initial_lr=0.1, disturbance_transformation=optax.inject_hyperparams(optax.scale_by_adam)(b1=0, b2=b2)))
+            results[f'cf_{b2}'].append(train_meta_opt(CFG, counterfactual=True, H=32, HH=2, meta_optimizer=opt, initial_lr=1e-4, disturbance_transformation=optax.inject_hyperparams(optax.scale_by_adam)(b1=0, b2=b2)))
 
         save_checkpoint(CFG, results, checkpoint_name=f'seed {s}')
     processed_results = process_results(CFG, results)
