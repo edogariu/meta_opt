@@ -287,7 +287,9 @@ class MetaOpt:
     def episode_reset(self):
         H, HH = self.cstate.H, self.cstate.HH
         self.grad_history = jax.tree_map(jnp.zeros_like, self.grad_history)
-        if self.grad_transformation is not None: self.grad_transformation_state = self.grad_transformation.init(self.tstate_history[0].params)
+        if self.grad_transformation is not None: 
+            if self.tstate_history[0] is not None: self.grad_transformation_state = self.grad_transformation.init(self.tstate_history[0].params)
+            else: self.grad_transformation_state = self.grad_transformation.init(jax.tree_map(lambda g: g[0], self.grad_history))
         self.t = 0
         self.cstate = self.cstate.replace(opt_state=self.cstate.tx.init(self.cstate.cparams))
         self.tstate_history = (None,) * (HH + 1)
