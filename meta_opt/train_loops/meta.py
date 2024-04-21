@@ -38,7 +38,7 @@ def train_meta_opt(cfg,
         print(f'using {disturbance_transformation} to rescale gradients being passed to meta-opt!')
         
     tstate, train_ds, test_ds, rng, args = get_workload(dict(cfg, **({'num_iters': cfg['num_iters'] // HH} if not counterfactual else {})), optimizer)
-    meta_opt = MetaOpt(tstate.params, H=H, HH=HH, m_method=m_method, meta_optimizer=meta_optimizer, grad_clip=grad_clip, dtype=dtype, grad_transformation=disturbance_transformation)
+    meta_opt = MetaOpt(tstate.params, H=H, HH=HH, m_method=m_method, meta_optimizer=meta_optimizer, meta_grad_clip=grad_clip, dtype=dtype, grad_transformation=disturbance_transformation)
     
     if cparams_initial is not None: meta_opt.cstate = meta_opt.cstate.replace(cparams=cparams_initial)
 
