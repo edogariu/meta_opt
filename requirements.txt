@@ -3,16 +3,16 @@ jaxlib
 numpy
 tensorflow
 tensorflow_datasets
-tensorflow-text
-sentencepiece
+# tensorflow-text
+# sentencepiece
 matplotlib
 jupyter
 scipy
 flax
 optax
 tqdm
-tokenizer
-utils_flax
+# tokenizer
+# utils_flax
 ml_collections
 clu
 dill

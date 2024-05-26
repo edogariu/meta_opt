@@ -26,8 +26,20 @@ from meta_opt.workloads._wmt.train import initialize_cache, predict_step, tohost
 from meta_opt.workloads._wmt.bleu import bleu_partial, complete_bleu
 from meta_opt.workloads._wmt.decode import EOS_ID
 from meta_opt.workloads._wmt.default import get_small_config, get_base_config, get_big_config, get_miniscule_config, get_base_short_config
+from meta_opt.workloads._wmt.train import compute_weighted_accuracy, compute_weighted_cross_entropy
 
-from meta_opt.workloads.utils import weighted_cross_entropy, weighted_accuracy
+@jax.jit
+def weighted_accuracy(logits, targets):
+    weights = jnp.where(targets > 0, 1, 0).astype(jnp.float32)
+    acc, n = compute_weighted_accuracy(logits, targets, weights=weights)
+    return acc / n
+
+@jax.jit
+def weighted_cross_entropy(logits, targets, label_smoothing=0.0):
+    weights = jnp.where(targets > 0, 1, 0).astype(jnp.float32)
+    loss, weight_sum = compute_weighted_cross_entropy(logits, targets, weights, label_smoothing=label_smoothing)
+    mean_loss = loss / weight_sum
+    return mean_loss
 
 # ================================================================================================
 # this whole thing is taken and adapted from https://github.com/google/flax/tree/main/examples/wmt 

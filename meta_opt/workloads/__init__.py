@@ -9,7 +9,8 @@ from meta_opt.utils.experiment_utils import _set_seed, bcolors
 from .nonconvex_quadratic import load_ncq, NCQ
 from .mnist import load_mnist, MLP, CNN
 from .cifar10 import load_cifar10, VGG16
-from .wmt import load_wmt, WMT
+# from .wmt import load_wmt, WMT
+from .gnn import load_gnn, GNN
 
 def get_workload(cfg, optimizer):
     rng, cfg['seed'] = _set_seed(cfg['seed'])
@@ -17,13 +18,13 @@ def get_workload(cfg, optimizer):
     directory = cfg['directory']
     
     # get dataset and model
-    if cfg['workload'] == 'NONCONVEX_QUADRATIC':
-        train_ds, test_ds, example_input, loss_fn, metric_fns = load_ncq(cfg)
-        dim = 64
-        A = jax.random.normal(jax.random.PRNGKey(cfg['seed']), (dim, dim))
-        model = NCQ(dim=dim, std=1e-5, A=A, radius=1.0)
-        model.radius = 1.0
-    elif cfg['workload'] == 'MNIST':
+    # if cfg['workload'] == 'NONCONVEX_QUADRATIC':
+    #     train_ds, test_ds, example_input, loss_fn, metric_fns = load_ncq(cfg)
+    #     dim = 64
+    #     A = jax.random.normal(jax.random.PRNGKey(cfg['seed']), (dim, dim))
+    #     model = NCQ(dim=dim, std=1e-5, A=A, radius=1.0)
+    #     model.radius = 1.0
+    if cfg['workload'] == 'MNIST':
         if 'model_size' in cfg: 
             model_size = cfg['model_size']
             print("DOING THE CUSTOM MODEL WITH SIZE", model_size)
@@ -33,9 +34,12 @@ def get_workload(cfg, optimizer):
     elif cfg['workload'] == 'CIFAR':
         train_ds, test_ds, example_input, loss_fn, metric_fns = load_cifar10(cfg, dataset_dir=os.path.join(directory, 'datasets'))
         model = VGG16()
-    elif cfg['workload'] == 'WMT':
-        train_ds, test_ds, example_input, loss_fn, metric_fns, tokenizer = load_wmt(cfg, dataset_dir=os.path.join(directory, 'datasets'))
-        model = WMT(cfg, tokenizer, size=cfg['transformer_size'])
+    # elif cfg['workload'] == 'WMT':
+    #     train_ds, test_ds, example_input, loss_fn, metric_fns, tokenizer = load_wmt(cfg, dataset_dir=os.path.join(directory, 'datasets'))
+    #     model = WMT(cfg, tokenizer, size=cfg['transformer_size'])
+    elif cfg['workload'] == 'GNN':
+        train_ds, test_ds, example_input, loss_fn, metric_fns = load_gnn(cfg, dataset_dir=os.path.join(directory, 'datasets'))
+        model = GNN()
     else:
         raise NotImplementedError(cfg['workload'])
 
