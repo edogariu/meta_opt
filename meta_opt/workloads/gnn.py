@@ -4,7 +4,9 @@ from algorithmic_efficiency.workloads.ogbg.input_pipeline import _load_dataset, 
 from typing import Tuple, Callable, List
 
 import tensorflow as tf; tf.config.experimental.set_visible_devices([], "GPU")
+from sklearn.metrics import average_precision_score
 
+import numpy as np
 import jraph
 import jax
 import jax.numpy as jnp
@@ -111,10 +113,24 @@ def load_gnn(cfg, dataset_dir: str = './datasets', rng: int = None) -> Tuple[tf.
     
     @jax.jit
     def accuracy(yhat, y):
+        logits = yhat
         labels, mask = y['targets'], y['weights']
-        mask = (yhat != -1)
-        preds = labels > 0
-        v = (preds == yhat).astype(jnp.float32)
-        return jnp.where(mask, v, 0).sum() / mask.sum()
+        mask = mask.astype(bool)
+
+        probs = jax.nn.sigmoid(logits)
+        num_tasks = labels.shape[1]
+        average_precisions = np.full(num_tasks, np.nan)
+
+        # Note that this code is slow (~1 minute).
+        for task in range(num_tasks):
+            # AP is only defined when there is at least one negative data
+            # and at least one positive data.
+            if np.sum(labels[:, task] == 0) > 0 and np.sum(labels[:, task] == 1) > 0:
+                is_labeled = mask[:, task]
+                average_precisions[task] = average_precision_score(labels[is_labeled, task], probs[is_labeled, task])
+
+        # When all APs are NaNs, return NaN. This avoids raising a RuntimeWarning.
+        if np.isnan(average_precisions).all(): return np.nan
+        return np.nanmean(average_precisions)
     
     return train_ds, eval_ds, example_input, loss_fn, {'loss': loss_fn, 'acc': accuracy}  # train dataset, test dataset, unbatched input dimensions, loss function, eval metrics
