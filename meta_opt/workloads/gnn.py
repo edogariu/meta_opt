@@ -111,7 +111,7 @@ def load_gnn(cfg, dataset_dir: str = './datasets', rng: int = None) -> Tuple[tf.
         summed_loss = per_example_losses.sum()
         return summed_loss / n_valid_examples
     
-    @jax.jit
+    # @jax.jit
     def accuracy(yhat, y):
         logits = yhat
         labels, mask = y['targets'], y['weights']
