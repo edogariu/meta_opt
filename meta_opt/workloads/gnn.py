@@ -44,11 +44,13 @@ class EvalDS:
         pass
 
     def as_numpy_iterator(self):
-        batch_size, num_eval_iters = self.cfg['batch_size'], self.cfg['num_eval_iters']
-        eval_ds = _load_dataset('validation', False, self.data_rng, self.dataset_dir)
+        num_eval_iters = self.cfg['num_eval_iters']
+        if 'eval_batch_size' in self.cfg: batch_size = self.cfg['eval_batch_size']
+        else: batch_size = self.cfg['batch_size']
+        eval_ds = _load_dataset('validation', True, self.data_rng, self.dataset_dir)
+        # eval_ds = eval_ds.shuffle(1024)
         if num_eval_iters != -1: 
-            raise NotImplementedError('cant use less eval iters for GNN')
-        eval_ds = eval_ds.shuffle(1024)
+            eval_ds = eval_ds.take(batch_size * num_eval_iters)
         eval_ds = DS(_get_batch_iterator(iter(eval_ds), batch_size))
         return eval_ds
 
