@@ -1,4 +1,4 @@
-# THINGS TO RUN
+<!-- # THINGS TO RUN
 - [ ] **BIG WMT EXPERMIENTS!!! And repeat CIFAR stuff for MNIST too**
 - [ ] run with *many* ema values and plot preferred $\mu$ over time video-style
 - [ ] check overfitting on task other than cross-entropy
@@ -30,4 +30,4 @@
 - With the correct hyperparams, we kinda track the optimum as learning progresses. So, 
 
 
-
+ -->

@@ -64,6 +64,7 @@ def forward(tstate, batch):
     return loss, yhat
 
 @jax.jit
+# print('WARNING!!! TRAIN_STEP ISNT JITTED')
 def train_step(tstate, batch):    
     
     if tstate.rng is not None:  # some rng hacking that is very anti-jax :)
@@ -102,6 +103,7 @@ def eval(tstate, dataset):
             for k, v in tstate.metric_fns.items(): eval_metrics[k] += v(yhat, y)
             n += 1
     except Exception as e: 
+        print('exception during eval!!!')
         print(e)
         pass
     for k in eval_metrics.keys(): eval_metrics[k] /= n

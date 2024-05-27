@@ -10,7 +10,8 @@ from .nonconvex_quadratic import load_ncq, NCQ
 from .mnist import load_mnist, MLP, CNN
 from .cifar10 import load_cifar10, VGG16
 # from .wmt import load_wmt, WMT
-from .gnn import load_gnn, GNN
+from .gnn import load_gnn
+
 
 def get_workload(cfg, optimizer):
     rng, cfg['seed'] = _set_seed(cfg['seed'])
@@ -38,8 +39,12 @@ def get_workload(cfg, optimizer):
     #     train_ds, test_ds, example_input, loss_fn, metric_fns, tokenizer = load_wmt(cfg, dataset_dir=os.path.join(directory, 'datasets'))
     #     model = WMT(cfg, tokenizer, size=cfg['transformer_size'])
     elif cfg['workload'] == 'GNN':
-        train_ds, test_ds, example_input, loss_fn, metric_fns = load_gnn(cfg, dataset_dir=os.path.join(directory, 'datasets'))
-        model = GNN()
+        from meta_opt.workloads.gnn import _B
+        from algorithmic_efficiency.workloads.ogbg.ogbg_jax.models import GNN 
+        data_rng, rng = jax.random.split(rng)
+        train_ds, test_ds, example_input, loss_fn, metric_fns = load_gnn(cfg, dataset_dir=os.path.join(directory, 'datasets'), rng=data_rng)
+        # model = GNN(num_outputs=_B._num_outputs, latent_dim=32, hidden_dims=(32,), num_message_passing_steps=2)
+        model = GNN(num_outputs=_B._num_outputs)
     else:
         raise NotImplementedError(cfg['workload'])
 
