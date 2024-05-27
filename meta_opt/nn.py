@@ -38,16 +38,15 @@ def create_train_state(rng, model: jnn.Module, example_input: jnp.ndarray, optim
                                batch_stats={},
                                tx=optimizer,
                                example_input=example_input, 
-                               loss_fn=jax.tree_util.Partial(loss_fn), 
+                               loss_fn=jax.tree_util.Partial(jax.jit(loss_fn)), 
                                metric_fns={k: jax.tree_util.Partial(v) for k, v in metric_fns.items()},
-                            #    loss_fn=jax.tree_util.Partial(jax.jit(loss_fn)), 
                             #    metric_fns={k: jax.tree_util.Partial(jax.jit(v)) for k, v in metric_fns.items()},
                                other_vars={},
                                rng=None,)
     return reset_model(rng, tstate)
 
 
-# @jax.jit
+@jax.jit
 def project(tstate):
     if hasattr(tstate.model, 'radius'): 
         div = jnp.maximum(1., ((pytree_sq_norm(tstate.params) ** 0.5) / tstate.model.radius))
@@ -56,7 +55,7 @@ def project(tstate):
     else: 
         return tstate
 
-# @jax.jit
+@jax.jit
 def forward(tstate, batch):
     tstate = project(tstate)
     variables = {'params': tstate.params, 'batch_stats': tstate.batch_stats}
@@ -65,8 +64,8 @@ def forward(tstate, batch):
     loss = tstate.loss_fn(yhat, batch['y'])
     return loss, yhat
 
-# @jax.jit
-print('WARNING!!! TRAIN_STEP ISNT JITTED')
+@jax.jit
+# print('WARNING!!! TRAIN_STEP ISNT JITTED')
 def train_step(tstate, batch):    
     
     if tstate.rng is not None:  # some rng hacking that is very anti-jax :)
@@ -87,8 +86,8 @@ def train_step(tstate, batch):
         return loss, (yhat, updates)
 
     # get loss and grads
-    (loss, (yhat, updates)), grads = jax.value_and_grad(loss_fn, has_aux=True)(tstate.params)
-    # (loss, (yhat, updates)), grads = jax.jit(jax.value_and_grad(loss_fn, has_aux=True))(tstate.params)
+    # (loss, (yhat, updates)), grads = jax.value_and_grad(loss_fn, has_aux=True)(tstate.params)
+    (loss, (yhat, updates)), grads = jax.jit(jax.value_and_grad(loss_fn, has_aux=True))(tstate.params)
     tstate = tstate.apply_gradients(grads=grads)
     tstate = project(tstate)
     tstate = tstate.replace(batch_stats=updates['batch_stats'])
