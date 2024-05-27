@@ -45,7 +45,7 @@ def create_train_state(rng, model: jnn.Module, example_input: jnp.ndarray, optim
     return reset_model(rng, tstate)
 
 
-@jax.jit
+# @jax.jit
 def project(tstate):
     if hasattr(tstate.model, 'radius'): 
         div = jnp.maximum(1., ((pytree_sq_norm(tstate.params) ** 0.5) / tstate.model.radius))
@@ -54,7 +54,7 @@ def project(tstate):
     else: 
         return tstate
 
-@jax.jit
+# @jax.jit
 def forward(tstate, batch):
     tstate = project(tstate)
     variables = {'params': tstate.params, 'batch_stats': tstate.batch_stats}
@@ -63,8 +63,8 @@ def forward(tstate, batch):
     loss = tstate.loss_fn(yhat, batch['y'])
     return loss, yhat
 
-@jax.jit
-# print('WARNING!!! TRAIN_STEP ISNT JITTED')
+# @jax.jit
+print('WARNING!!! TRAIN_STEP ISNT JITTED')
 def train_step(tstate, batch):    
     
     if tstate.rng is not None:  # some rng hacking that is very anti-jax :)
