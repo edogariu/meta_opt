@@ -117,7 +117,7 @@ def load_gnn(cfg, dataset_dir: str = './datasets', rng: int = None) -> Tuple[tf.
         labels, mask = y['targets'], y['weights']
         mask = mask.astype(bool)
 
-        probs = jax.nn.sigmoid(logits)
+        probs = np.asarray(jax.nn.sigmoid(logits))
         num_tasks = labels.shape[1]
         average_precisions = np.full(num_tasks, np.nan)
 
