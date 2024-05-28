@@ -7,7 +7,7 @@ import optax
 
 # ==================================================
 # configuration and seeds for each trial
-SEEDS = [0, 1, 2, 3, 4, 5, 6]
+SEEDS = [0, 1, 2]
 
 NAME = 'mnist_stochastic'
 CFG = {
@@ -37,15 +37,18 @@ def run(seeds, cfg):
         CFG['seed'] = s
         print(f'running with seed {s}')
         
-        # ours
-        results['ours'].append(train_meta_opt(CFG, counterfactual=False, H=32, HH=1, meta_optimizer=optax.inject_hyperparams(optax.sgd)(learning_rate=0), cparams_initial=initial_cparams))
+        # # ours
+        # results['ours'].append(train_meta_opt(CFG, counterfactual=False, H=32, HH=1, meta_optimizer=optax.inject_hyperparams(optax.sgd)(learning_rate=0), cparams_initial=initial_cparams))
 
         # standard benchmarks
         benchmarks = {
-            'sgd': optax.inject_hyperparams(optax.sgd)(learning_rate=0.4),
-            'momentum': optax.chain(optax.add_decayed_weights(1e-4), optax.inject_hyperparams(optax.sgd)(learning_rate=0.1, momentum=0.9)),
-            'adamw': optax.inject_hyperparams(optax.adamw)(learning_rate=1e-3, b1=0.9, b2=0.999, weight_decay=1e-4),
+            # 'sgd': optax.inject_hyperparams(optax.sgd)(learning_rate=0.4),
+            # 'momentum': optax.chain(optax.add_decayed_weights(1e-4), optax.inject_hyperparams(optax.sgd)(learning_rate=0.1, momentum=0.9)),
+            # 'adamw': optax.inject_hyperparams(optax.adamw)(learning_rate=1e-3, b1=0.9, b2=0.999, weight_decay=1e-4),
+            'dog': optax.inject_hyperparams(optax.contrib.dog)(0.5),
+            'dowg': optax.inject_hyperparams(optax.contrib.dowg)(0.5),
             'dadamw': optax.inject_hyperparams(optax.contrib.dadapt_adamw)(),
+            'mechsgd': optax.contrib.mechanize(optax.inject_hyperparams(optax.sgd)(learning_rate=0.4)),
             'mechadamw': optax.contrib.mechanize(optax.inject_hyperparams(optax.adamw)(learning_rate=1e-3, b1=0.9, b2=0.999, weight_decay=1e-4)),
             # 'rmsprop': optax.inject_hyperparams(optax.rmsprop)(learning_rate=1e-3),
         }
