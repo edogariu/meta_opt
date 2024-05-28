@@ -124,3 +124,107 @@ def value_and_jacrev(f, *x):
     basis = jnp.eye(y.size, dtype=y.dtype)
     jac = jax.vmap(pullback)(basis)
     return y, jac
+
+
+from typing import NamedTuple, Optional
+import optax
+import chex
+import jax.numpy as jnp
+import jax.tree_util as tu
+from optax import tree_utils
+from optax._src import base
+from optax._src import utils
+def dadapt_sgd(
+    learning_rate: base.ScalarOrSchedule = 1.0,
+    eps: float = 1e-8,
+    estim_lr0: float = 1e-6,
+    weight_decay: float = 0.,
+) -> base.GradientTransformation:
+  """Learning rate free AdamW by D-Adaptation.
+
+  Adapts the baseline learning rate of AdamW automatically by estimating the
+  initial distance to solution in the infinity norm.
+  This method works best when combined with a learning rate schedule that
+  treats 1.0 as the base (usually max) value.
+
+  References:
+    [Defazio & Mishchenko, 2023](https://arxiv.org/abs/2301.07733.pdf)
+
+  Args:
+    learning_rate: Learning rate scheduling parameter. The recommended schedule
+      is a linear_schedule with init_value=1.0 and end_value=0, combined with a
+      0-20% learning rate warmup.
+    betas: Betas for the underlying AdamW Optimizer.
+    eps: eps for the underlying AdamW Optimizer.
+    estim_lr0: Initial (under-)estimate of the learning rate.
+    weight_decay: AdamW style weight-decay. To use Regular Adam decay, chain
+      with add_decayed_weights.
+
+  Returns:
+    A `GradientTransformation` object.
+  """
+
+  def init_fn(params: base.Params) -> optax.contrib.DAdaptAdamWState:
+    exp_avg = tu.tree_map(lambda p: jnp.zeros(p.shape, jnp.float32), params)
+    exp_avg_sq = tu.tree_map(lambda p: jnp.zeros(p.shape, jnp.float32), params)
+    grad_sum = tu.tree_map(lambda p: jnp.zeros(p.shape, jnp.float32), params)
+    estim_lr = jnp.asarray(estim_lr0, jnp.float32)
+    numerator_weighted = jnp.zeros([], jnp.float32)
+    count = jnp.zeros([], jnp.int32)
+    return optax.contrib.DAdaptAdamWState(
+        exp_avg, exp_avg_sq, grad_sum, estim_lr, numerator_weighted, count
+    )
+
+  def update_fn(
+      updates: base.Updates,
+      state: optax.contrib.DAdaptAdamWState,
+      params: Optional[base.Params] = None,
+  ) -> tuple[base.Updates, optax.contrib.DAdaptAdamWState]:
+    if params is None:
+      raise ValueError(base.NO_PARAMS_MSG)
+    count = state.count
+    beta1, beta2 = betas
+    sb2 = beta2 ** (0.5)
+    sched = learning_rate(count) if callable(learning_rate) else learning_rate
+    grad_sum = state.grad_sum
+    numerator_weighted = state.numerator_weighted
+    bc = ((1 - beta2 ** (count + 1)) ** 0.5) / (1 - beta1 ** (count + 1))
+    dlr = state.estim_lr * sched * bc
+    s_weighted = tu.tree_map(
+        lambda sk, eas: sk / (jnp.sqrt(eas) + eps), grad_sum, state.exp_avg_sq
+    )
+    numerator_acum = tree_utils.tree_vdot(updates, s_weighted)
+    exp_avg = tu.tree_map(
+        lambda ea, g: beta1 * ea + (1 - beta1) * dlr * g, state.exp_avg, updates
+    )
+    exp_avg_sq = tu.tree_map(
+        lambda eas, g: beta2 * eas + (1 - beta2) * g * g,
+        state.exp_avg_sq,
+        updates,
+    )
+    grad_sum = tu.tree_map(
+        lambda sk, g: sb2 * sk + (1 - sb2) * dlr * g, grad_sum, updates
+    )
+    grad_sum_l1 = tree_utils.tree_sum(tu.tree_map(jnp.abs, grad_sum))
+    numerator_weighted = (
+        sb2 * numerator_weighted + (1 - sb2) * dlr * numerator_acum
+    )
+    d_estimate = numerator_weighted / ((1 - sb2) * grad_sum_l1)
+    estim_lr = jnp.maximum(state.estim_lr, d_estimate)
+    p_update = tu.tree_map(
+        lambda ea, eas, p: -weight_decay * dlr * p - ea / (jnp.sqrt(eas) + eps),
+        exp_avg,
+        exp_avg_sq,
+        params,
+    )
+    new_state = optax.contrib.DAdaptAdamWState(
+        exp_avg,
+        exp_avg_sq,
+        grad_sum,
+        estim_lr,
+        numerator_weighted,
+        utils.safe_int32_increment(count),
+    )
+    return p_update, new_state
+
+  return base.GradientTransformation(init_fn, update_fn)
