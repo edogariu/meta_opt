@@ -1,35 +1,35 @@
 from meta_opt.train_loops import train_standard_opt, train_hgd, train_meta_opt
-from meta_opt.utils.experiment_utils import make, save_checkpoint, process_results, bcolors, plot, get_final_cparams
+from meta_opt.utils.experiment_utils import make, save_checkpoint, process_results, get_final_cparams
 from meta_opt import DIR
 
-import os
-import re
-import matplotlib.pyplot as plt
-import numpy as np
 import dill as pkl
 import optax
 
 # ==================================================
 # configuration and seeds for each trial
-SEEDS = [0, 1, 2, 3, 4, 5]  # the length of this list is the number of trials we will run :)
+SEEDS = [0, 1, 2, 3, 4, 5, 6]
+
+NAME = 'cifar_stochastic'
 CFG = {
     # training options
-    'workload': 'MNIST',
-    'num_iters': 20000,
-    'eval_every': -1,
+    'workload': 'CIFAR',
+    'num_iters': 10000,
+    'eval_every': 200,
     'num_eval_iters': -1,
     'batch_size': 512,
-    'full_batch': True,
-    'reset_every': 500,
+    'full_batch': False,
+    'reset_every': int(1e9),
 
     # experiment options
-    'experiment_name': 'mnist_baselines_fullbatch',
+    'experiment_name': NAME,
     'load_checkpoint': False,
-    'overwrite': False,  # whether to allow us to overwrite existing checkpoints or throw errors
+    'overwrite': True,  # whether to allow us to overwrite existing checkpoints or throw errors
     'directory': DIR,
 }
 
 def run(seeds, cfg):
+    # processed_results = pkl.load(open('{}/data/mnist_fullbatch_processed.pkl'.format(cfg['directory']), 'rb'))
+    # initial_cparams = get_final_cparams(processed_results, 'ncf')
     results = make(cfg)
     
     # uncomment the ones to run, with correctly chosen hyperparameters
@@ -37,6 +37,9 @@ def run(seeds, cfg):
         CFG['seed'] = s
         print(f'running with seed {s}')
         
+        # ours
+        results['ours'].append(train_meta_opt(CFG, counterfactual=False, H=32, HH=1, meta_optimizer=optax.inject_hyperparams(optax.sgd)(learning_rate=0), cparams_initial=initial_cparams, initial_lr=0.1))
+
         # standard benchmarks
         benchmarks = {
             'sgd': optax.inject_hyperparams(optax.sgd)(learning_rate=0.4),
@@ -49,13 +52,15 @@ def run(seeds, cfg):
         for k, opt in benchmarks.items(): results[k].append(train_standard_opt(CFG, opt))
 
         # other
-        results['hgd'].append(train_hgd(CFG, initial_lr=0.1, hypergrad_lr=1e-2))
+        results['hgd'].append(train_hgd(CFG, initial_lr=0.4, hypergrad_lr=1e-4))
 
         save_checkpoint(CFG, results, checkpoint_name=f'seed {s}')
     processed_results = process_results(CFG, results)
+    return processed_results
 # ==================================================
 
 
+import os
 if __name__ == '__main__':
     try: 
         idx = int(os.environ["SLURM_ARRAY_TASK_ID"])

@@ -16,7 +16,7 @@ NAME = 'mnist_fullbatch'
 CFG = {
     # training options
     'workload': 'MNIST',
-    'num_iters': 20000,
+    'num_iters': 10000,
     'eval_every': -1,
     'num_eval_iters': -1,
     'batch_size': 512,
@@ -40,26 +40,24 @@ def run(seeds, cfg):
         
         # ours
         opt = optax.inject_hyperparams(optax.sgd)(learning_rate=2e-4)
-        results['cf'].append(train_meta_opt(CFG, counterfactual=True, H=32, HH=2, meta_optimizer=opt))
-        results['cf_3'].append(train_meta_opt(CFG, counterfactual=True, H=32, HH=3, meta_optimizer=opt))
-        results['cf_0.1'].append(train_meta_opt(CFG, counterfactual=True, H=32, HH=2, meta_optimizer=opt, initial_lr=0.1))
-        results['ncf'].append(train_meta_opt(CFG, counterfactual=False, H=32, HH=2, meta_optimizer=opt))
-        results['ncf_0.1'].append(train_meta_opt(CFG, counterfactual=False, H=32, HH=2, meta_optimizer=opt, initial_lr=0.1))
+        results['ours'].append(train_meta_opt(CFG, counterfactual=True, H=32, HH=2, meta_optimizer=opt))
 
         # standard benchmarks
         benchmarks = {
             'sgd': optax.inject_hyperparams(optax.sgd)(learning_rate=0.4),
             'momentum': optax.chain(optax.add_decayed_weights(1e-4), optax.inject_hyperparams(optax.sgd)(learning_rate=0.1, momentum=0.9)),
             'adamw': optax.inject_hyperparams(optax.adamw)(learning_rate=1e-3, b1=0.9, b2=0.999, weight_decay=1e-4),
-            # 'rmsprop': optax.inject_hyperparams(optax.rmsprop)(learning_rate=1e-3),
+            'dadamw': optax.inject_hyperparams(optax.contrib.dadapt_adamw)(),
+            'mechadamw': optax.contrib.mechanize(optax.inject_hyperparams(optax.adamw)(learning_rate=1e-3, b1=0.9, b2=0.999, weight_decay=1e-4)),
         }
         for k, opt in benchmarks.items(): results[k].append(train_standard_opt(CFG, opt))
 
         # other
-        results['hgd'].append(train_hgd(CFG, initial_lr=0.1, hypergrad_lr=1e-3))
+        results['hgd'].append(train_hgd(CFG, initial_lr=0.4, hypergrad_lr=1e-4))
 
         save_checkpoint(CFG, results, checkpoint_name=f'seed {s}')
     processed_results = process_results(CFG, results)
+    return processed_results
 # ==================================================
 
 import os
