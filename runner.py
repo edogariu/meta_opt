@@ -12,8 +12,7 @@ tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
 tf.config.set_visible_devices([], 'GPU')
 
 from algorithmic_efficiency import logger_utils
-from algorithmic_efficiency.profiler import PassThroughProfiler
-from algorithmic_efficiency.profiler import Profiler
+from algorithmic_efficiency.profiler import Profiler, PassThroughProfiler
 from algorithmic_efficiency.workloads import workloads
 
 from meta_opt.experiment import ExperimentConfig
