@@ -1,5 +1,5 @@
 # Meta-Optimization
-Hi! This is the code-base for our meta-optimization algorithm, build using nonstochastic control theory. We provide an implementation as an `optax` optimizer (found in the `jax_meta_opt` function in `meta_opt/jax_stuff/jax_meta_opt.py`) and plan to release a `pytorch` version soon.
+Hi! This is the codebase for our meta-optimization algorithm, built atop the nonstochastic control theory. We provide an implementation as an `optax` optimizer (found in the `jax_meta_opt` function in `meta_opt/jax_stuff/jax_meta_opt.py`) and plan to release a `pytorch` version soon.
 
 ## Results
 We use common deep learning workloads (specifically the `AlgoPerf` implementations, see https://arxiv.org/abs/2306.07179 and https://github.com/mlcommons/algorithmic-efficiency) to benchmark this optimizer's performance against the current deep learning optimizers (SGD, Momentum, Adam, DoG, DoWG, Mechanic, D-Adaptation, and more). Our meta-optimization method is able to demonstrate improvement across training episodes, eventually matching the performances of many tuned benchmarks without the need for manual hyperparameter tuning; see the graph below for an example of a VGG-16 architecture trained on the CIFAR-10 dataset. 
@@ -23,5 +23,5 @@ For certain workloads, you may need to pre-download the TensorFlow dataset to th
 - [ ] fix checkpointing 😔
 - [ ] fix dataset automatic downloads
 - [ ] add back ncf and gaps? they dont do too well, but maybe with adam disturbances they could?
-- [X] implement the `scale_by_adam` for disturbances
-- [X] add utilization logging and redo the way we write metrics
+- [X] ~~implement the `scale_by_adam` for disturbances~~
+- [X] ~~add utilization logging and redo the way we write metrics~~
