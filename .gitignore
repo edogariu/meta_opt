@@ -1,11 +1,16 @@
+# virtual environments
 env
 .venv
+
+# build stuff
 *__pycache__
+build
+*.egg-info
+
+# complete nuisances
 *.DS_Store
 *.ipynb_checkpoints*
 *Copy*
-data/*
-datasets/*
-build
-*.egg-info
+datasets
+experiments
 slurm*.out

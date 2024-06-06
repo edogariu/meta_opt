@@ -1,18 +1,3 @@
-jax
-jaxlib
-numpy
-tensorflow
-tensorflow_datasets
-# tensorflow-text
-# sentencepiece
+scipy==1.12.0
 matplotlib
 jupyter
-scipy
-flax
-optax
-tqdm
-# tokenizer
-# utils_flax
-ml_collections
-clu
-dill
