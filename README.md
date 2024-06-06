@@ -11,7 +11,7 @@ To install the `meta_opt` package and its dependencies, simply ensure that Pytho
 
 For each optimizer experiment we run, we have a separate `.py` file in the `configs/` folder that contains the configurations of (1) the experimental setup and (2) the specific optimizer we use. To launch the experiment, you may run `.venv/bin/python3 runner.py --seed=SEED --config_path=ABSOLUTE_PATH_TO_CORRECT_CONFIG.py` with `SEED` replaced by an integer seed for reproducability and `ABSOLUTE_PATH_TO_CORRECT_CONFIG.py` replaced with an absolute path to the correct file in the `configs/` folder. This will start the experiment and write logs/results/checkpoints to a subdirectory of `experiments/`. 
 
-For certain workloads, you may need to pre-download the TensorFlow dataset to the `datasets/` folder if it does not do so automatically.
+For certain workloads, you may need to pre-download the corresponding TensorFlow dataset to the `datasets/` folder if it does not do so automatically.
 
 
 ## my TODOS
