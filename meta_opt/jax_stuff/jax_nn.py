@@ -11,7 +11,7 @@ from algorithmic_efficiency import spec
 
 from meta_opt.optimizers import OptimizerConfig, SGDConfig, AdamWConfig, MetaOptConfig
 from meta_opt.nn import TrainState
-from meta_opt.jax_stuff.jax_metaopt import jax_meta_opt
+from meta_opt.jax_stuff.jax_meta_opt import jax_meta_opt
 from meta_opt.utils import bcolors
 
 
