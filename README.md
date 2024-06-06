@@ -7,7 +7,7 @@ We use common deep learning workloads (specifically the `AlgoPerf` implementatio
 ![CIFAR fullbatch](figs/cifar_fullbatch_simple.png)
 
 ## Instructions
-To install the `meta_opt` package and its dependencies, simply ensure that Python version 3.10 is installed (through something like `brew install python@3.10` on mac or `sudo apt install python3.10` on linux). Then, you should be able to run `./setup.sh` (you may need to `chmod +x setup.sh` to make it executable), which will configure a virtual environment correctly.
+To install the `meta_opt` package and its dependencies, simply ensure that Python version 3.10 is installed (through something like `brew install python@3.10` on mac or `sudo apt install python3.10` on linux). Then, you should be able to run `./setup.sh` (you may need to `chmod +x setup.sh` to make it executable), which will configure a virtual environment.
 
 For each optimizer experiment we run, we have a separate `.py` file in the `configs/` folder that contains the configurations of (1) the experimental setup and (2) the specific optimizer we use. To launch the experiment, you may run `.venv/bin/python3 runner.py --seed=SEED --config_path=ABSOLUTE_PATH_TO_CORRECT_CONFIG.py` with `SEED` replaced by an integer seed for reproducability and `ABSOLUTE_PATH_TO_CORRECT_CONFIG.py` replaced with an absolute path to the correct file in the `configs/` folder. This will start the experiment and write logs/results/checkpoints to a subdirectory of `experiments/`. 
 
