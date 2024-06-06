@@ -1,33 +1,27 @@
-<!-- # THINGS TO RUN
-- [ ] **BIG WMT EXPERMIENTS!!! And repeat CIFAR stuff for MNIST too**
-- [ ] run with *many* ema values and plot preferred $\mu$ over time video-style
-- [ ] check overfitting on task other than cross-entropy
-- [ ] add MP, cosine, cyclical learning rates, hedging, AGD, DoWG, D-adaptation, adagrad?
-- [ ] check my hunch that we produce same optimum even w different meta lr
-- [ ] Plot along varying time to see which method performs best at a fixed time, sweeping hyperparameter vs accuracy at different times
-- [ ] Investigate effect of overfitting
-- [ ] Investigate training stability & couple w sequential stability
-- [ ] add caching to dataloaders
-- [ ] try other settings?
+# Meta-Optimization
+Hi! This is the code-base for our meta-optimization algorithm, build using nonstochastic control theory. We provide an implementation as an `optax` optimizer and plan to release a `pytorch` version soon.
 
-- [X] ~~Add avg to training and run diagonal~~
-- [X] ~~**VERIFY BATCHING ISNT DEGENERATE ON WMT**~~
-- [X] ~~**USE OPTAX GRAD CLIPPING**~~
-- [X] ~~**run meta-opt with optimal initial lr instead of near-0**~~ (turns out optimal is 0 lol)
-- [X] ~~fix buffer alignment issue~~
-- [X] ~~Fix issue with the delta~~
-- [X] ~~rerun CIFAR baselines with weight decay~~
-- [X] ~~Correctly handle std (linear comb of R.V.s) for plotting when we smooth loss~~
-- [X] ~~Fix eval for WMT to not take so long so that the big experiments will work~~
+## Results
+We use common deep learning workloads (specifically the `AlgoPerf` implementations, see https://arxiv.org/abs/2306.07179 and https://github.com/mlcommons/algorithmic-efficiency) to benchmark this optimizer's performance against the current deep learning optimizers (SGD, Momentum, Adam, DoG, DoWG, Mechanic, D-Adaptation, and more). Our meta-optimization method is able to demonstrate improvement across training episodes, eventually matching the performances of many tuned benchmarks without the need for manual hyperparameter tuning; see the graph below for an example of a VGG-16 architecture trained on the CIFAR-10 dataset. 
 
-# NOTES ON META OPT
-## CIFAR
-- SGD: 0.1 is best, in “CIFAR_1-13”
-- Adam: 0.001 is best, in “CIFAR_1-13”
-- Scalar: adam w <= 1e-4, in “CIFAR_1-13”
-- Momentum: 0.01 w 0.9, in “CIFAR_1-13”
-- The lower the meta lr, the longer it takes for training loss to bottom out (and so it bottoms out lower), but on bigger datasets it seems that our method prevents overfitting and still keeps low eval loss. 
-- With the correct hyperparams, we kinda track the optimum as learning progresses. So, 
+![CIFAR fullbatch](figs/cifar_fullbatch_simple.png)
+
+## Instructions
+To install the `meta_opt` package and its dependencies, simply ensure that Python version 3.10 is installed (through something like `brew install python@3.10` on mac or `sudo apt install python3.10` on linux). Then, you should be able to run `./setup.sh` (you may need to `chmod +x setup.sh` to make it executable), which will configure a virtual environment correctly.
+
+For each optimizer experiment we run, we have a separate `.py` file in the `configs/` folder that contains the configurations of (1) the experimental setup and (2) the specific optimizer we use. To launch the experiment, you may run `.venv/bin/python3 runner.py --seed=SEED --config_path=ABSOLUTE_PATH_TO_CORRECT_CONFIG.py` with `SEED` replaced by an integer seed for reproducability and `ABSOLUTE_PATH_TO_CORRECT_CONFIG.py` replaced with an absolute path to the correct file in the `configs/` folder. This will start the experiment and write logs/results/checkpoints to a subdirectory of `experiments/`. 
+
+For certain workloads, you may need to pre-download the TensorFlow dataset to the `datasets/` folder if it does not do so automatically.
 
 
- -->
+## my TODOS
+- [ ] run hella experiments and make some cool graphs
+- [ ] implement many more baselines, including some that have Pytorch implementations?
+- [ ] figure out correct counterfactual pmap and do a proper memory/runtime profiling
+- [ ] figure out sharding of MetaOpt state
+- [ ] do the pytorch implementation
+- [ ] fix checkpointing 😔
+- [ ] fix dataset automatic downloads
+- [ ] add back ncf and gaps? they dont do too well, but maybe with adam disturbances they could?
+- [X] implement the `scale_by_adam` for disturbances
+- [X] add utilization logging and redo the way we write metrics
