@@ -1,4 +1,4 @@
-from typing import Any, Tuple
+from typing import Any, Tuple, Dict
 import functools
 from absl import logging
 
@@ -12,8 +12,8 @@ from algorithmic_efficiency import spec
 from meta_opt.optimizers import OptimizerConfig, SGDConfig, AdamWConfig, MetaOptConfig
 from meta_opt.nn import TrainState
 from meta_opt.jax_stuff.jax_meta_opt import jax_meta_opt
+from meta_opt.jax_stuff.jax_utils import sq_norm_pytree
 from meta_opt.utils import bcolors
-
 
 
 # -------------------------------------------------------------------------------------------------
@@ -46,14 +46,22 @@ def jax_make_optimizer(workload: spec.Workload, cfg: OptimizerConfig) -> optax.G
 
     elif name == 'MetaOpt' or isinstance(cfg, MetaOptConfig):
         meta_optimizer = jax_make_optimizer(workload, cfg.meta_optimizer_cfg)
-        base_optimizer_cfg = SGDConfig(learning_rate=0, momentum=0, nesterov=False, weight_decay=None, grad_clip=None)
 
-        empty_tstate = jax_create_train_state(jax.random.PRNGKey(0), workload, base_optimizer_cfg, replicate_opt_state=cfg.jax_pmap_in_rollouts)
         if cfg.jax_pmap_in_rollouts:
             logging.warn('We are pmapping in both the outer `train_step` function and the inner counterfactual one!')
-            opt = jax_meta_opt(workload, cfg, meta_optimizer, empty_tstate, jax_pmapped_train_step, jax_pmapped_forward)
+            train_step, forward = jax_pmapped_train_step, jax_pmapped_forward
         else:
-            opt = jax_meta_opt(workload, cfg, meta_optimizer, empty_tstate, jax_train_step, jax_forward)
+            train_step, forward = jax_train_step, jax_forward
+
+        if not cfg.fake_the_dynamics:  # use the base optimizer to implement `inital_learning_rate` steps
+            base_optimizer_cfg = SGDConfig(learning_rate=cfg.initial_learning_rate, momentum=0, nesterov=False, weight_decay=None, grad_clip=None)
+            empty_tstate = jax_create_train_state(jax.random.PRNGKey(0), workload, base_optimizer_cfg, replicate_opt_state=cfg.jax_pmap_in_rollouts)
+            opt = jax_meta_opt(workload, cfg, meta_optimizer, empty_tstate, train_step, forward)
+        else:  # make `train_step` a noop and make sure that the controller itself implements `inital_learning_rate` steps -- someone's gotta :)
+            base_optimizer_cfg = SGDConfig(learning_rate=0, momentum=0, nesterov=False, weight_decay=None, grad_clip=None)
+            empty_tstate = jax_create_train_state(jax.random.PRNGKey(0), workload, base_optimizer_cfg, replicate_opt_state=cfg.jax_pmap_in_rollouts)
+            opt = jax_meta_opt(workload, cfg, meta_optimizer, empty_tstate, (lambda _1, _2, _tstate, _3: (_tstate, None)), forward)
+
     else:
         raise NotImplementedError(name)
     
@@ -115,6 +123,9 @@ class JaxTrainState(struct.PyTreeNode, TrainState):
         # vals = np.array(vals)
         # return np.median(vals[vals != 0])
         return -1024 ** 2
+    
+    def get_logging_metrics(self) -> Dict[str, Any]:
+        return {}
 
 
 
@@ -199,7 +210,7 @@ def jax_train_step(rng: jax.random.PRNGKey,
         return _p2
     updated_params = jax.tree_map(fix_shapes, tstate.params, updated_params)
     tstate = tstate.replace(opt_state=new_optimizer_state, params=updated_params, model_state=new_model_state, t=tstate.t + 1)
-    return tstate, loss, grad
+    return tstate, {'loss': loss, 'grad_sq_norm': sq_norm_pytree(grad)}
     
 @functools.partial(jax.pmap, axis_name='batch', in_axes=(0, None, 0, 0), static_broadcasted_argnums=(1,))
 def _jax_pmapped_train_step(rng: jax.random.PRNGKey, 
@@ -220,5 +231,5 @@ def _jax_pmapped_train_step(rng: jax.random.PRNGKey,
     updates, new_optimizer_state = tstate.tx.update(grad, tstate.opt_state, params=tstate.params, batch=batch, rng=update_rng, model_state=tstate.model_state)
     updated_params = optax.apply_updates(tstate.params, updates)
     tstate = tstate.replace(opt_state=new_optimizer_state, params=updated_params, model_state=new_model_state, t=tstate.t + 1)
-    return tstate, loss, grad
+    return tstate, {'loss': loss, 'grad_sq_norm': sq_norm_pytree(grad)}
 jax_pmapped_train_step = lambda _r, _w, _t, _b: _jax_pmapped_train_step(jax.random.split(_r, jax.local_device_count()), _w, _t, _b)

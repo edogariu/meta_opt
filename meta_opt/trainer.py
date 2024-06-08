@@ -82,7 +82,6 @@ def train(seed: int,
     except Exception as e:
         logging.error(f'{bcolors.FAIL}{bcolors.BOLD}unable to load checkpoint, see error below:{bcolors.ENDC}\n\t', e)
         pass
-
     meta_file_name = os.path.join(experiment_dir, f'meta_data_{preemption_count}.json')
     logging.info(f'Saving meta data to {meta_file_name}.')
     meta_data = logger_utils.get_meta_data(workload)
@@ -99,29 +98,29 @@ def train(seed: int,
     else:
         tstate = load_train_state(checkpoint, workload, optimizer_cfg)
 
-    num_iters, eval_every, reset_every, checkpoint_every, print_every, log_every = experiment_cfg.num_iters, experiment_cfg.eval_every, experiment_cfg.reset_every, experiment_cfg.checkpoint_every, experiment_cfg.print_every, experiment_cfg.log_every
-
+    # the actual train loop
     logging.info(f'{bcolors.FAIL}{bcolors.BOLD}Starting training loop.{bcolors.ENDC}')
+    num_iters, eval_every, reset_every, checkpoint_every, print_every, log_every = experiment_cfg.num_iters, experiment_cfg.eval_every, experiment_cfg.reset_every, experiment_cfg.checkpoint_every, experiment_cfg.print_every, experiment_cfg.log_every
     global_start_time = time.time()
 
     while global_step < num_iters:
         step_start_time = time.time()
 
-        # cycle rng's
+        # cycle rngs
         step_rng = random_utils.fold_in(rng, global_step)
         rng, update_rng, eval_rng = random_utils.split(step_rng, 3)
         boundary_step = (global_step == 1 or global_step == num_iters - 1)
 
-        # do train step
+        # perform parameter update
         with profiler.profile('Update parameters'):
             batch = next(input_queue)
-            tstate, loss, grads = train_step(update_rng, workload, tstate, batch)
+            tstate, latest_train_result = train_step(update_rng, workload, tstate, batch)
 
         # print if we want (including on the first and last steps)
         if print_every and (global_step % print_every == 0 or boundary_step):
             time_since_start = time.time() - global_start_time
             logging.info(f'Time: {time_since_start:.2f}s, '
-                        f'\tStep: {global_step}, \tloss={bcolors.BOLD}{loss.item()}{bcolors.ENDC}')
+                         f'\tStep: {global_step}, \ttrain_metrics={bcolors.BOLD}{latest_train_result}{bcolors.ENDC}')
 
         # eval if we want (including on the first and last steps)
         if eval_every and (global_step % eval_every == 0 or boundary_step):
@@ -165,12 +164,13 @@ def train(seed: int,
             rng, reset_rng = random_utils.split(rng)
             tstate = tstate.reset(reset_rng, workload, experiment_cfg.reset_opt_state)
         
-        # collect metrics from this step
+        # collect metrics from this step and write to logs
         if log_every and experiment_dir and (global_step % log_every == 0 or boundary_step):
             with profiler.profile('Collecting step metrics'):
-                step_stats = {'train_loss': loss.item(), 'grad_sq_norm': sum(jax.tree_util.tree_flatten(jax.tree_map(lambda p: (p * p).sum(), grads))[0]),
-                            'step_time': time.time() - step_start_time}
+                step_stats = {k: v.item() if hasattr(v, 'item') else v for k, v in latest_train_result.items()}
+                step_stats['step_time'] = time.time() - step_start_time
                 step_stats.update(logger_utils._get_utilization())
+                step_stats.update(tstate.get_logging_metrics())
                 metrics_logger.append_scalar_metrics(step_stats, global_step=global_step, preemption_count=preemption_count, is_eval=False)
 
         global_step += 1

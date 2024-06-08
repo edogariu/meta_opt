@@ -56,10 +56,12 @@ class MetaOptConfig():
     m_method: str  # how to compute controls from past disturbances, must be one of ['scalar', 'diagonal', 'full']
     meta_optimizer_cfg: OptimizerConfig  # presumably one of `SGDConfig` or `AdamWConfig`
     meta_grad_clip: float
+    fake_the_dynamics: bool  # whether to use the gradient buffer to time-evolve the system rather than taking bona fide train_steps during counterfactual rollout
+    freeze_meta_params: bool  # whether to skip the controller update step. set this to False to learn optimizer, and True to deploy it
 
     # jax implementation details
     jax_pmap_in_rollouts: bool = False  #  whether to use parallelized functions within metaopt, (regardless, we pmap on the outer train_step call)
-    jax_compute_loss_with_scan: bool = False  # whether to use jax.lax.scan to calculate the counterfactual loss (i.e. whether to scan or loop over train_step calls)
+    jax_compute_loss_with_scan: bool = True  # whether to use jax.lax.scan to calculate the counterfactual loss (i.e. whether to scan or loop over train_step calls)
 
     optimizer_name: str = 'MetaOpt'
     self_tuning: bool = True

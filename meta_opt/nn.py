@@ -1,5 +1,5 @@
 import abc
-from typing import Tuple
+from typing import Tuple, Dict, Any
 
 from algorithmic_efficiency import spec
 
@@ -32,6 +32,11 @@ class TrainState(metaclass=abc.ABCMeta):
     def get_opt_state_memory(self) -> int:
         """Computes the number of bytes being used to store the optimizer state."""
 
+    @abc.abstractmethod
+    def get_logging_metrics(self) -> Dict[str, Any]:
+        """Returns a dictionary of metrics important to the train state. 
+        Use this to return (for example) things related to the optimizer, such as current learning rate/meta-optimization parameters."""
+
 
 @abc.abstractmethod
 def create_train_state(rng: spec.RandomState,
@@ -56,6 +61,5 @@ def forward(rng: spec.RandomState,
 def train_step(rng: spec.RandomState, 
                workload: spec.Workload,
                tstate: TrainState,
-               batch) -> Tuple[TrainState, float, spec.ParameterContainer]:
-    """Takes a single training step, returning the new `tstate` as well as the loss and the gradients."""
-
+               batch) -> Tuple[TrainState, Dict[str, Any]]:
+    """Takes a single training step, returning the new `tstate` as well as a dictionary of other info such as the loss and the gradients."""
