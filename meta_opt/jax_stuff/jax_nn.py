@@ -9,7 +9,7 @@ from flax import struct, core, jax_utils
 
 from algorithmic_efficiency import spec
 
-from meta_opt.optimizers import OptimizerConfig, SGDConfig, AdamWConfig, MetaOptConfig
+from configs.optimizers import OptimizerConfig, SGDConfig, AdamWConfig, MetaOptConfig
 from meta_opt.nn import TrainState
 from meta_opt.jax_stuff.jax_meta_opt import jax_meta_opt
 from meta_opt.jax_stuff.jax_utils import sq_norm_pytree
@@ -76,7 +76,6 @@ class JaxTrainState(struct.PyTreeNode, TrainState):
     model_state: Any = struct.field(pytree_node=True)  # may contain auxiliary info (such as batch stats) for some workloads
     tx: optax.GradientTransformation = struct.field(pytree_node=False)
     opt_state: optax.OptState = struct.field(pytree_node=True)
-    t: int = struct.field(pytree_node=False)
 
     def get_algoperf_stuff(self) -> Tuple[spec.OptimizerState, spec.ParameterContainer, spec.ModelAuxiliaryState]:
         """Returns a tuple of the things needed by `algorithmic_efficiency` for checkpoints and such."""
@@ -88,10 +87,10 @@ class JaxTrainState(struct.PyTreeNode, TrainState):
               reset_opt_state: bool) -> TrainState:
         """Resets model parameters, auxiliary state, and potentially the optimizer state."""
         model_init_rng, rng = jax.random.split(rng)
-        logging.info(f'{bcolors.OKBLUE}{bcolors.BOLD}Resetting model at step {self.t}!{bcolors.ENDC}')
+        logging.info(f'{bcolors.OKBLUE}{bcolors.BOLD}Resetting model!{bcolors.ENDC}')
         params, model_state = workload.init_model_fn(model_init_rng)
         if reset_opt_state:
-            logging.info(f'{bcolors.OKBLUE}{bcolors.BOLD}Also resetting optimizer state at step {self.t}!{bcolors.ENDC}')
+            logging.info(f'{bcolors.OKBLUE}{bcolors.BOLD}Also resetting optimizer state!{bcolors.ENDC}')
             params_zeros_like = jax.tree_map(lambda s: jnp.zeros(s.shape_tuple), workload.param_shapes)
             opt_state = self.tx.init(params_zeros_like)
             opt_state = jax_utils.replicate(opt_state)
@@ -101,7 +100,7 @@ class JaxTrainState(struct.PyTreeNode, TrainState):
         return tstate
     
     def get_num_params(self) -> int:
-        return sum(x.size for x in jax.tree_leaves(self.params))
+        return sum(x.size for x in jax.tree_util.tree_leaves(self.params))
     
     def get_opt_state_memory(self) -> int:
         # import resource
@@ -125,8 +124,14 @@ class JaxTrainState(struct.PyTreeNode, TrainState):
         return -1024 ** 2
     
     def get_logging_metrics(self) -> Dict[str, Any]:
-        return {}
-
+        ret = {}
+        if isinstance(self.opt_state, tuple):
+            for o in self.opt_state:
+                if hasattr(o, 'get_logging_metrics'):
+                    ret.update(o.get_logging_metrics())
+        ret['opt_state_memory'] = self.get_opt_state_memory()
+        ret['param_sq_norm'] = sq_norm_pytree(self.params)
+        return ret
 
 
 def jax_create_train_state(rng: jax.random.PRNGKey,
@@ -139,7 +144,7 @@ def jax_create_train_state(rng: jax.random.PRNGKey,
     params_zeros_like = jax.tree_map(lambda s: jnp.zeros(s.shape_tuple), workload.param_shapes)
     opt_state = opt.init(params_zeros_like)
     if replicate_opt_state: opt_state = jax_utils.replicate(opt_state)
-    return JaxTrainState(params=params, model_state=model_state, tx=opt, opt_state=opt_state, t=0)
+    return JaxTrainState(params=params, model_state=model_state, tx=opt, opt_state=opt_state)
 
 
 def jax_load_train_state(checkpoint,
@@ -209,10 +214,10 @@ def jax_train_step(rng: jax.random.PRNGKey,
         if _p1.shape != _p2.shape: _p2 = _p2.reshape(_p1.shape)
         return _p2
     updated_params = jax.tree_map(fix_shapes, tstate.params, updated_params)
-    tstate = tstate.replace(opt_state=new_optimizer_state, params=updated_params, model_state=new_model_state, t=tstate.t + 1)
+    tstate = tstate.replace(opt_state=new_optimizer_state, params=updated_params, model_state=new_model_state)
     return tstate, {'loss': loss, 'grad_sq_norm': sq_norm_pytree(grad)}
     
-@functools.partial(jax.pmap, axis_name='batch', in_axes=(0, None, 0, 0), static_broadcasted_argnums=(1,))
+@functools.partial(jax.pmap, axis_name='batch', in_axes=(0, None, 0, 0), out_axes=(0, None), static_broadcasted_argnums=(1,))
 def _jax_pmapped_train_step(rng: jax.random.PRNGKey, 
                            workload: spec.Workload,
                            tstate: JaxTrainState,
@@ -230,6 +235,6 @@ def _jax_pmapped_train_step(rng: jax.random.PRNGKey,
 
     updates, new_optimizer_state = tstate.tx.update(grad, tstate.opt_state, params=tstate.params, batch=batch, rng=update_rng, model_state=tstate.model_state)
     updated_params = optax.apply_updates(tstate.params, updates)
-    tstate = tstate.replace(opt_state=new_optimizer_state, params=updated_params, model_state=new_model_state, t=tstate.t + 1)
+    tstate = tstate.replace(opt_state=new_optimizer_state, params=updated_params, model_state=new_model_state)
     return tstate, {'loss': loss, 'grad_sq_norm': sq_norm_pytree(grad)}
 jax_pmapped_train_step = lambda _r, _w, _t, _b: _jax_pmapped_train_step(jax.random.split(_r, jax.local_device_count()), _w, _t, _b)

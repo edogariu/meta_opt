@@ -10,6 +10,7 @@ Like `nn.py`, this is made to capture multiple deep learning frameworks (jax, py
 class OptimizerConfig:
     optimizer_name: str
     self_tuning: bool
+    reset_opt_state: bool
 
 # -------------------------------------------------------------------------------------------------
 # ----------------------------------- Standard Optax Optimizers -----------------------------------
@@ -25,6 +26,7 @@ class SGDConfig():
 
     optimizer_name: str = 'SGD'
     self_tuning: bool = False
+    reset_opt_state: bool = True,  # whether to also reset the optimizer state during the episodic resets
 
 @struct.dataclass
 class AdamWConfig():
@@ -37,6 +39,7 @@ class AdamWConfig():
 
     optimizer_name: str = 'AdamW'
     self_tuning: bool = False
+    reset_opt_state: bool = True,  # whether to also reset the optimizer state during the episodic resets
 
 # -------------------------------------------------------------------------------------------------
 # ----------------------------------- Our Meta-Optimizer ------------------------------------------
@@ -65,3 +68,4 @@ class MetaOptConfig():
 
     optimizer_name: str = 'MetaOpt'
     self_tuning: bool = True
+    reset_opt_state: bool = True,  # Whether to also reset the optimizer state during the episodic resets. Dont worry, this resets everything except the M parameters (including things like disturbance transformation state, for example)

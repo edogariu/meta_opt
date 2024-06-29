@@ -9,8 +9,8 @@ import chex
 
 from algorithmic_efficiency import spec
 
+from configs.optimizers import MetaOptConfig
 from meta_opt.nn import TrainState
-from meta_opt.optimizers import MetaOptConfig
 from meta_opt.utils import bcolors
 from meta_opt.jax_stuff.jax_utils import append, add_pytrees, slice_pytree
 
@@ -82,14 +82,13 @@ def _compute_loss_counterfactual_scan(cparams, H, HH, initial_tstate,
                                       train_step_fn,
                                       forward_fn,
                                       rng):
-    t_inital = initial_tstate.t    
     # the scanning way
     def _evolve(carry, batch):
         tstate, h, step_rng = carry
         step_rng, train_step_rng = jax.random.split(step_rng)
         tstate, _ = train_step_fn(train_step_rng, tstate, batch)
         params = add_pytrees(tstate.params, compute_control(cparams, slice_pytree(disturbances, h, H)))
-        tstate = tstate.replace(params=params, t=t_inital)  # undo the tstep increase gotten from `train_step_fn` so that scan doesnt yell at us
+        tstate = tstate.replace(params=params)  # undo the tstep increase gotten from `train_step_fn` so that scan doesnt yell at us
         return (tstate, h + 1, step_rng), None
     (tstate, _, rng), _ = jax.lax.scan(_evolve, (initial_tstate, 0, rng), batches)
     return forward_fn(rng, tstate, curr_batch)
@@ -166,6 +165,20 @@ class JaxMetaOptState(struct.PyTreeNode):
             cstate = JaxMetaOptGPCState.create(workload, self.cfg, self.cstate.tx)
             ret = ret.replace(cstate=cstate)
         return ret
+    
+    def get_logging_metrics(self):
+        ret = {}
+        Ms = self.cstate.cparams['M']
+        Ms = jax.tree_map(lambda p: p.reshape(self.cstate.H, -1).mean(axis=-1), Ms)
+        if self.cfg.m_method == 'scalar':
+            Ms = Ms.reshape(-1)[::-1]  # reverse so first idx is coefficient for most recent grad
+        else: 
+            Ms = jnp.stack(jax.tree_util.tree_flatten(Ms)[0]).mean(axis=0)[::-1]  # reverse so first idx is coefficient for most recent grad
+        assert Ms.shape == (self.cstate.H,), (Ms.shape, self.cstate.H)
+        if not self.cfg.fake_the_dynamics: Ms = Ms.at[0].add(-self.cfg.initial_learning_rate)  # add the effective learning rate to most recent grad coeff
+        ret.update({f'M_{i}': m for i, m in enumerate(Ms.reshape(-1))})
+        return ret
+
 
 def jax_meta_opt(workload: spec.Workload,
                  cfg: MetaOptConfig, 
@@ -176,6 +189,12 @@ def jax_meta_opt(workload: spec.Workload,
     
     initial_cstate = JaxMetaOptGPCState.create(workload, cfg, meta_optimizer)
     H, HH = initial_cstate.H, initial_cstate.HH
+    if cfg.freeze_meta_params:
+        logging.warning(f'{bcolors.WARNING}{bcolors.BOLD}the meta-opt controller is frozen! optimizer behavior wont change over time{bcolors.ENDC}')
+    else:
+        if cfg.fake_the_dynamics:
+            logging.warning(f'{bcolors.WARNING}{bcolors.BOLD}we will be faking the dynamics during rollouts. will be faster, but behavior may be different...{bcolors.ENDC}')
+        
     if cfg.scale_by_adam_betas:
         b1, b2 = cfg.scale_by_adam_betas
         disturbance_transform = optax.scale_by_adam(b1=b1, b2=b2)
@@ -193,7 +212,7 @@ def jax_meta_opt(workload: spec.Workload,
 
     @jax.jit
     def init_fn(_):
-        return meta_opt_state.reset(_, workload=workload, reset_cstate=False)
+        return (meta_opt_state.reset(_, workload=workload, reset_cstate=False), optax.EmptyState())
     
     @jax.jit
     def update_fn(grads, opt_state: JaxMetaOptState, params, **extra_args):
@@ -202,6 +221,8 @@ def jax_meta_opt(workload: spec.Workload,
         assert 'model_state' in extra_args, 'failed to provide model state to the meta-optimizer'
         assert 'rng' in extra_args, 'failed to provide rng to the meta-optimizer'
 
+        opt_state, _ = opt_state
+
         disturbances, disturbance_transform_state = opt_state.disturbance_transform.update(grads, opt_state.disturbance_transform_state, params=params)
         disturbance_history = jax.tree_map(append, opt_state.disturbance_history, disturbances)
         control = compute_control(opt_state.cstate.cparams, slice_pytree(disturbance_history, HH, H))  # use past H disturbances, including most recent one
@@ -209,13 +230,12 @@ def jax_meta_opt(workload: spec.Workload,
         if not cfg.freeze_meta_params:
             # prologue
             batch, model_state, rng = extra_args['batch'], extra_args['model_state'], extra_args['rng']
-            tstate = empty_tstate.replace(params=params, model_state=model_state, t=opt_state.t)
+            tstate = empty_tstate.replace(params=params, model_state=model_state)
             if opt_state.batch_history is None and not cfg.freeze_meta_params: batch_history = {k: jnp.stack([v for _ in range(HH)]) for k, v in batch.items()}
             else: batch_history = opt_state.batch_history
-            tstate = tstate.replace(params=add_pytrees(tstate.params, control))
 
             # compute counterfactual update
-            if opt_state.t >= H + HH :
+            if opt_state.t >= H + HH:
                 initial_tstate, batches, curr_batch = opt_state.tstate_history[0], batch_history, batch
                 if cfg.jax_pmap_in_rollouts:
                     # Because we are using this `update_fn` within a pmapped train step (and we will need to call a pmapped train step again),
@@ -229,6 +249,7 @@ def jax_meta_opt(workload: spec.Workload,
             else: cstate = opt_state.cstate
 
             # epilogue
+            # tstate = tstate.replace(params=add_pytrees(tstate.params, control))
             tstate_history = append(opt_state.tstate_history, tstate)
             for k in batch.keys(): batch_history[k] = append(batch_history[k], batch[k]) 
 
@@ -242,6 +263,6 @@ def jax_meta_opt(workload: spec.Workload,
         if not cfg.fake_the_dynamics:  
             control = add_pytrees(control, jax.tree_map(lambda v: -cfg.initial_learning_rate * v, disturbances))  # if `scale_by_adam`, this will apply on top of that
 
-        return control, opt_state
+        return control, (opt_state, optax.EmptyState())
     
     return base.GradientTransformation(init_fn, update_fn)

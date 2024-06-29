@@ -15,8 +15,9 @@ from algorithmic_efficiency import logger_utils
 from algorithmic_efficiency.profiler import Profiler, PassThroughProfiler
 from algorithmic_efficiency.workloads import workloads
 
-from meta_opt.experiment import ExperimentConfig
-from meta_opt.optimizers import OptimizerConfig
+from configs.workload_defaults import handle_defaults
+from configs.experiment import ExperimentConfig
+from configs.optimizers import OptimizerConfig
 from meta_opt.trainer import train
 from meta_opt.utils import bcolors
 
@@ -75,6 +76,9 @@ def run(seed: int,
     logging.info(f'Creating directory at {experiment_dir} for experiments to be saved to.')
     logger_utils.makedir(experiment_dir)
 
+    # set default params if unprovided
+    experiment_cfg = handle_defaults(experiment_cfg)
+
     # import the workload
     workload = workloads.import_workload(
         workload_path=workload_metadata['workload_path'],
@@ -87,6 +91,7 @@ def run(seed: int,
     if experiment_cfg.framework == 'pytorch':
         raise NotImplementedError('will do a pytorch release of this code soon!')
     n_gpus = jax.local_device_count()
+    logging.info(f' {bcolors.WARNING}{bcolors.BOLD}{n_gpus} devices{bcolors.ENDC}')
     if experiment_cfg.batch_size % n_gpus != 0:
         raise ValueError(
             f'The global batch size ({experiment_cfg.batch_size}) has to be divisible by '
