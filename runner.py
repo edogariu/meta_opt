@@ -1,15 +1,8 @@
 import os
+from copy import deepcopy
 from absl import logging, flags, app
 import importlib
 import jax
-
-os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"  # Disables tensorRT, cuda warnings.
-import tensorflow as tf
-tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
-
-# Hide any GPUs form TensorFlow. Otherwise TF might reserve memory and make
-# it unavailable to JAX.
-tf.config.set_visible_devices([], 'GPU')
 
 from algorithmic_efficiency import logger_utils
 from algorithmic_efficiency.profiler import Profiler, PassThroughProfiler
@@ -55,7 +48,7 @@ def run(seed: int,
     assert workload_name in workloads.WORKLOADS, f'workload {workload_name} simply doesn\'t exist :)'
     if workloads.get_base_workload_name(workload_name) in ['librispeech_conformer', 'librispeech_deepspeech']: 
         raise NotImplementedError('need to write some special code for this!')
-    workload_metadata = workloads.WORKLOADS[workload_name]
+    workload_metadata = deepcopy(workloads.WORKLOADS[workload_name])
     workload_metadata['workload_path'] = os.path.join(workloads.BASE_WORKLOADS_DIR,
                                                       workload_metadata['workload_path'] + f'_{experiment_cfg.framework}',
                                                       'workload.py')
