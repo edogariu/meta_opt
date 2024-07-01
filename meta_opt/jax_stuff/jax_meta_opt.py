@@ -101,7 +101,6 @@ def _compute_loss_counterfactual_loop(cparams, H, HH, initial_tstate,
                                       train_step_fn,
                                       forward_fn,
                                       rng):
-    # the memory-optimized way?
     tstate = initial_tstate
     for h in range(HH):
         rng, train_step_rng = jax.random.split(rng)
