@@ -1,6 +1,7 @@
 from absl import logging, flags
 import time
 import os
+from collections import namedtuple
 from dataclasses import asdict
 
 from algorithmic_efficiency.spec import Workload
@@ -10,18 +11,14 @@ from algorithmic_efficiency import checkpoint_utils, logger_utils, random_utils
 from configs.experiment import ExperimentConfig
 from configs.optimizers import OptimizerConfig
 import meta_opt.jax_stuff.jax_nn as jax_nn
-from meta_opt.utils import bcolors
+from meta_opt.utils import bcolors, pretty_dict
 
-def train(seed: int,
-          workload: Workload,
+def train(workload: Workload,
           profiler: Profiler,
           experiment_cfg: ExperimentConfig, 
           optimizer_cfg: OptimizerConfig,
           experiment_dir: str
           ):
-    
-    rng = random_utils.PRNGKey(seed)
-    data_rng, tstate_rng, rng = random_utils.split(rng, 3)
 
     # -------------------------------------------------------------------------------------------------------------------------------
     # these should be the !only lines! that differentiate behavior based on the framework.
@@ -31,10 +28,34 @@ def train(seed: int,
         load_train_state = jax_nn.jax_load_train_state
         train_step = jax_nn.jax_pmapped_train_step
     elif experiment_cfg.framework == 'pytorch':
-        raise NotImplementedError('pytorch')
+        raise NotImplementedError('will do a pytorch release of this code soon!')
     else: 
         raise ValueError(experiment_cfg.framework)
     # -------------------------------------------------------------------------------------------------------------------------------
+
+    # log all the configs and everything
+    metrics_logger = logger_utils.set_up_loggers(experiment_dir, experiment_cfg, namedtuple('hi', '')())
+    workload.attach_metrics_logger(metrics_logger)
+    with open(f"{experiment_dir}/logfile.INFO", "r") as f: logs_so_far = f.read()
+    lines = '=' * 74
+    logging.info(f'{bcolors.BOLD}{lines}{bcolors.ENDC}')
+    logging.info(f'{bcolors.BOLD}EXPERIMENT CONFIG{bcolors.ENDC}')
+    logging.info(f'{bcolors.BOLD}{lines}{bcolors.ENDC}')
+    logging.info(pretty_dict(asdict(experiment_cfg)))
+    logging.info('\n')
+    logging.info(f'{bcolors.BOLD}{lines}{bcolors.ENDC}')
+    logging.info(f'{bcolors.BOLD}OPTIMIZER CONFIG{bcolors.ENDC}')
+    logging.info(f'{bcolors.BOLD}{lines}{bcolors.ENDC}')
+    logging.info(pretty_dict(asdict(optimizer_cfg)))
+    logging.info('\n\n')
+    logging.info(logs_so_far)
+    logging.info(f'{bcolors.OKGREEN}{bcolors.BOLD}experiment_dir={experiment_dir}{bcolors.ENDC}')
+
+    # set up rng's
+    seed = experiment_cfg.seed
+    logging.info(f'{bcolors.OKGREEN}{bcolors.BOLD}seed={seed}{bcolors.ENDC}')
+    rng = random_utils.PRNGKey(seed)
+    data_rng, tstate_rng, rng = random_utils.split(rng, 3)
 
     # Workload setup.
     data_dir = os.path.expanduser(flags.FLAGS.data_dir)
@@ -55,17 +76,18 @@ def train(seed: int,
     with profiler.profile(s):
         tstate = create_train_state(tstate_rng, workload, optimizer_cfg)
     model_params = tstate.get_num_params()
-    size_of_opt_state_mb = tstate.get_opt_state_memory() / (1024 ** 2)
+
+    size_of_opt_state_mb = tstate.get_memory_usage()['opt_state_memory'] / (1024 ** 2)
     logging.info(f'Model has {bcolors.BOLD}{model_params}{bcolors.ENDC} parameters and ' + \
                  f'the optimizer state takes {bcolors.BOLD}{size_of_opt_state_mb:.2f}MB{bcolors.ENDC}')
     
-    # Loggers and checkpoint setup, along with some bookkeeping.
+    # Metrics and checkpoint setup, along with some bookkeeping.
     global_step = 1
     eval_results = []
     preemption_count = 0
     (optimizer_state, model_params, model_state) = tstate.get_algoperf_stuff()
     # If the checkpoint exists, load from the checkpoint.
-    logging.info('Initializing checkpoint and logger.')
+    logging.info('Initializing checkpoint and metrics.')
     try:
         checkpoint = checkpoint_utils.maybe_restore_checkpoint(
             experiment_cfg.framework,
@@ -90,8 +112,6 @@ def train(seed: int,
     e_d = asdict(experiment_cfg)
     o_d = asdict(optimizer_cfg)
     logger_utils.write_json(config_file_name, {'experiment_cfg': e_d, 'optimizer_cfg': o_d})
-    metrics_logger = logger_utils.set_up_loggers(experiment_dir, experiment_cfg, None)
-    workload.attach_metrics_logger(metrics_logger)
     if experiment_cfg.num_episodes > 1:
         logging.warning(f'{bcolors.WARNING}{bcolors.BOLD}wont load checkpoints for episodic learning, its weird{bcolors.ENDC}')
     else:

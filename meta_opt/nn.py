@@ -29,8 +29,8 @@ class TrainState(metaclass=abc.ABCMeta):
         """Computes the number of trainable parameters."""
 
     @abc.abstractmethod
-    def get_opt_state_memory(self) -> int:
-        """Computes the number of bytes being used to store the optimizer state."""
+    def get_memory_usage(self) -> Dict[str, int]:
+        """Computes the number of bytes being used to store the model and optimizer state."""
 
     @abc.abstractmethod
     def get_logging_metrics(self) -> Dict[str, Any]:

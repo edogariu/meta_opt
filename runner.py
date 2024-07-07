@@ -15,7 +15,6 @@ from meta_opt.trainer import train
 from meta_opt.utils import bcolors
 
 # required flags to run
-flags.DEFINE_integer('seed', None, required=True, help='Random seed for experiments.')
 flags.DEFINE_string('config_path', None, required=True,
     help='The relative path of the Python file containing the experiment and optimizer configs.'
          'NOTE: the config dir must have an __init__.py file!')
@@ -27,7 +26,6 @@ flags.DEFINE_string('data_dir', os.path.abspath('./datasets'),
                     help='The root directory to store all datasets. '
                     'It is required and the directory should have '
                     'an absolute path rather than a relative path.')
-flags.FLAGS.alsologtostderr = True  # so that we see what gets logged in the terminal
 
 # the below flags are redundant since the info is provided in the configs; they are just for algoperf compatability
 flags.DEFINE_string('experiment_name', None, help='Name of the experiment.'); flags.FLAGS.experiment_name = ''
@@ -36,10 +34,12 @@ flags.DEFINE_string('framework', None, help='Whether to use Jax or Pytorch.'); f
 flags.DEFINE_string('submission_path', None, help='The relative path of the Python file containing the experiment and optimizer configs. NOTE: the config dir must have an __init__.py file!'); flags.FLAGS.submission_path = ''
 
 
-def run(seed: int,
-        experiment_cfg: ExperimentConfig, 
+def run(experiment_cfg: ExperimentConfig, 
         optimizer_cfg: OptimizerConfig):
         
+    if experiment_cfg.print_with_colors: bcolors.enable()
+    else: bcolors.disable()
+
     # set up profiler
     profiler = Profiler() if experiment_cfg.profile else PassThroughProfiler()
 
@@ -65,6 +65,7 @@ def run(seed: int,
                                               experiment_cfg.experiment_name,
                                               experiment_cfg.resume_last_run,
                                               experiment_cfg.overwrite)
+    flags.FLAGS.alsologtostderr = True  # so that we see what gets logged in the terminal
     logging.get_absl_handler().use_absl_log_file('logfile', experiment_dir) 
     logging.info(f'Creating directory at {experiment_dir} for experiments to be saved to.')
     logger_utils.makedir(experiment_dir)
@@ -81,9 +82,9 @@ def run(seed: int,
     # count GPUs and set up framework-specific things
     if experiment_cfg.framework == 'jax':
         logging.info(f'Using {bcolors.WARNING}{bcolors.BOLD}{jax.lib.xla_bridge.get_backend().platform}{bcolors.ENDC} for jax')
+        n_gpus = jax.local_device_count()
     if experiment_cfg.framework == 'pytorch':
         raise NotImplementedError('will do a pytorch release of this code soon!')
-    n_gpus = jax.local_device_count()
     logging.info(f' {bcolors.WARNING}{bcolors.BOLD}{n_gpus} devices{bcolors.ENDC}')
     if experiment_cfg.batch_size % n_gpus != 0:
         raise ValueError(
@@ -96,7 +97,7 @@ def run(seed: int,
 
     # train
     with profiler.profile('Train'):
-        train(seed, workload, profiler, experiment_cfg, optimizer_cfg, experiment_dir)
+        train(workload, profiler, experiment_cfg, optimizer_cfg, experiment_dir)
 
     # epilogue
     if experiment_cfg.profile:
@@ -106,7 +107,6 @@ def run(seed: int,
 
 def main(_):
     logging.set_verbosity(logging.INFO)
-    seed = flags.FLAGS.seed
     config_path = flags.FLAGS.config_path
 
     # Remove the trailing '.py' and convert the filepath to a Python module.
@@ -114,7 +114,7 @@ def main(_):
     config_module = importlib.import_module(config_module_path, package='.')
 
     experiment_cfg, optimizer_cfg = config_module.get_configs()
-    run(seed, experiment_cfg, optimizer_cfg)
+    run(experiment_cfg, optimizer_cfg)
     return
 
 

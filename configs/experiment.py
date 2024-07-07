@@ -12,7 +12,8 @@ class ExperimentConfig:
     experiment_name: str
 
     # workload details
-    workload_name: str  # one of ['MNIST', 'CIFAR', 'WMT', 'GNN', ...]
+    seed: int
+    workload_name: str  # one of ['mnist', 'cifar', 'wmt', 'ogbg', ...]
     full_batch: bool
     num_episodes: int
     framework: str = 'jax'  # one of ['pytorch', 'jax']
@@ -27,6 +28,7 @@ class ExperimentConfig:
 
     # other details
     profile: bool = True  # whether to profile or not
+    print_with_colors: bool = True  # whether to use colors when printing
     use_wandb: bool = False
     resume_last_run: bool = False
     overwrite: bool = True

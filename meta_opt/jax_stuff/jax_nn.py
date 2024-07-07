@@ -13,7 +13,7 @@ from configs.optimizers import OptimizerConfig, SGDConfig, AdamWConfig, MetaOptC
 from meta_opt.nn import TrainState
 from meta_opt.jax_stuff.jax_meta_opt import jax_meta_opt, JaxMetaOptState
 from meta_opt.jax_stuff.jax_utils import sq_norm_pytree
-from meta_opt.utils import bcolors
+from meta_opt.utils import bcolors, get_size
 
 
 # -------------------------------------------------------------------------------------------------
@@ -138,26 +138,13 @@ class JaxTrainState(struct.PyTreeNode, TrainState):
     def get_num_params(self) -> int:
         return sum(x.size for x in jax.tree_util.tree_leaves(self.params))
     
-    def get_opt_state_memory(self) -> int:
-        # import resource
-        # import time
-        # import numpy as np
-        # rss = lambda: resource.getrusage(resource.RUSAGE_SELF).ru_maxrss * 1024
-        # num_trials = 400
-        # sleep_time = 1e-4
-        # vals = []
-        # for _ in range(num_trials):
-        #     init = rss()
-        #     time.sleep(sleep_time)
-        #     o = deepcopy(self.opt_state)
-        #     time.sleep(sleep_time)
-        #     v = rss() - init
-        #     del o
-        #     time.sleep(sleep_time)
-        #     vals.append(v)
-        # vals = np.array(vals)
-        # return np.median(vals[vals != 0])
-        return -1024 ** 2
+    def get_memory_usage(self) -> Dict[str, int]:
+        params_memory = get_size(jax_utils.unreplicate(self.params))
+        model_state_memory = get_size(jax_utils.unreplicate(self.model_state))
+        opt_state_memory = get_size(jax_utils.unreplicate(self.opt_state))
+        return {'param_memory': params_memory, 
+                'model_state_memory': model_state_memory,
+                'opt_state_memory': opt_state_memory}
     
     def get_logging_metrics(self) -> Dict[str, Any]:
         ret = {}
@@ -165,7 +152,7 @@ class JaxTrainState(struct.PyTreeNode, TrainState):
             for o in self.opt_state:
                 if hasattr(o, 'get_logging_metrics'):
                     ret.update(o.get_logging_metrics())
-        ret['opt_state_memory'] = self.get_opt_state_memory()
+        ret.update(self.get_memory_usage())
         ret['param_sq_norm'] = sq_norm_pytree(self.params)
         return ret
 
@@ -215,6 +202,7 @@ def _forward(workload: spec.Workload, params, model_state, batch, rng, forward_p
     n_valid_examples = loss_dict['n_valid_examples']
     return summed_loss / n_valid_examples, (new_model_state,)
 
+@functools.partial(jax.jit, static_argnums=(1,))
 def jax_forward(rng: jax.random.PRNGKey, 
                 workload: spec.Workload,
                 tstate: JaxTrainState,
@@ -232,6 +220,7 @@ def _jax_pmapped_forward(rng: jax.random.PRNGKey,
     return jax.lax.pmean(loss, axis_name='batch')
 jax_pmapped_forward = lambda _r, _w, _t, _b: _jax_pmapped_forward(jax.random.split(_r, jax.local_device_count()), _w, _t, _b)[0]
 
+@functools.partial(jax.jit, static_argnums=(1,))
 def jax_train_step(rng: jax.random.PRNGKey, 
                    workload: spec.Workload,
                    tstate: JaxTrainState,

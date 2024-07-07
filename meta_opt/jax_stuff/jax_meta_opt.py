@@ -1,5 +1,5 @@
 from absl import logging
-from typing import Any, Tuple, Callable
+from typing import Any, Tuple, Callable, Dict
 import jax
 import jax.numpy as jnp
 from flax import struct, core
@@ -123,11 +123,12 @@ def counterfactual_update(cstate: JaxMetaOptGPCState,
            forward_fn,
            loss_fn,  # one of the two above
            rng):
+    
     grads = jax.grad(loss_fn, (0,))(cstate.cparams, cstate.H, cstate.HH, initial_tstate, disturbances, batches, curr_batch, train_step_fn, forward_fn, rng)    
-    # jax.debug.print('{g}', g=grads)
     updates, new_opt_state = cstate.tx.update(grads[0], cstate.opt_state, cstate.cparams)
     cparams = optax.apply_updates(cstate.cparams, updates)
-    return cstate.replace(cparams=cparams, opt_state=new_opt_state)   
+    cparams = jax.lax.pmean(cparams, axis_name='batch')  # TODO check if we should be averaging cparams
+    return cstate.replace(cparams=cparams, opt_state=new_opt_state), grads
 
 
 # --------------------------------------------------------------------------------------------------------------------
@@ -136,15 +137,20 @@ def counterfactual_update(cstate: JaxMetaOptGPCState,
 
 class JaxMetaOptState(struct.PyTreeNode):
     cfg: MetaOptConfig = struct.field(pytree_node=False)
-    cstate: JaxMetaOptGPCState = struct.field(pytree_node=True)
     t: int = struct.field(pytree_node=False)
 
+    # parts of optimizer state that we need
+    cstate: JaxMetaOptGPCState = struct.field(pytree_node=True)
     disturbance_history: chex.ArrayTree = struct.field(pytree_node=True)
     tstate_history: chex.ArrayTree = struct.field(pytree_node=True)
     batch_history: chex.ArrayTree = struct.field(pytree_node=True)
 
+    # for rescaling the gradients
     disturbance_transform: optax.GradientTransformation = struct.field(pytree_node=False)
     disturbance_transform_state: optax.OptState = struct.field(pytree_node=True)
+
+    # statistics to log during training
+    grad_Ms: chex.ArrayTree = struct.field(pytree_node=True)
 
     def reset(self,
               _: jax.random.PRNGKey,
@@ -167,15 +173,22 @@ class JaxMetaOptState(struct.PyTreeNode):
     
     def get_logging_metrics(self):
         ret = {}
-        Ms = self.cstate.cparams['M']
-        Ms = jax.tree_map(lambda p: p.reshape(self.cstate.H, -1).mean(axis=-1), Ms)
+        num_devices = jax.local_device_count()
+        Ms = jax.tree_map(lambda p: p.reshape(num_devices, self.cstate.H, -1).mean(axis=-1).mean(axis=0), self.cstate.cparams['M'])
+        if self.grad_Ms is not None:
+            grad_Ms = jax.tree_map(lambda p: p.reshape(num_devices, self.cstate.H, -1).mean(axis=-1).mean(axis=0), self.grad_Ms[0]['M'])
+        else:
+            grad_Ms = jax.tree_map(jnp.zeros_like, Ms)
         if self.cfg.m_method == 'scalar':
             Ms = Ms.reshape(-1)[::-1]  # reverse so first idx is coefficient for most recent grad
+            grad_Ms = grad_Ms.reshape(-1)[::-1]  # reverse so first idx is coefficient for most recent grad
         else: 
             Ms = jnp.stack(jax.tree_util.tree_flatten(Ms)[0]).mean(axis=0)[::-1]  # reverse so first idx is coefficient for most recent grad
+            grad_Ms = jnp.stack(jax.tree_util.tree_flatten(grad_Ms)[0]).mean(axis=0)[::-1]  # reverse so first idx is coefficient for most recent grad
         assert Ms.shape == (self.cstate.H,), (Ms.shape, self.cstate.H)
         if not self.cfg.fake_the_dynamics: Ms = Ms.at[0].add(-self.cfg.initial_learning_rate)  # add the effective learning rate to most recent grad coeff
         ret.update({f'M_{i}': m for i, m in enumerate(Ms.reshape(-1))})
+        ret.update({f'grad_M_{i}': grad_m for i, grad_m in enumerate(grad_Ms.reshape(-1))})
         return ret
 
 
@@ -203,7 +216,8 @@ def jax_meta_opt(workload: spec.Workload,
     if cfg.grad_clip is not None: disturbance_transform = optax.chain(optax.clip(cfg.grad_clip), disturbance_transform)
     meta_opt_state = JaxMetaOptState(cfg=cfg, cstate=initial_cstate, t=0, 
                                      disturbance_history=None, tstate_history=None, batch_history=None,
-                                     disturbance_transform=disturbance_transform, disturbance_transform_state=None)
+                                     disturbance_transform=disturbance_transform, disturbance_transform_state=None,
+                                     grad_Ms=None)
 
     _train_step_fn = jax.tree_util.Partial(lambda _r, _t, _b: train_step_fn(_r, workload, _t, _b))
     _forward_fn = jax.tree_util.Partial(lambda _r, _t, _b: forward_fn(_r, workload, _t, _b))
@@ -230,7 +244,7 @@ def jax_meta_opt(workload: spec.Workload,
             # prologue
             batch, model_state, rng = extra_args['batch'], extra_args['model_state'], extra_args['rng']
             tstate = empty_tstate.replace(params=params, model_state=model_state)
-            if opt_state.batch_history is None and not cfg.freeze_meta_params: batch_history = {k: jnp.stack([v for _ in range(HH)]) for k, v in batch.items()}
+            if opt_state.batch_history is None: batch_history = {k: jnp.stack([v for _ in range(HH)]) for k, v in batch.items()}
             else: batch_history = opt_state.batch_history
 
             # compute counterfactual update
@@ -243,17 +257,20 @@ def jax_meta_opt(workload: spec.Workload,
                     expand_fn = lambda pytree: jax.tree_map(lambda v: v[None], pytree)
                     curr_batch = expand_fn(curr_batch)
                     initial_tstate = initial_tstate.replace(params=expand_fn(initial_tstate.params), model_state=expand_fn(initial_tstate.model_state))
-                cstate = counterfactual_update(opt_state.cstate, initial_tstate, opt_state.disturbance_history, batches, curr_batch, 
+                if cfg.freeze_batch_during_rollouts:  # makes sure rollout uses only 1 batch
+                    batches = {k: v.at[:].set(curr_batch[k]) for k, v in batches.items()}
+                cstate, grad_Ms = counterfactual_update(opt_state.cstate, initial_tstate, opt_state.disturbance_history, batches, curr_batch, 
                                             _train_step_fn, _forward_fn, _loss_fn, rng)
-            else: cstate = opt_state.cstate
+            else: cstate, grad_Ms = opt_state.cstate, opt_state.grad_Ms
 
             # epilogue
             # tstate = tstate.replace(params=add_pytrees(tstate.params, control))
-            tstate_history = append(opt_state.tstate_history, tstate)
-            for k in batch.keys(): batch_history[k] = append(batch_history[k], batch[k]) 
+            tstate_history = opt_state.tstate_history[1:] + (tstate,)
+            for k in batch_history.keys(): 
+                batch_history[k] = append(batch_history[k], batch[k]) 
 
             opt_state = opt_state.replace(cstate=cstate, disturbance_history=disturbance_history, disturbance_transform_state=disturbance_transform_state, 
-                                        tstate_history=tstate_history, batch_history=batch_history, t=opt_state.t+1)
+                                        tstate_history=tstate_history, batch_history=batch_history, t=opt_state.t+1, grad_Ms=grad_Ms)
         else:
             opt_state = opt_state.replace(disturbance_history=disturbance_history, disturbance_transform_state=disturbance_transform_state, t=opt_state.t+1)
         
