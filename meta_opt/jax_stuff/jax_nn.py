@@ -162,6 +162,8 @@ def jax_create_train_state(rng: jax.random.PRNGKey,
                            optimizer_cfg: OptimizerConfig,
                            distribute_opt_state: bool = True) -> JaxTrainState:
     """Creates a train state from scratch. This should initialize model parameters, auxiliary state, and optimizer state."""
+    print(rng)
+    print(workload)
     params, model_state = workload.init_model_fn(rng)
     opt = jax_make_optimizer(workload, optimizer_cfg)
     params_zeros_like = jax.tree_map(lambda s: jnp.zeros(s.shape_tuple), workload.param_shapes)

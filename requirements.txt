@@ -2,3 +2,4 @@ scipy==1.12.0
 matplotlib
 jupyter
 wandb
+tensorflow==2.15  # only one that makes things work

@@ -8,7 +8,6 @@
 #SBATCH --mem-per-cpu=32G         # memory per cpu-core (4G is default)
 #SBATCH --gres=gpu:1
 #SBATCH --time=12:00:00          # total run time limit (HH:MM:SS)  
-#SBATCH --output=slurm-%j.log           
 #SBATCH --mail-type=all
 #SBATCH --mail-user=edogariu@princeton.edu
 

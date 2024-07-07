@@ -1,6 +1,12 @@
 from configs.experiment import ExperimentConfig
 from configs.optimizers import SGDConfig, AdamWConfig, MetaOptConfig
 
+# requires running
+#       tfds.load('wmt17_translate/de-en', download=True, data_dir='./datasets')
+#       tfds.load('wmt14_translate/de-en', download=True, data_dir='./datasets')
+# beforehand so that the dataset is downloaded. 
+# also needs the sentencepiece tokenizer, see https://github.com/mlcommons/algorithmic-efficiency/blob/main/datasets/dataset_setup.py#L684 
+
 def get_configs():
     
     experiment_cfg = ExperimentConfig(
