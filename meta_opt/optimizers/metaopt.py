@@ -302,8 +302,8 @@ def make_jax_metaopt(
         # flatten things!
         flat_params, unflatten_fn = jax.flatten_util.ravel_pytree(params)
         flat_grads, _ = jax.flatten_util.ravel_pytree(grads)
-        # assert flat_params.shape == (opt_state.num_params,), (flat_params.shape, (opt_state.num_params,))
-        # assert flat_grads.shape == (opt_state.num_params,), (flat_grads.shape, (opt_state.num_params,))
+        assert flat_params.shape == (opt_state.num_params,), (flat_params.shape, (opt_state.num_params,))
+        assert flat_grads.shape == (opt_state.num_params,), (flat_grads.shape, (opt_state.num_params,))
 
         return jax.tree_map(jnp.zeros_like, params), (opt_state, optax.EmptyState())
         # update GPC controller
