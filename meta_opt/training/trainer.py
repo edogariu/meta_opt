@@ -75,8 +75,8 @@ def train(workload: Workload,
     logging.info(s)
     with profiler.profile(s):
         tstate = create_train_state(tstate_rng, workload, optimizer_cfg)
+    
     model_params = tstate.get_num_params()
-
     size_of_opt_state_mb = tstate.get_memory_usage()['opt_state_memory'] / (1024 ** 2)
     logging.info(f'Model has {bcolors.BOLD}{model_params}{bcolors.ENDC} parameters and ' + \
                  f'the optimizer state takes {bcolors.BOLD}{size_of_opt_state_mb:.2f}MB{bcolors.ENDC}')

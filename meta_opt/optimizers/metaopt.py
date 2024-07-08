@@ -175,7 +175,7 @@ class JaxMetaOptState(struct.PyTreeNode):
         assert grad_Ms.shape == (self.H,), (grad_Ms.shape, self.H)
         Ms = Ms.at[0].add(-self.base_lr)  # add the effective learning rate to most recent grad coeff
         ret.update({f'M_{i}': m for i, m in enumerate(Ms.reshape(-1))})
-        if self.recent_gpc_cost != float('inf'):
+        if any(self.recent_gpc_cost != float('inf')):
             ret.update({f'grad_M_{i}': grad_m for i, grad_m in enumerate(grad_Ms.reshape(-1))})
             ret['gpc_cost'] = self.recent_gpc_cost.reshape(-1).mean()
         sizes = {
