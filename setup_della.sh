@@ -10,7 +10,7 @@ mkdir ./experiments/
 
 # load venv
 echo "loading venv..."
-module load anaconda3/2024.02
+module load anaconda3/2024.2
 conda activate meta-opt
 
 # install required things
