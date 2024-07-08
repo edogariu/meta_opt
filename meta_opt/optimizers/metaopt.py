@@ -296,8 +296,8 @@ def make_jax_metaopt(
             JaxMetaOptState: new state of the meta-optimizer
         """
         # opt_state, _ = opt_state
-        # assert params is not None, 'failed to provide parameters to the meta-optimizer'
-        # assert loss_fn is not None, 'failed to provide loss function to the meta-optimizer'
+        assert params is not None, 'failed to provide parameters to the meta-optimizer'
+        assert loss_fn is not None, 'failed to provide loss function to the meta-optimizer'
 
         # flatten things!
         flat_params, unflatten_fn = jax.flatten_util.ravel_pytree(params)
