@@ -17,6 +17,7 @@ conda activate meta-opt
 echo "installing dependencies..."
 
 # install workload deps first because otherwise it is impossible sometimes
+pip3 install tensorflow==2.15.*
 pip3 install sentencepiece==0.1.99 sacrebleu==1.3.1 pydub==0.25.1
 pip3 install tensorflow-text==2.12.1  # high probability of failure :)
 
@@ -37,8 +38,10 @@ rm -rf ./algorithmic-efficiency
 pip3 uninstall -y psutil
 pip3 install --no-binary :all: psutil
 
-# install the right jax with cuda
-conda install jax "jaxlib==0.4.23=cuda12*" -c conda-forge
+# install the right jax/flax/optax with cuda
+pip3 install optax==0.1.5 flax==0.6.10
+pip3 install ml_dtypes==0.2.0
+pip3 install "jax[cuda12_pip]"==0.4.10 -f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html
 
 # install the meta-opt package
 pip3 install -r requirements.txt

@@ -33,7 +33,7 @@ def get_configs():
         log_every=10,
 
         # other details
-        use_wandb=True,
+        use_wandb=False,
         profile=True,
         print_with_colors=True,
         resume_last_run=False,
