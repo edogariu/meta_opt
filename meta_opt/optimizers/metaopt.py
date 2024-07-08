@@ -1,5 +1,5 @@
 from absl import logging
-from typing import Tuple, Callable, Iterable
+from typing import Tuple, Callable, Iterable, Optional
 import functools
 
 from torch import optim, Tensor
@@ -22,7 +22,7 @@ class MetaOptConfig(OptimizerConfig):
     initial_learning_rate: float
     weight_decay: float
     grad_clip: float
-    scale_by_adam_betas: Tuple[float, float] | None  # set to `None` to not rescale disturbances with Adam rescaling
+    scale_by_adam_betas: Optional[Tuple[float, float]]  # set to `None` to not rescale disturbances with Adam rescaling
 
     # params of the meta-optimizer
     H: int  # number of past disturbances to use

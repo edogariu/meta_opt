@@ -1,4 +1,4 @@
-from typing import Union, Callable, Iterable
+from typing import Union, Callable, Iterable, Optional
 from flax import struct
 
 from torch import optim, Tensor
@@ -13,10 +13,10 @@ class SGDConfig(OptimizerConfig):
     learning_rate: Union[float, Callable[[int], float]]  # learning rate or schedule
 
     # OPTIONAL
-    momentum: float | None = None
+    momentum: Optional[float] = None
     nesterov: bool = False
-    weight_decay: float | None = None
-    grad_clip: float | None = None
+    weight_decay: Optional[float] = None
+    grad_clip: Optional[float] = None
 
     # METADATA
     optimizer_name: str = 'SGD'

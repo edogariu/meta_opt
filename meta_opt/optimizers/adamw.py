@@ -1,4 +1,4 @@
-from typing import Union, Callable, Iterable
+from typing import Union, Callable, Iterable, Optional
 from flax import struct
 
 from torch import optim, Tensor
@@ -16,8 +16,8 @@ class AdamWConfig(OptimizerConfig):
 
     # OPTIONAL
     eps: float = 1e-8
-    weight_decay: float | None = None
-    grad_clip: float | None = None
+    weight_decay: Optional[float] = None
+    grad_clip: Optional[float] = None
 
     # METADATA
     optimizer_name: str = 'AdamW'
