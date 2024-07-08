@@ -305,38 +305,42 @@ def make_jax_metaopt(
         assert flat_params.shape == (opt_state.num_params,), (flat_params.shape, (opt_state.num_params,))
         assert flat_grads.shape == (opt_state.num_params,), (flat_grads.shape, (opt_state.num_params,))
 
-        # update GPC controller
-        if not freeze_gpc_params:
-            # compute update to gpc controller
-            if opt_state.t >= H + HH:
-                gpc_params, gpc_opt_state, gpc_loss, gpc_grads = update_gpc_controller_counterfactual(
-                    gpc_params=opt_state.gpc_params, disturbance_history=opt_state.disturbance_history, 
-                    gpc_tx=opt_state.gpc_tx, gpc_opt_state=opt_state.gpc_opt_state,
-                    base_lr=base_lr, weight_decay=weight_decay,
-                    initial_params=opt_state.param_history[0], 
-                    loss_fn_history=(loss_fn,) * HH if freeze_loss_fn_during_rollouts else opt_state.loss_fn_history, 
-                    curr_loss_fn=loss_fn,
-                    unflatten_fn=unflatten_fn,
-                    disturbance_transform=opt_state.disturbance_transform, initial_disturbance_transform_state=opt_state.disturbance_transform_state,
-                    H=H, HH=HH, fake_the_dynamics=fake_the_dynamics,
-                )
-            else:
-                gpc_params, gpc_opt_state, gpc_loss, gpc_grads = opt_state.gpc_params, opt_state.gpc_opt_state, opt_state.recent_gpc_loss, opt_state.recent_gpc_grads
+        # # update GPC controller
+        # if not freeze_gpc_params:
+        #     # compute update to gpc controller
+        #     if opt_state.t >= H + HH:
+        #         gpc_params, gpc_opt_state, gpc_loss, gpc_grads = update_gpc_controller_counterfactual(
+        #             gpc_params=opt_state.gpc_params, disturbance_history=opt_state.disturbance_history, 
+        #             gpc_tx=opt_state.gpc_tx, gpc_opt_state=opt_state.gpc_opt_state,
+        #             base_lr=base_lr, weight_decay=weight_decay,
+        #             initial_params=opt_state.param_history[0], 
+        #             loss_fn_history=(loss_fn,) * HH if freeze_loss_fn_during_rollouts else opt_state.loss_fn_history, 
+        #             curr_loss_fn=loss_fn,
+        #             unflatten_fn=unflatten_fn,
+        #             disturbance_transform=opt_state.disturbance_transform, initial_disturbance_transform_state=opt_state.disturbance_transform_state,
+        #             H=H, HH=HH, fake_the_dynamics=fake_the_dynamics,
+        #         )
+        #     else:
+        #         gpc_params, gpc_opt_state, gpc_loss, gpc_grads = opt_state.gpc_params, opt_state.gpc_opt_state, opt_state.recent_gpc_loss, opt_state.recent_gpc_grads
 
-            # epilogue -- append to histories
-            param_history = append(opt_state.param_history, flat_params)
-            loss_fn_history = opt_state.loss_fn_history[1:] + (loss_fn,)
-            disturbances, disturbance_transform_state = opt_state.disturbance_transform.update(flat_grads, opt_state.disturbance_transform_state, params=flat_params)
-            disturbance_history = append(opt_state.disturbance_history, disturbances)
-            opt_state = opt_state.replace(gpc_params=gpc_params, gpc_opt_state=gpc_opt_state, disturbance_history=disturbance_history, disturbance_transform_state=disturbance_transform_state, 
-                                        param_history=param_history, loss_fn_history=loss_fn_history, 
-                                        recent_gpc_grads=gpc_grads, recent_gpc_loss=gpc_loss, t=opt_state.t+1)
-        else:
-            disturbances, disturbance_transform_state = opt_state.disturbance_transform.update(flat_grads, opt_state.disturbance_transform_state, params=flat_params)
-            disturbance_history = append(opt_state.disturbance_history, disturbances)
-            opt_state = opt_state.replace(disturbance_history=disturbance_history, disturbance_transform_state=disturbance_transform_state, t=opt_state.t+1)
+        #     # epilogue -- append to histories
+        #     param_history = append(opt_state.param_history, flat_params)
+        #     loss_fn_history = opt_state.loss_fn_history[1:] + (loss_fn,)
+        #     disturbances, disturbance_transform_state = opt_state.disturbance_transform.update(flat_grads, opt_state.disturbance_transform_state, params=flat_params)
+        #     disturbance_history = append(opt_state.disturbance_history, disturbances)
+        #     opt_state = opt_state.replace(gpc_params=gpc_params, gpc_opt_state=gpc_opt_state, disturbance_history=disturbance_history, disturbance_transform_state=disturbance_transform_state, 
+        #                                 param_history=param_history, loss_fn_history=loss_fn_history, 
+        #                                 recent_gpc_grads=gpc_grads, recent_gpc_loss=gpc_loss, t=opt_state.t+1)
+        # else:
+        #     disturbances, disturbance_transform_state = opt_state.disturbance_transform.update(flat_grads, opt_state.disturbance_transform_state, params=flat_params)
+        #     disturbance_history = append(opt_state.disturbance_history, disturbances)
+        #     opt_state = opt_state.replace(disturbance_history=disturbance_history, disturbance_transform_state=disturbance_transform_state, t=opt_state.t+1)
         
+        disturbances, disturbance_transform_state = opt_state.disturbance_transform.update(flat_grads, opt_state.disturbance_transform_state, params=flat_params)
+        disturbance_history = append(opt_state.disturbance_history, disturbances)
+        opt_state = opt_state.replace(disturbance_history=disturbance_history, disturbance_transform_state=disturbance_transform_state, t=opt_state.t+1)
         return jax.tree_map(jnp.zeros_like, params), (opt_state, optax.EmptyState())
+    
         # compute GPC control with updated params
         control = (-weight_decay) * flat_params - base_lr * disturbances  # apply base SGD/adam/whatever update
         control += compute_gpc_control(opt_state.gpc_params, jax.lax.dynamic_slice_in_dim(disturbance_history, HH, H))  # use past H disturbances, including most recent one
