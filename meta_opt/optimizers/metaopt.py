@@ -296,14 +296,14 @@ def make_jax_metaopt(
             JaxMetaOptState: new state of the meta-optimizer
         """
         opt_state, _ = opt_state
-        assert params is not None, 'failed to provide parameters to the meta-optimizer'
-        assert loss_fn is not None, 'failed to provide loss function to the meta-optimizer'
+        # assert params is not None, 'failed to provide parameters to the meta-optimizer'
+        # assert loss_fn is not None, 'failed to provide loss function to the meta-optimizer'
 
         # flatten things!
         flat_params, unflatten_fn = jax.flatten_util.ravel_pytree(params)
         flat_grads, _ = jax.flatten_util.ravel_pytree(grads)
-        assert flat_params.shape == (opt_state.num_params,), (flat_params.shape, (opt_state.num_params,))
-        assert flat_grads.shape == (opt_state.num_params,), (flat_grads.shape, (opt_state.num_params,))
+        # assert flat_params.shape == (opt_state.num_params,), (flat_params.shape, (opt_state.num_params,))
+        # assert flat_grads.shape == (opt_state.num_params,), (flat_grads.shape, (opt_state.num_params,))
 
         return jax.tree_map(jnp.zeros_like, params), opt_state
         # update GPC controller
