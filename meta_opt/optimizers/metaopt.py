@@ -276,7 +276,7 @@ def make_jax_metaopt(
 
         return (opt_state, optax.EmptyState())
     
-    @jax.jit
+    # @jax.jit
     def update_fn(grads: chex.ArrayTree, 
                   opt_state: JaxMetaOptState, 
                   params: chex.ArrayTree,
