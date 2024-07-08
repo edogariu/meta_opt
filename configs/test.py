@@ -18,7 +18,7 @@ def get_configs():
         num_episodes=1,
 
         framework='jax',
-        num_iters=None,  # if None, uses default for the workload
+        num_iters=20,  # if None, uses default for the workload
         batch_size=None,  # if None, uses default for the workload
 
         # how often to do things
