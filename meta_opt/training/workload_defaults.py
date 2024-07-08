@@ -1,6 +1,6 @@
 from absl import logging
 
-from configs.experiment import ExperimentConfig
+from meta_opt.training.experiment import ExperimentConfig
 from meta_opt.utils import bcolors
 
 DEFAULT_BATCH_SIZES = {

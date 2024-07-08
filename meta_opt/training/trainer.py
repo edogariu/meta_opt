@@ -8,9 +8,9 @@ from algorithmic_efficiency.spec import Workload
 from algorithmic_efficiency.profiler import Profiler
 from algorithmic_efficiency import checkpoint_utils, logger_utils, random_utils
 
-from configs.experiment import ExperimentConfig
-from configs.optimizers import OptimizerConfig
-import meta_opt.jax_stuff.jax_nn as jax_nn
+from meta_opt.training.experiment import ExperimentConfig
+from meta_opt.optimizers.base import OptimizerConfig
+import meta_opt.training.jax_stuff.jax_nn as jax_nn
 from meta_opt.utils import bcolors, pretty_dict
 
 def train(workload: Workload,

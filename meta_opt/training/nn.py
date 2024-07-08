@@ -3,7 +3,7 @@ from typing import Tuple, Dict, Any
 
 from algorithmic_efficiency import spec
 
-from configs.optimizers import OptimizerConfig
+from meta_opt.optimizers.base import OptimizerConfig
 
 """
 Defines the API with which we interact with neural networks.

@@ -8,10 +8,10 @@ from algorithmic_efficiency import logger_utils
 from algorithmic_efficiency.profiler import Profiler, PassThroughProfiler
 from algorithmic_efficiency.workloads import workloads
 
-from configs.workload_defaults import handle_defaults
-from configs.experiment import ExperimentConfig
-from configs.optimizers import OptimizerConfig
-from meta_opt.trainer import train
+from meta_opt.training.workload_defaults import handle_defaults
+from meta_opt.training.experiment import ExperimentConfig
+from meta_opt.training.trainer import train
+from meta_opt.optimizers.base import OptimizerConfig
 from meta_opt.utils import bcolors
 
 # required flags to run

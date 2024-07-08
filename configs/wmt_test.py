@@ -1,5 +1,7 @@
-from configs.experiment import ExperimentConfig
-from configs.optimizers import SGDConfig, AdamWConfig, MetaOptConfig
+from meta_opt.training.experiment import ExperimentConfig
+from meta_opt.optimizers.sgd import SGDConfig
+from meta_opt.optimizers.adamw import AdamWConfig
+from meta_opt.optimizers.metaopt import MetaOptConfig
 
 # requires running
 #       tfds.load('wmt17_translate/de-en', download=True, data_dir='./datasets')

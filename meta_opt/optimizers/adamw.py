@@ -1,0 +1,63 @@
+from typing import Union, Callable, Iterable
+from flax import struct
+
+from torch import optim, Tensor
+import optax
+
+from meta_opt.optimizers.base import OptimizerConfig
+
+
+@struct.dataclass
+class AdamWConfig(OptimizerConfig):
+    # REQUIRED
+    learning_rate: Union[float, Callable[[int], float]]  # learning rate or schedule
+    b1: float
+    b2: float
+
+    # OPTIONAL
+    eps: float = 1e-8
+    weight_decay: float | None = None
+    grad_clip: float | None = None
+
+    # METADATA
+    optimizer_name: str = 'AdamW'
+    self_tuning: bool = False
+    reset_opt_state: bool = True  # whether to also reset the optimizer state during the episodic resets
+
+
+    def make_torch(self) -> Callable[[Iterable[Tensor]], optim.Optimizer]:
+        """
+        Instantiates this optimizer configuration for use with pytorch. 
+        For example, if this were SGD, it would return roughly the same thing as
+                `lambda params: torch.optim.SGD(params, lr=self.lr, ...)`
+        and could be used afterward in the usual way.
+        """
+        assert self.grad_clip is None, 'havent added gradient clipping to pytorch optimizers yet, my bad'
+        return lambda params: optim.Adam(params,
+                                         lr=self.learning_rate, 
+                                         betas=(self.b1, self.b2),
+                                         eps=self.eps, 
+                                         weight_decay=self.weight_decay)
+             
+
+    def make_jax(self) -> optax.GradientTransformationExtraArgs:
+        """
+        Instantiates this optimizer configuration for use with jax/flax/optax. 
+        For example, if this were SGD, it would return roughly the same thing as
+                `optax.sgd(learning_rate=self.lr, ...)`
+        and could be used afterward in the usual way.
+        """
+
+        if self.weight_decay is not None:
+            opt = optax.adamw(learning_rate=self.learning_rate,
+                              b1=self.b1,
+                              b2=self.b2,
+                              eps=self.eps,
+                              weight_decay=self.weight_decay)
+        else:
+            opt = optax.adam(learning_rate=self.learning_rate,
+                             b1=self.b1,
+                             b2=self.b2,
+                             eps=self.eps)
+        if self.grad_clip is not None: opt = optax.chain(optax.clip(self.grad_clip), opt)
+        return opt

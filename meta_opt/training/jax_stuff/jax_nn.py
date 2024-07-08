@@ -9,10 +9,9 @@ from flax import struct, core, jax_utils
 
 from algorithmic_efficiency import spec
 
-from configs.optimizers import OptimizerConfig, SGDConfig, AdamWConfig, MetaOptConfig
-from meta_opt.nn import TrainState
-from meta_opt.jax_stuff.jax_meta_opt import jax_meta_opt, JaxMetaOptState
-from meta_opt.jax_stuff.jax_utils import sq_norm_pytree
+from meta_opt.optimizers.base import OptimizerConfig
+from meta_opt.training.nn import TrainState
+from meta_opt.training.jax_stuff.jax_utils import sq_norm_pytree
 from meta_opt.utils import bcolors, get_size
 
 
@@ -22,86 +21,8 @@ from meta_opt.utils import bcolors, get_size
 
 def shard_or_replicate_opt_state(opt_state: optax.OptState):
     opt_state, _ = opt_state
-    if isinstance(opt_state, JaxMetaOptState):
-        ret = jax_utils.replicate(opt_state)
-
-        # from jax.experimental import mesh_utils
-        # from jax.sharding import PositionalSharding
-        # def shard_pytree(p):
-        #     num_devices = jax.local_device_count()
-        #     def shard_array(v):
-        #         mesh = PositionalSharding(mesh_utils.create_device_mesh((num_devices,)))
-        #         if v.ndim > 1:
-        #             shape = [num_devices,] + [1 for _ in range(v.ndim - 1)]
-        #             mesh = mesh.reshape(shape)
-        #         return jax.device_put(v, mesh)
-        #     return jax.tree_map(shard_array, p)
-        
-        # disturbance_history = shard_pytree(opt_state.disturbance_history)
-        # tstate_history = shard_pytree(opt_state.tstate_history)
-        # batch_history = shard_pytree(opt_state.batch_history)
-        # disturbance_transform_state = opt_state.disturbance_transform_state
-        # cstate = opt_state.cstate
-        # # disturbance_transform_state = jax_utils.replicate(opt_state.disturbance_transform_state)
-        # # cstate = jax_utils.replicate(opt_state.cstate)
-        # ret = opt_state.replace(disturbance_history=disturbance_history, tstate_history=tstate_history, batch_history=batch_history, disturbance_transform_state=disturbance_transform_state, cstate=cstate)
-        # ret = jax_utils.replicate(ret)
-        
-        
-        # print('starting da print')
-        # jax.tree_util.tree_map(lambda v: print(v.__class__, v.shape, v.sharding), ret)
-        # print('ending da print')
-    else:
-        ret = jax_utils.replicate(opt_state)
+    ret = jax_utils.replicate(opt_state)
     return (ret, optax.EmptyState())
-
-
-def jax_make_optimizer(workload: spec.Workload, cfg: OptimizerConfig) -> optax.GradientTransformation:
-    name = cfg.optimizer_name
-
-    if name == 'SGD' or isinstance(cfg, SGDConfig):
-        opt = optax.sgd(learning_rate=cfg.learning_rate, 
-                        momentum=cfg.momentum,
-                        nesterov=cfg.nesterov)
-        if cfg.weight_decay is not None: opt = optax.chain(optax.add_decayed_weights(cfg.weight_decay), opt)
-        if cfg.grad_clip is not None: opt = optax.chain(opt, optax.clip(cfg.grad_clip))
-
-    elif name == 'AdamW' or isinstance(cfg, AdamWConfig):
-        if cfg.weight_decay is not None:
-            opt = optax.adamw(learning_rate=cfg.learning_rate,
-                              b1=cfg.b1,
-                              b2=cfg.b2,
-                              eps=cfg.eps,
-                              weight_decay=cfg.weight_decay)
-        else:
-            opt = optax.adam(learning_rate=cfg.learning_rate,
-                             b1=cfg.b1,
-                             b2=cfg.b2,
-                             eps=cfg.eps)
-        if cfg.grad_clip is not None: opt = optax.chain(optax.clip(cfg.grad_clip), opt)
-
-    elif name == 'MetaOpt' or isinstance(cfg, MetaOptConfig):
-        meta_optimizer = jax_make_optimizer(workload, cfg.meta_optimizer_cfg)
-
-        if cfg.jax_pmap_in_rollouts:
-            logging.warn('We are pmapping in both the outer `train_step` function and the inner counterfactual one!')
-            train_step, forward = jax_pmapped_train_step, jax_pmapped_forward
-        else:
-            train_step, forward = jax_train_step, jax_forward
-
-        if not cfg.fake_the_dynamics:  # use the base optimizer to implement `inital_learning_rate` steps
-            base_optimizer_cfg = SGDConfig(learning_rate=cfg.initial_learning_rate, momentum=0, nesterov=False, weight_decay=None, grad_clip=None)
-            empty_tstate = jax_create_train_state(jax.random.PRNGKey(0), workload, base_optimizer_cfg, distribute_opt_state=cfg.jax_pmap_in_rollouts)
-            opt = jax_meta_opt(workload, cfg, meta_optimizer, empty_tstate, train_step, forward)
-        else:  # make `train_step` a noop and make sure that the controller itself implements `inital_learning_rate` steps -- someone's gotta :)
-            base_optimizer_cfg = SGDConfig(learning_rate=0, momentum=0, nesterov=False, weight_decay=None, grad_clip=None)
-            empty_tstate = jax_create_train_state(jax.random.PRNGKey(0), workload, base_optimizer_cfg, distribute_opt_state=cfg.jax_pmap_in_rollouts)
-            opt = jax_meta_opt(workload, cfg, meta_optimizer, empty_tstate, (lambda _1, _2, _tstate, _3: (_tstate, None)), forward)
-
-    else:
-        raise NotImplementedError(name)
-    
-    return opt
 
 # -------------------------------------------------------------------------------------------------
 # ------------------------------------------ Train States -----------------------------------------
@@ -163,7 +84,7 @@ def jax_create_train_state(rng: jax.random.PRNGKey,
                            distribute_opt_state: bool = True) -> JaxTrainState:
     """Creates a train state from scratch. This should initialize model parameters, auxiliary state, and optimizer state."""
     params, model_state = workload.init_model_fn(rng)
-    opt = jax_make_optimizer(workload, optimizer_cfg)
+    opt = optimizer_cfg.make_jax()
     params_zeros_like = jax.tree_map(lambda s: jnp.zeros(s.shape_tuple), workload.param_shapes)
     opt_state = opt.init(params_zeros_like)
     if distribute_opt_state: opt_state = shard_or_replicate_opt_state(opt_state)
@@ -177,7 +98,7 @@ def jax_load_train_state(checkpoint,
     ((opt_state, _), model_params, model_state, _, _, global_step, _) = checkpoint
     logging.info(f'{bcolors.OKGREEN}{bcolors.BOLD}loading train state from checkpoint at step {global_step}{bcolors.ENDC}')
     # opt_state = shard_or_replicate_opt_state(opt_state)
-    opt = jax_make_optimizer(workload, optimizer_cfg)
+    opt = optimizer_cfg.make_jax()
     return JaxTrainState(params=model_params, model_state=model_state, tx=opt, opt_state=opt_state, t=global_step)
 
 
@@ -185,6 +106,7 @@ def jax_load_train_state(checkpoint,
 # -------------------------------------------------------------------------------------------------
 # ------------------------------------- Train Step Functions --------------------------------------
 # -------------------------------------------------------------------------------------------------
+
 
 def _forward(workload: spec.Workload, params, model_state, batch, rng, forward_pass_mode):
     logits, new_model_state = workload.model_fn(
@@ -221,6 +143,16 @@ def _jax_pmapped_forward(rng: jax.random.PRNGKey,
     return jax.lax.pmean(loss, axis_name='batch')
 jax_pmapped_forward = lambda _r, _w, _t, _b: _jax_pmapped_forward(jax.random.split(_r, jax.local_device_count()), _w, _t, _b)[0]
 
+@struct.dataclass
+class LossFn(struct.PyTreeNode):
+    workload: spec.Workload = struct.field(pytree_node=False)
+    rng: jax.Array = struct.field(pytree_node=True)
+    model_state: jax.Array = struct.field(pytree_node=True)
+    batch: jax.Array = struct.field(pytree_node=True)
+
+    def __call__(self, params):
+        return _forward(self.workload, params, self.model_state, self.batch, self.rng, spec.ForwardPassMode.TRAIN)[0]
+
 @functools.partial(jax.jit, static_argnums=(1,))
 def jax_train_step(rng: jax.random.PRNGKey, 
                    workload: spec.Workload,
@@ -234,7 +166,7 @@ def jax_train_step(rng: jax.random.PRNGKey,
     grad_fn = jax.value_and_grad(_loss_fn, has_aux=True)
     (loss, (new_model_state,)), grad = grad_fn(tstate.params)
 
-    updates, new_optimizer_state = tstate.tx.update(grad, tstate.opt_state, params=tstate.params, batch=batch, rng=update_rng, model_state=tstate.model_state)
+    updates, new_optimizer_state = tstate.tx.update(grad, tstate.opt_state, params=tstate.params)
     updated_params = optax.apply_updates(tstate.params, updates)
     def fix_shapes(_p1, _p2):
         if _p1.shape != _p2.shape: _p2 = _p2.reshape(_p1.shape)
@@ -250,17 +182,16 @@ def _jax_pmapped_train_step(rng: jax.random.PRNGKey,
                            tstate: JaxTrainState,
                            batch) -> Tuple[JaxTrainState, float, jax.Array]:
     """Takes a single training step, returning the new `tstate` as well as the loss and the gradients."""
-    forward_rng, update_rng = jax.random.split(rng)
     def _loss_fn(params):
         """Loss function used for training."""
-        return _forward(workload, params, tstate.model_state, batch, forward_rng, spec.ForwardPassMode.TRAIN)
+        return _forward(workload, params, tstate.model_state, batch, rng, spec.ForwardPassMode.TRAIN)
     grad_fn = jax.value_and_grad(_loss_fn, has_aux=True)
     (loss, (new_model_state,)), grad = grad_fn(tstate.params)
     
     # Get correct global mean loss and grad.
     (loss, grad) = jax.lax.pmean((loss, grad), axis_name='batch')
-
-    updates, new_optimizer_state = tstate.tx.update(grad, tstate.opt_state, params=tstate.params, batch=batch, rng=update_rng, model_state=tstate.model_state)
+    
+    updates, new_optimizer_state = tstate.tx.update(grad, tstate.opt_state, params=tstate.params, loss_fn=LossFn(workload, rng, tstate.model_state, batch))
     updated_params = optax.apply_updates(tstate.params, updates)
     tstate = tstate.replace(opt_state=new_optimizer_state, params=updated_params, model_state=new_model_state)
     return tstate, {'loss': loss, 'grad_sq_norm': sq_norm_pytree(grad)}
