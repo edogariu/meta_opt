@@ -41,7 +41,7 @@ def get_configs():
     # meta_optimizer_cfg = AdamWConfig(learning_rate=1e-3, b1=0.9, b2=0.999, eps=1e-8, weight_decay=0, grad_clip=None)
     optimizer_cfg = MetaOptConfig(initial_learning_rate=0.1, weight_decay=1e-4, grad_clip=None,
                                 H=16, HH=2, m_method='scalar', scale_by_adam_betas=None, 
-                                fake_the_dynamics=False, freeze_gpc_params=False, freeze_loss_fn_during_rollouts=False,
+                                fake_the_dynamics=False, freeze_gpc_params=False, freeze_loss_fn_during_rollouts=True,
                                 meta_optimizer_cfg=meta_optimizer_cfg)
 
     # meta_optimizer_cfg = SGDConfig(learning_rate=1e-5, momentum=0, nesterov=False, weight_decay=None, grad_clip=None)

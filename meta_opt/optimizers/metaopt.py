@@ -309,7 +309,7 @@ def make_jax_metaopt(
         if not freeze_gpc_params:
             # compute update to gpc controller
             unflatten_fn = jax.tree_util.Partial(unflatten_fn)
-            def true_fn(opt_state, base_lr, weight_decay, loss_fn, H):
+            def true_fn(opt_state, base_lr, weight_decay, loss_fn):
                 return update_gpc_controller_counterfactual(
                     gpc_params=opt_state.gpc_params, disturbance_history=opt_state.disturbance_history, 
                     gpc_tx=opt_state.gpc_tx, gpc_opt_state=opt_state.gpc_opt_state,
@@ -321,9 +321,9 @@ def make_jax_metaopt(
                     disturbance_transform=opt_state.disturbance_transform, initial_disturbance_transform_state=opt_state.disturbance_transform_state,
                     H=H, HH=HH, fake_the_dynamics=fake_the_dynamics,
                 )
-            def false_fn(opt_state, base_lr, weight_decay, loss_fn, H):
+            def false_fn(opt_state, base_lr, weight_decay, loss_fn):
                 return opt_state.gpc_params, opt_state.gpc_opt_state, opt_state.recent_gpc_loss, opt_state.recent_gpc_grads
-            gpc_params, gpc_opt_state, gpc_loss, gpc_grads = jax.lax.cond(opt_state.t >= H + HH, true_fn, false_fn, opt_state, base_lr, weight_decay, loss_fn, H)
+            gpc_params, gpc_opt_state, gpc_loss, gpc_grads = jax.lax.cond(opt_state.t >= H + HH, true_fn, false_fn, opt_state, base_lr, weight_decay, loss_fn)
 
             # if opt_state.t >= H + HH:
             #     gpc_params, gpc_opt_state, gpc_loss, gpc_grads = update_gpc_controller_counterfactual(
