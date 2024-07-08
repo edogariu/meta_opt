@@ -263,7 +263,7 @@ def make_jax_metaopt(
                                     gpc_opt_state=gpc_opt_state,
                                     disturbance_history=jnp.zeros((H + HH, num_params)),
                                     param_history=jnp.zeros((HH, num_params)),
-                                    cost_fn_history=(None,) * HH,
+                                    cost_fn_history=(jax.tree_util.Partial(lambda _: 0.),) * HH,
                                     H=H,
                                     HH=HH,
                                     t=0,
