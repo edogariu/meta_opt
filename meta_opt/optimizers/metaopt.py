@@ -153,7 +153,7 @@ class JaxMetaOptState(struct.PyTreeNode):
     # static optimizer state
     H: int = struct.field(pytree_node=False)  # history of the controller, how many past disturbances to use for control
     HH: int = struct.field(pytree_node=False)  # history of the system, how many hallucination steps to take
-    t: int = struct.field(pytree_node=False)  # current step
+    t: int = struct.field(pytree_node=True)  # current step
     num_params: int = struct.field(pytree_node=False)  # number of parameters in the model
     base_lr: float = struct.field(pytree_node=False)
 
@@ -338,7 +338,7 @@ def make_jax_metaopt(
         
         disturbances, disturbance_transform_state = opt_state.disturbance_transform.update(flat_grads, opt_state.disturbance_transform_state, params=flat_params)
         disturbance_history = append(opt_state.disturbance_history, disturbances)
-        # opt_state = opt_state.replace(disturbance_history=disturbance_history, disturbance_transform_state=disturbance_transform_state, t=opt_state.t+1)
+        opt_state = opt_state.replace(disturbance_history=disturbance_history, disturbance_transform_state=disturbance_transform_state, t=opt_state.t+1)
         return jax.tree_map(jnp.zeros_like, params), (opt_state, optax.EmptyState())
     
         # compute GPC control with updated params
