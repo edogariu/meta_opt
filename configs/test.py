@@ -13,7 +13,7 @@ def get_configs():
         
         # workload details
         seed=0,
-        workload_name='mnist', 
+        workload_name='ogbg', 
         full_batch=False,  # whether to do full gradient descent on one batch (fixed during the whole training) or regular minibatch SGD
         num_episodes=1,
 
@@ -28,7 +28,7 @@ def get_configs():
         log_every=5,
 
         # other details
-        use_wandb=True,
+        use_wandb=False,
         profile=True,
         print_with_colors=True,
         resume_last_run=False,

@@ -307,7 +307,6 @@ def make_jax_metaopt(
 
         # update GPC controller
         if not freeze_gpc_params:
-
             # compute update to gpc controller
             if opt_state.t >= H + HH:
                 gpc_params, gpc_opt_state, gpc_loss, gpc_grads = update_gpc_controller_counterfactual(

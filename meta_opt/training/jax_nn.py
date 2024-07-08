@@ -142,7 +142,7 @@ def _jax_pmapped_train_step(rng: jax.random.PRNGKey,
     grad_fn = jax.value_and_grad(lambda p: _forward(p, workload, tstate.model_state, batch, rng, spec.ForwardPassMode.TRAIN), has_aux=True)
     (loss, (new_model_state,)), grad = grad_fn(tstate.params)
     
-    # Get correct global mean loss and grad.
+    # Get corrects global mean loss and grad.
     (loss, grad) = jax.lax.pmean((loss, grad), axis_name='batch')
 
     loss_fn = LossFn(workload, rng, tstate.model_state, batch)
