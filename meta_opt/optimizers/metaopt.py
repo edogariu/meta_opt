@@ -191,8 +191,8 @@ class JaxMetaOptState(struct.PyTreeNode):
 def make_jax_metaopt(
         base_lr: float,
         weight_decay: float,
-        grad_clip: float | None,
-        scale_by_adam_betas: Tuple[float, float] | None,
+        grad_clip: Optional[float],
+        scale_by_adam_betas: Optional[Tuple[float, float]],
 
         H: int,
         HH: int,
