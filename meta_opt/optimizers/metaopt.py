@@ -305,7 +305,6 @@ def make_jax_metaopt(
         assert flat_params.shape == (opt_state.num_params,), (flat_params.shape, (opt_state.num_params,))
         assert flat_grads.shape == (opt_state.num_params,), (flat_grads.shape, (opt_state.num_params,))
 
-        return jax.tree_map(jnp.zeros_like, params), (opt_state, optax.EmptyState())
         # update GPC controller
         if not freeze_gpc_params:
             # compute update to gpc controller
@@ -337,6 +336,7 @@ def make_jax_metaopt(
             disturbance_history = append(opt_state.disturbance_history, disturbances)
             opt_state = opt_state.replace(disturbance_history=disturbance_history, disturbance_transform_state=disturbance_transform_state, t=opt_state.t+1)
         
+        return jax.tree_map(jnp.zeros_like, params), (opt_state, optax.EmptyState())
         # compute GPC control with updated params
         control = (-weight_decay) * flat_params - base_lr * disturbances  # apply base SGD/adam/whatever update
         control += compute_gpc_control(opt_state.gpc_params, jax.lax.dynamic_slice_in_dim(disturbance_history, HH, H))  # use past H disturbances, including most recent one
