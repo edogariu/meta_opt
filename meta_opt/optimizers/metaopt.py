@@ -308,6 +308,7 @@ def make_jax_metaopt(
         # update GPC controller
         if not freeze_gpc_params:
             # compute update to gpc controller
+            unflatten_fn = jax.tree_util.Partial(unflatten_fn)
             @functools.partial(jax.jit, static_argnames=('unflatten_fn', 'HH', 'fake_the_dynamics'))
             def true_fn(opt_state, base_lr, weight_decay, loss_fn, unflatten_fn, H, HH, fake_the_dynamics):
                 return update_gpc_controller_counterfactual(
