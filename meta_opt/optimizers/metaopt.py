@@ -295,7 +295,7 @@ def make_jax_metaopt(
             chex.ArrayTree: updates
             JaxMetaOptState: new state of the meta-optimizer
         """
-        # opt_state, _ = opt_state
+        opt_state, _ = opt_state
         assert params is not None, 'failed to provide parameters to the meta-optimizer'
         assert loss_fn is not None, 'failed to provide loss function to the meta-optimizer'
 
@@ -305,7 +305,7 @@ def make_jax_metaopt(
         # assert flat_params.shape == (opt_state.num_params,), (flat_params.shape, (opt_state.num_params,))
         # assert flat_grads.shape == (opt_state.num_params,), (flat_grads.shape, (opt_state.num_params,))
 
-        return jax.tree_map(jnp.zeros_like, params), opt_state
+        return jax.tree_map(jnp.zeros_like, params), (opt_state, optax.EmptyState())
         # update GPC controller
         if not freeze_gpc_params:
             # compute update to gpc controller
