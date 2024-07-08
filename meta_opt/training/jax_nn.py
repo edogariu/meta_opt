@@ -145,8 +145,8 @@ def _jax_pmapped_train_step(rng: jax.random.PRNGKey,
     # Get corrects global mean loss and grad.
     (loss, grad) = jax.lax.pmean((loss, grad), axis_name='batch')
 
-    loss_fn = LossFn(workload, rng, tstate.model_state, batch)
-    updates, new_optimizer_state = tstate.tx.update(grad, tstate.opt_state, params=tstate.params, loss_fn=loss_fn)
+    cost_fn = LossFn(workload, rng, tstate.model_state, batch)
+    updates, new_optimizer_state = tstate.tx.update(grad, tstate.opt_state, params=tstate.params, cost_fn=cost_fn)
     updated_params = optax.apply_updates(tstate.params, updates)
     tstate = tstate.replace(opt_state=new_optimizer_state, params=updated_params, model_state=new_model_state)
     return tstate, {'loss': loss, 'grad_sq_norm': sum(jax.tree_util.tree_flatten(jax.tree_map(lambda p: (p * p).sum(), grad))[0])}

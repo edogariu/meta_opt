@@ -13,7 +13,7 @@ DEFAULT_BATCH_SIZES = {
 DEFAULT_NUM_ITERS = {
     'mnist': 20000,
     'cifar': 100000,
-    'ogbg': 128,
+    'ogbg': 20000,
     'wmt': 100000,
 }
 
