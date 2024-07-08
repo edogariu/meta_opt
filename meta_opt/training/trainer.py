@@ -10,7 +10,7 @@ from algorithmic_efficiency import checkpoint_utils, logger_utils, random_utils
 
 from meta_opt.training.experiment import ExperimentConfig
 from meta_opt.optimizers.base import OptimizerConfig
-import meta_opt.training.jax_stuff.jax_nn as jax_nn
+import meta_opt.training.jax_nn as jax_nn
 from meta_opt.utils import bcolors, pretty_dict
 
 def train(workload: Workload,

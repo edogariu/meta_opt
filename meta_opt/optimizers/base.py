@@ -1,6 +1,5 @@
 from typing import Callable, Iterable
 import abc
-from flax import struct
 
 from torch import optim, Tensor
 import optax

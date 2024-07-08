@@ -13,7 +13,7 @@ from optax._src import base
 import chex
 
 from meta_opt.optimizers.base import OptimizerConfig
-from meta_opt.utils import bcolors
+from meta_opt.utils import bcolors, get_size
 
 
 @struct.dataclass
@@ -117,7 +117,7 @@ def update_gpc_controller_counterfactual(gpc_params: chex.Array,
                                          H: int,
                                          HH: int,
                                          fake_the_dynamics: bool) -> Tuple[chex.Array, optax.OptState, float, chex.Array]:
-    
+    @jax.jit
     def gpc_loss_fn(controller_params: chex.Array):
         params = initial_params
         disturbance_transform_state = initial_disturbance_transform_state
@@ -131,27 +131,6 @@ def update_gpc_controller_counterfactual(gpc_params: chex.Array,
             params += compute_gpc_control(controller_params, jax.lax.dynamic_slice_in_dim(disturbance_history, h, H))  # play GPC control
         loss = curr_loss_fn(unflatten_fn(params))
         return loss
-
-
-    # initial_carry = (initial_params, disturbance_transform_state)
-    # def gpc_loss_fn(controller_params: chex.Array):
-    #     def step(carry, h):
-    #         params, disturbance_transform_state = carry
-
-    #         # get gradients, either directly from the disturbances or through backpropagation
-    #         if fake_the_dynamics:
-    #             disturbances = jax.lax.dynamic_index_in_dim(disturbance_history, h + H - 1, keepdims=False)
-    #         else:
-    #             grads = jax.lax.switch(h, grad_fn_history, params)
-    #             disturbances, disturbance_transform_state = disturbance_transform.update(grads, disturbance_transform_state, params)
-            
-    #         params = (1 - weight_decay) * params - base_lr * disturbances  # play the base SGD step
-    #         params += compute_gpc_control(controller_params, jax.lax.dynamic_slice_in_dim(disturbance_history, h, H))  # play GPC control
-    #         return (params, disturbance_transform_state), None
-        
-    #     (params, _), _ = jax.lax.scan(step, initial_carry, jnp.arange(HH))
-    #     loss = curr_loss_fn(params)
-    #     return loss
     
     gpc_loss, gpc_grads = jax.value_and_grad(gpc_loss_fn)(gpc_params)
     gpc_updates, new_gpc_opt_state = gpc_tx.update(gpc_grads, gpc_opt_state, gpc_params)
@@ -176,6 +155,7 @@ class JaxMetaOptState(struct.PyTreeNode):
     HH: int = struct.field(pytree_node=False)  # history of the system, how many hallucination steps to take
     t: int = struct.field(pytree_node=False)  # current step
     num_params: int = struct.field(pytree_node=False)  # number of parameters in the model
+    base_lr: float = struct.field(pytree_node=False)
 
     # for rescaling the gradients/disturbances
     disturbance_transform: optax.GradientTransformation = struct.field(pytree_node=False)
@@ -184,6 +164,28 @@ class JaxMetaOptState(struct.PyTreeNode):
     # statistics to log during training
     recent_gpc_grads: chex.Array = struct.field(pytree_node=True)
     recent_gpc_loss: float = struct.field(pytree_node=True)
+
+
+    def get_logging_metrics(self):
+        ret = {}
+        num_devices = jax.local_device_count()
+        Ms = self.gpc_params.reshape(num_devices, self.H, -1).mean(axis=-1).mean(axis=0)[::-1]
+        grad_Ms = self.recent_gpc_grads.reshape(num_devices, self.H, -1).mean(axis=-1).mean(axis=0)[::-1]
+        assert Ms.shape == (self.H,), (Ms.shape, self.H)
+        assert grad_Ms.shape == (self.H,), (grad_Ms.shape, self.H)
+        Ms = Ms.at[0].add(-self.base_lr)  # add the effective learning rate to most recent grad coeff
+        ret.update({f'M_{i}': m for i, m in enumerate(Ms.reshape(-1))})
+        if self.recent_gpc_loss is not None:
+            ret.update({f'grad_M_{i}': grad_m for i, grad_m in enumerate(grad_Ms.reshape(-1))})
+            ret['gpc_loss'] = self.recent_gpc_loss.reshape(-1).mean()
+        sizes = {
+            'disturbance_history_memory': get_size(self.disturbance_history),
+            'param_history_memory': get_size(self.param_history),
+            'loss_fn_history_memory': get_size(self.loss_fn_history),
+            'disturbance_transform_state_memory': get_size(self.disturbance_transform_state),
+        }
+        ret.update(sizes)
+        return ret
 
 
 def make_jax_metaopt(
@@ -265,11 +267,12 @@ def make_jax_metaopt(
                                     H=H,
                                     HH=HH,
                                     t=0,
+                                    base_lr=base_lr,
                                     num_params=num_params,
                                     disturbance_transform=disturbance_transform,
                                     disturbance_transform_state=disturbance_transform.init(jnp.zeros((num_params,))),
                                     recent_gpc_grads=jnp.zeros_like(gpc_params), 
-                                    recent_gpc_loss=0.)
+                                    recent_gpc_loss=None)
 
         return (opt_state, optax.EmptyState())
     
@@ -335,7 +338,7 @@ def make_jax_metaopt(
             opt_state = opt_state.replace(disturbance_history=disturbance_history, disturbance_transform_state=disturbance_transform_state, t=opt_state.t+1)
         
         # compute GPC control with updated params
-        control = (0 - weight_decay) * flat_params - base_lr * disturbances  # apply base SGD/adam/whatever update
+        control = (-weight_decay) * flat_params - base_lr * disturbances  # apply base SGD/adam/whatever update
         control += compute_gpc_control(opt_state.gpc_params, jax.lax.dynamic_slice_in_dim(disturbance_history, HH, H))  # use past H disturbances, including most recent one
         control = unflatten_fn(control)
 
