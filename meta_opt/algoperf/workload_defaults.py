@@ -14,7 +14,7 @@ DEFAULT_NUM_ITERS = {
     'mnist': 20000,
     'cifar': 100000,
     'ogbg': 20000,
-    'wmt': 100000,
+    'wmt': 200000,
 }
 
 
