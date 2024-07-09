@@ -1,4 +1,4 @@
-from meta_opt.training.experiment import ExperimentConfig
+from meta_opt.experiment import ExperimentConfig
 from meta_opt.optimizers.sgd import SGDConfig
 from meta_opt.optimizers.adamw import AdamWConfig
 from meta_opt.optimizers.metaopt import MetaOptConfig
@@ -24,20 +24,15 @@ def get_configs():
 
         framework='jax',
         num_iters=None,  # if None, uses default for the workload
-        batch_size=None,  # if None, uses default for the workload
 
         # how often to do things
         eval_every=100,
         checkpoint_every=-1,
-        print_every=-1,
         log_every=10,
 
         # other details
         use_wandb=False,
-        profile=True,
-        print_with_colors=True,
-        resume_last_run=False,
-        overwrite=True)
+        print_with_colors=True)
 
     # optimizer_cfg = SGDConfig(learning_rate=0.01, momentum=0.9, nesterov=False, weight_decay=None, grad_clip=None)
     optimizer_cfg = AdamWConfig(learning_rate=0.001, b1=0.9, b2=0.999, eps=1e-8, weight_decay=None, grad_clip=None)

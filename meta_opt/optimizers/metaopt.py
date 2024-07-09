@@ -1,5 +1,5 @@
 from absl import logging
-from typing import Tuple, Callable, Iterable, Optional
+from typing import Tuple, Callable, Iterable, Optional, Dict
 import functools
 
 from torch import optim, Tensor
@@ -98,7 +98,7 @@ def compute_gpc_control(gpc_params: chex.Array,
     assert ret.shape == (n,), (ret.shape, (n,))
     return ret
 
-@functools.partial(jax.jit, static_argnums=(1, 9, 10, 12, 13, 14))
+@functools.partial(jax.jit, static_argnums=(1, 10, 12, 13, 14))
 def update_gpc_controller_counterfactual(gpc_params: chex.Array,
                                          gpc_tx: optax.GradientTransformation,   # static
                                          gpc_opt_state: optax.OptState,
@@ -109,11 +109,11 @@ def update_gpc_controller_counterfactual(gpc_params: chex.Array,
                                          initial_params: chex.Array,  # params from HH steps ago
                                          cost_fn_history,  # past HH cost functions, starting at the one that would have been used to evolve `initial_params`
                                          curr_cost_fn,
-                                         unflatten_fn,  # static
+                                         unflatten_fn,
                                          disturbance_transform: optax.GradientTransformation,   # static
                                          initial_disturbance_transform_state: optax.OptState,
 
-                                         # static args
+                                         # rest of the static args
                                          H: int,
                                          HH: int,
                                          fake_the_dynamics: bool) -> Tuple[chex.Array, optax.OptState, float, chex.Array]:
@@ -121,7 +121,7 @@ def update_gpc_controller_counterfactual(gpc_params: chex.Array,
     def gpc_cost_fn(controller_params: chex.Array):
         params = initial_params
         disturbance_transform_state = initial_disturbance_transform_state
-        for h in range(HH):
+        for h in range(HH):  # do it w a loop cause its not long enough for a scan to be faster/better
             if fake_the_dynamics:
                 disturbances = jax.lax.dynamic_index_in_dim(disturbance_history, h + H - 1, keepdims=False)
             else:
@@ -166,7 +166,7 @@ class JaxMetaOptState(struct.PyTreeNode):
     recent_gpc_cost: float = struct.field(pytree_node=True)
 
 
-    def get_logging_metrics(self):
+    def get_logging_metrics(self) -> Dict[str, float]:
         ret = {}
         num_devices = jax.local_device_count()
         Ms = self.gpc_params.reshape(num_devices, self.H, -1).mean(axis=-1).mean(axis=0)[::-1]
@@ -183,6 +183,7 @@ class JaxMetaOptState(struct.PyTreeNode):
             'param_history_memory': get_size(self.param_history),
             'cost_fn_history_memory': get_size(self.cost_fn_history),
             'disturbance_transform_state_memory': get_size(self.disturbance_transform_state),
+            'total_metaopt_memory': get_size(self),
         }
         ret.update(sizes)
         return ret
@@ -281,7 +282,7 @@ def make_jax_metaopt(
                   opt_state: JaxMetaOptState, 
                   params: chex.ArrayTree,
                   cost_fn: Callable[[chex.ArrayTree], float],
-                  **kwargs,
+                  **extra_args,
                   ):
         """Applies a single step of the meta-opt optimizer.
 
@@ -304,6 +305,7 @@ def make_jax_metaopt(
         flat_grads, _ = jax.flatten_util.ravel_pytree(grads)
         assert flat_params.shape == (opt_state.num_params,), (flat_params.shape, (opt_state.num_params,))
         assert flat_grads.shape == (opt_state.num_params,), (flat_grads.shape, (opt_state.num_params,))
+        unflatten_fn = jax.tree_util.Partial(unflatten_fn)
 
         # update GPC controller
         if not freeze_gpc_params:
@@ -352,4 +354,4 @@ def make_jax_metaopt(
 
         return control, (opt_state, optax.EmptyState())
     
-    return base.GradientTransformation(init_fn, update_fn)
+    return base.GradientTransformationExtraArgs(init_fn, update_fn)
