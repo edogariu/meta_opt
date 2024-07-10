@@ -47,8 +47,8 @@ class JaxTrainState(struct.PyTreeNode):
         return tstate
     
     def get_num_params(self) -> int:
-        return sum(x.size for x in jax.tree_util.tree_leaves(self.params))
-        # return sum(x.size for x in jax.tree_util.tree_leaves(jax_utils.unreplicate(self.params)))
+        # return sum(x.size for x in jax.tree_util.tree_leaves(self.params))
+        return sum(x.size for x in jax.tree_util.tree_leaves(jax_utils.unreplicate(self.params)))
     
     def get_memory_usage(self) -> Dict[str, int]:
         params_memory = get_size(self.params)
@@ -76,6 +76,7 @@ def jax_create_train_state(rng: jax.random.PRNGKey,
     params, model_state = workload.init_model_fn(rng)
     opt = optimizer_cfg.make_jax()
     params_zeros_like = jax.tree_map(lambda s: jnp.zeros(s.shape_tuple), workload.param_shapes)
+    params_zeros_like = jax_utils.unreplicate(params_zeros_like)
     opt_state = opt.init(params_zeros_like)
     # logging.info('model has shapes %s', jax.tree_util.tree_map(lambda x: x.shape, params))
     return JaxTrainState(params=params, model_state=model_state, tx=opt, opt_state=opt_state)
