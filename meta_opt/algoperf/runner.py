@@ -9,14 +9,14 @@ from dataclasses import asdict
 import jax
 
 from algorithmic_efficiency import checkpoint_utils, logger_utils, random_utils
-from algorithmic_efficiency.profiler import Profiler, PassThroughProfiler
+from algorithmic_efficiency.profiler import Profiler
 from algorithmic_efficiency.workloads import workloads
 
 import meta_opt.algoperf.jax_nn as jax_nn
 from meta_opt.algoperf.workload_defaults import handle_defaults
 from meta_opt.experiment import ExperimentConfig
 from meta_opt.optimizers.base import OptimizerConfig
-from meta_opt.utils import bcolors, pretty_dict
+from meta_opt.utils import bcolors, pretty_dict, shard, make_mesh
 
 
 # required flags to run
@@ -41,6 +41,7 @@ flags.DEFINE_string('submission_path', None, help='The relative path of the Pyth
 
 def run(experiment_cfg: ExperimentConfig, 
         optimizer_cfg: OptimizerConfig):
+    
     if experiment_cfg.print_with_colors: bcolors.enable()
     else: bcolors.disable()
 
@@ -76,6 +77,7 @@ def run(experiment_cfg: ExperimentConfig,
 
     # set default params if unprovided
     experiment_cfg = handle_defaults(experiment_cfg)
+    mesh = make_mesh(experiment_cfg.num_batch_devices, experiment_cfg.num_opt_devices)
 
     # import the workload
     workload = workloads.import_workload(
@@ -86,31 +88,30 @@ def run(experiment_cfg: ExperimentConfig,
     # count GPUs and set up framework-specific things
     if experiment_cfg.framework == 'jax':
         logging.info(f'Using {bcolors.WARNING}{bcolors.BOLD}{jax.lib.xla_bridge.get_backend().platform}{bcolors.ENDC} for jax')
-        n_gpus = jax.local_device_count()
     if experiment_cfg.framework == 'pytorch':
         raise NotImplementedError('will do a pytorch release of this code soon!')
-    logging.info(f' {bcolors.WARNING}{bcolors.BOLD}{n_gpus} devices{bcolors.ENDC}')
-    if experiment_cfg.batch_size % n_gpus != 0:
+    n_batch_devices = mesh.shape['batch']
+    if experiment_cfg.batch_size % n_batch_devices != 0:
         raise ValueError(
             f'The global batch size ({experiment_cfg.batch_size}) has to be divisible by '
-            f'the number of GPUs ({n_gpus}).')
-    if workload.eval_batch_size % n_gpus != 0:
+            f'the number of batch devices ({n_batch_devices}).')
+    if workload.eval_batch_size % n_batch_devices != 0:
         raise ValueError(
             f'The global eval batch size ({workload.eval_batch_size}) has to be '
-            f'divisible by the number of GPUs ({n_gpus}).')
+            f'divisible by the number of batch devices ({n_batch_devices}).')
 
     # train
     with profiler.profile('Train'):
         if experiment_cfg.framework == 'jax':
             create_train_state = jax_nn.jax_create_train_state
             load_train_state = jax_nn.jax_load_train_state
-            train_step = jax_nn.jax_pmapped_train_step
+            train_step = jax_nn.jax_train_step
         elif experiment_cfg.framework == 'pytorch':
             raise NotImplementedError('will do a pytorch release of this code soon!')
         else: 
             raise ValueError(experiment_cfg.framework)
 
-        # log all the configs and everything
+        # log all the configs and everything. this also sets up wandb if we are doing that
         metrics_logger = logger_utils.set_up_loggers(experiment_dir, experiment_cfg, namedtuple('hi', '')())
         workload.attach_metrics_logger(metrics_logger)
         with open(f"{experiment_dir}/logfile.INFO", "r") as f: logs_so_far = f.read()
@@ -139,7 +140,18 @@ def run(experiment_cfg: ExperimentConfig,
         s = f'Initializing dataset for workload: {bcolors.OKCYAN}{bcolors.BOLD}{experiment_cfg.workload_name}{bcolors.ENDC}.'
         logging.info(s)
         with profiler.profile(s):
-            input_queue = workload._build_input_queue(data_rng, 'train', data_dir=data_dir, global_batch_size=experiment_cfg.batch_size)
+            inq = workload._build_input_queue(data_rng, 'train', data_dir=data_dir, global_batch_size=experiment_cfg.batch_size)
+            
+            # algoperf does a replication axis for batches using `jax.local_devices()`, so we will undo this to get 
+            # batches of size `[experiment_cfg.batch_size, ...]` as desired
+            def _reshape_and_shard_generator():
+                while True: 
+                    expanded_batch = next(inq)
+                    batch = jax.tree_map(lambda x: x.reshape(experiment_cfg.batch_size, *x.shape[2:]), expanded_batch)
+                    batch = shard(batch, ('batch',))  # shard along the 'batch' axis of the mesh
+                    yield batch
+            input_queue = _reshape_and_shard_generator()
+
             if experiment_cfg.full_batch:
                 batch = next(input_queue)
                 def _same_batch_generator():

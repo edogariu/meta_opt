@@ -14,15 +14,6 @@ from meta_opt.utils import bcolors, get_size
 
 
 # -------------------------------------------------------------------------------------------------
-# ------------------------------------------ Optimizers -------------------------------------------
-# -------------------------------------------------------------------------------------------------
-
-def shard_or_replicate_opt_state(opt_state: optax.OptState):
-    opt_state, _ = opt_state
-    ret = jax_utils.replicate(opt_state)
-    return (ret, optax.EmptyState())
-
-# -------------------------------------------------------------------------------------------------
 # ------------------------------------------ Train States -----------------------------------------
 # -------------------------------------------------------------------------------------------------
 
@@ -44,18 +35,20 @@ class JaxTrainState(struct.PyTreeNode):
         model_init_rng, rng = jax.random.split(rng)
         logging.info(f'{bcolors.OKBLUE}{bcolors.BOLD}Resetting model!{bcolors.ENDC}')
         params, model_state = workload.init_model_fn(model_init_rng)
+        params = jax_utils.unreplicate(params)
         if reset_opt_state:
             logging.info(f'{bcolors.OKBLUE}{bcolors.BOLD}Also resetting optimizer state!{bcolors.ENDC}')
             params_zeros_like = jax.tree_map(lambda s: jnp.zeros(s.shape_tuple), workload.param_shapes)
             opt_state = self.tx.init(params_zeros_like)
-            opt_state = shard_or_replicate_opt_state(opt_state)
+            # opt_state = shard_or_replicate_opt_state(opt_state)
             tstate = self.replace(params=params, model_state=model_state, opt_state=opt_state)
         else:
             tstate = self.replace(params=params, model_state=model_state)
         return tstate
     
     def get_num_params(self) -> int:
-        return sum(x.size for x in jax.tree_util.tree_leaves(jax_utils.unreplicate(self.params)))
+        return sum(x.size for x in jax.tree_util.tree_leaves(self.params))
+        # return sum(x.size for x in jax.tree_util.tree_leaves(jax_utils.unreplicate(self.params)))
     
     def get_memory_usage(self) -> Dict[str, int]:
         params_memory = get_size(self.params)
@@ -78,15 +71,13 @@ class JaxTrainState(struct.PyTreeNode):
 
 def jax_create_train_state(rng: jax.random.PRNGKey,
                            workload: spec.Workload,
-                           optimizer_cfg: OptimizerConfig,
-                           distribute_opt_state: bool = True) -> JaxTrainState:
+                           optimizer_cfg: OptimizerConfig) -> JaxTrainState:
     """Creates a train state from scratch. This should initialize model parameters, auxiliary state, and optimizer state."""
     params, model_state = workload.init_model_fn(rng)
     opt = optimizer_cfg.make_jax()
     params_zeros_like = jax.tree_map(lambda s: jnp.zeros(s.shape_tuple), workload.param_shapes)
     opt_state = opt.init(params_zeros_like)
     # logging.info('model has shapes %s', jax.tree_util.tree_map(lambda x: x.shape, params))
-    if distribute_opt_state: opt_state = shard_or_replicate_opt_state(opt_state)
     return JaxTrainState(params=params, model_state=model_state, tx=opt, opt_state=opt_state)
 
 
@@ -133,22 +124,34 @@ class LossFn(struct.PyTreeNode):
 
     def __call__(self, params):
         return _forward(params, self.workload, self.model_state, self.batch, self.rng, spec.ForwardPassMode.TRAIN)[0]
-
-@functools.partial(jax.pmap, axis_name='batch', in_axes=(0, None, 0, 0), out_axes=(0, None), static_broadcasted_argnums=(1,))
-def _jax_pmapped_train_step(rng: jax.random.PRNGKey, 
-                           workload: spec.Workload,
-                           tstate: JaxTrainState,
-                           batch) -> Tuple[JaxTrainState, float, jax.Array]:
+    
+@functools.partial(jax.jit, static_argnames=('workload',))
+def jax_train_step(rng: jax.random.PRNGKey,
+                   workload: spec.Workload,
+                   tstate: JaxTrainState,
+                   batch) -> Tuple[JaxTrainState, float, jax.Array]:
     """Takes a single training step, returning the new `tstate` as well as the loss and the gradients."""
     grad_fn = jax.value_and_grad(lambda p: _forward(p, workload, tstate.model_state, batch, rng, spec.ForwardPassMode.TRAIN), has_aux=True)
     (loss, (new_model_state,)), grad = grad_fn(tstate.params)
-    
-    # Get corrects global mean loss and grad.
-    (loss, grad) = jax.lax.pmean((loss, grad), axis_name='batch')
-
-    cost_fn = LossFn(workload, rng, tstate.model_state, batch)
-    updates, new_optimizer_state = tstate.tx.update(grad, tstate.opt_state, params=tstate.params, cost_fn=cost_fn)
+    updates, new_optimizer_state = tstate.tx.update(grad, tstate.opt_state, params=tstate.params, cost_fn=LossFn(workload, rng, tstate.model_state, batch))
     updated_params = optax.apply_updates(tstate.params, updates)
     tstate = tstate.replace(opt_state=new_optimizer_state, params=updated_params, model_state=new_model_state)
     return tstate, {'loss': loss, 'grad_sq_norm': sum(jax.tree_util.tree_flatten(jax.tree_map(lambda p: (p * p).sum(), grad))[0])}
-jax_pmapped_train_step = lambda _r, _w, _t, _b: _jax_pmapped_train_step(jax.random.split(_r, jax.local_device_count()), _w, _t, _b)
+
+# @functools.partial(jax.pmap, axis_name='batch', in_axes=(0, None, 0, 0), out_axes=(0, None), static_broadcasted_argnums=(1,))
+# def _jax_pmapped_train_step(rng: jax.random.PRNGKey, 
+#                            workload: spec.Workload,
+#                            tstate: JaxTrainState,
+#                            batch) -> Tuple[JaxTrainState, float, jax.Array]:
+#     """Takes a single training step, returning the new `tstate` as well as the loss and the gradients."""
+#     grad_fn = jax.value_and_grad(lambda p: _forward(p, workload, tstate.model_state, batch, rng, spec.ForwardPassMode.TRAIN), has_aux=True)
+#     (loss, (new_model_state,)), grad = grad_fn(tstate.params)
+    
+#     # Get corrects global mean loss and grad.
+#     (loss, grad) = jax.lax.pmean((loss, grad), axis_name='batch')
+
+#     updates, new_optimizer_state = tstate.tx.update(grad, tstate.opt_state, params=tstate.params, cost_fn=LossFn(workload, rng, tstate.model_state, batch))
+#     updated_params = optax.apply_updates(tstate.params, updates)
+#     tstate = tstate.replace(opt_state=new_optimizer_state, params=updated_params, model_state=new_model_state)
+#     return tstate, {'loss': loss, 'grad_sq_norm': sum(jax.tree_util.tree_flatten(jax.tree_map(lambda p: (p * p).sum(), grad))[0])}
+# jax_pmapped_train_step = lambda _r, _w, _t, _b: _jax_pmapped_train_step(jax.random.split(_r, jax.local_device_count()), _w, _t, _b)

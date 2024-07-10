@@ -1,5 +1,14 @@
+from typing import Tuple
 import sys
 import pprint
+from absl import logging
+
+import jax
+from jax.sharding import NamedSharding, Mesh, PartitionSpec as P
+from jax.experimental import mesh_utils
+
+# global mesh for sharding
+GLOBAL_MESH: Mesh = None
 
 # set up pretty printer
 pp = pprint.PrettyPrinter(indent=2, sort_dicts=False)
@@ -31,6 +40,9 @@ class bcolors:
     def disable(_):
         bcolors.HEADER = bcolors.OKBLUE = bcolors.OKCYAN = bcolors.OKGREEN = bcolors.WARNING = bcolors.FAIL = bcolors.ENDC = bcolors.BOLD = bcolors.UNDERLINE = ''
 
+def pretty_dict(obj):
+    pretty_out = f"{pp.pformat(obj)}"
+    return f'{pretty_out}'
 
 def get_size(obj, seen=None):
     """Recursively finds size of objects"""
@@ -57,6 +69,27 @@ def get_size(obj, seen=None):
 
     return size
 
-def pretty_dict(obj):
-    pretty_out = f"{pp.pformat(obj)}"
-    return f'{pretty_out}'
+def make_mesh(batch_num_devices: int, opt_state_num_devices: int) -> Mesh:
+    global GLOBAL_MESH
+    assert batch_num_devices * opt_state_num_devices == jax.local_device_count(), (batch_num_devices, opt_state_num_devices, jax.local_device_count())
+
+    devices = mesh_utils.create_device_mesh((batch_num_devices, opt_state_num_devices))
+    GLOBAL_MESH = Mesh(devices, axis_names=('batch', 'opt'))
+    assert GLOBAL_MESH.shape == {'batch': batch_num_devices, 'opt': opt_state_num_devices}
+    n_devices = jax.local_device_count()
+    logging.info(f' {bcolors.WARNING}{bcolors.BOLD}{n_devices} devices in a mesh {GLOBAL_MESH} of shape {GLOBAL_MESH.shape}{bcolors.ENDC}')
+    return GLOBAL_MESH
+
+def get_mesh() -> Mesh:
+    global GLOBAL_MESH
+    assert GLOBAL_MESH is not None, 'didnt set up mesh yet!'
+    assert 'batch' in GLOBAL_MESH.axis_names and 'opt' in GLOBAL_MESH.axis_names
+    return GLOBAL_MESH
+
+def sharding_constraint(arr: jax.Array, spec: Tuple[str]) -> jax.Array:
+    s = NamedSharding(get_mesh(), P(*spec))
+    return jax.lax.with_sharding_constraint(arr, s)
+
+def shard(arr: jax.Array, spec: Tuple[str]) -> jax.Array:
+    s = NamedSharding(get_mesh(), P(*spec))
+    return jax.device_put(arr, s)

@@ -396,10 +396,11 @@ def run(experiment_cfg: ExperimentConfig,
     logging.get_absl_handler().use_absl_log_file('logfile', experiment_dir) 
     logging.info(f'Creating directory at {experiment_dir} for experiments to be saved to.')
     logger_utils.makedir(experiment_dir)
-    # ------------------------------------------------------------------------
 
-    checkpoint_steps = [int(s.strip()) for s in FLAGS.checkpoint_steps]
-    eval_steps = [int(s.strip()) for s in FLAGS.eval_steps]
+    checkpoint_steps = (list(range(0, experiment_cfg.num_iters * experiment_cfg.num_episodes, (experiment_cfg.num_iters * experiment_cfg.num_episodes) // experiment_cfg.checkpoint_every)) + [experiment_cfg.num_iters * experiment_cfg.num_episodes-1,]) if experiment_cfg.checkpoint_every > 0 else []
+    eval_steps = (list(range(0, experiment_cfg.num_iters * experiment_cfg.num_episodes, (experiment_cfg.num_iters * experiment_cfg.num_episodes) // experiment_cfg.eval_every)) + [experiment_cfg.num_iters * experiment_cfg.num_episodes-1,]) if experiment_cfg.eval_every > 0 else []
+    # ------------------------------------------------------------------------
+    
     if jax.process_index() == 0:
         makedirs(experiment_dir)
     log_dir = os.path.join(experiment_dir, 'r=3/')
@@ -428,8 +429,6 @@ def run(experiment_cfg: ExperimentConfig,
     metrics_name = METRICS[experiment_cfg.workload_name]
     logging.info(f'{bcolors.OKGREEN}{bcolors.BOLD}model={model_name}, loss={loss_name}, metrics={metrics_name}!{bcolors.ENDC}')
 
-    # TODO(gdahl) Figure out a better way to handle passing more complicated
-
     _run(
         experiment_cfg=experiment_cfg,
         optimizer_cfg=optimizer_cfg,
@@ -443,7 +442,7 @@ def run(experiment_cfg: ExperimentConfig,
         test_num_batches=None,
         eval_train_num_batches=None,
         eval_frequency=experiment_cfg.eval_every if experiment_cfg.eval_every > 0 else int(1e9),
-        checkpoint_steps=(list(range(0, experiment_cfg.num_iters * experiment_cfg.num_episodes, (experiment_cfg.num_iters * experiment_cfg.num_episodes) // experiment_cfg.checkpoint_every)) + [experiment_cfg.num_iters * experiment_cfg.num_episodes-1,]) if experiment_cfg.checkpoint_every > 0 else [],
+        checkpoint_steps=checkpoint_steps,
         num_tf_data_prefetches=-1,
         num_device_prefetches=0,
         num_tf_data_map_parallel_calls=-1,
