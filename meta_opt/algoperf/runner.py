@@ -3,10 +3,12 @@ from copy import deepcopy
 from absl import logging, flags, app
 import importlib
 import time
+import traceback
 from collections import namedtuple
 from dataclasses import asdict
 
 import jax
+from flax import jax_utils
 
 from algorithmic_efficiency import checkpoint_utils, logger_utils, random_utils
 from algorithmic_efficiency.profiler import Profiler
@@ -15,7 +17,8 @@ from algorithmic_efficiency.workloads import workloads
 import meta_opt.algoperf.jax_nn as jax_nn
 from meta_opt.algoperf.workload_defaults import handle_defaults
 from meta_opt.experiment import ExperimentConfig
-from meta_opt.optimizers.base import OptimizerConfig
+from meta_opt.optimizers import OptimizerConfig
+from meta_opt.optimizers.metaopt import JaxMetaOptState
 from meta_opt.utils import bcolors, pretty_dict, shard, make_mesh
 
 
@@ -144,10 +147,14 @@ def run(experiment_cfg: ExperimentConfig,
             
             # algoperf does a replication axis for batches using `jax.local_devices()`, so we will undo this to get 
             # batches of size `[experiment_cfg.batch_size, ...]` as desired
+            @jax.jit
+            def _reshape_fn(v):
+                d, n, *shape = v.shape
+                return v.reshape(d * n, *shape)
             def _reshape_and_shard_generator():
                 while True: 
                     expanded_batch = next(inq)
-                    batch = jax.tree_map(lambda x: x.reshape(experiment_cfg.batch_size, *x.shape[2:]), expanded_batch)
+                    batch = jax.tree_map(_reshape_fn, expanded_batch)
                     batch = shard(batch, ('batch',))  # shard along the 'batch' axis of the mesh
                     yield batch
             input_queue = _reshape_and_shard_generator()
@@ -217,7 +224,13 @@ def run(experiment_cfg: ExperimentConfig,
         for episode_i in range(1, num_episodes + 1):
             # reset for the episode
             rng, reset_rng = random_utils.split(rng)
-            tstate = tstate.reset(reset_rng, workload, optimizer_cfg.reset_opt_state)
+            if isinstance(tstate.opt_state[0], JaxMetaOptState):
+                gpc_params, gpc_opt_state = tstate.opt_state[0].gpc_params, tstate.opt_state[0].gpc_opt_state
+                tstate = tstate.reset(reset_rng, workload, optimizer_cfg.reset_opt_state)
+                logging.info(f'{bcolors.OKBLUE}{bcolors.BOLD}Resetting metaopt, so I am putting back the gpc params{bcolors.ENDC}')
+                tstate = tstate.replace(opt_state=(tstate.opt_state[0].replace(gpc_params=gpc_params, gpc_opt_state=gpc_opt_state), tstate.opt_state[1]))
+            else:
+                tstate = tstate.reset(reset_rng, workload, optimizer_cfg.reset_opt_state)
 
             if num_episodes > 1: logging.info(f'{bcolors.FAIL}{bcolors.BOLD}Starting training episode {episode_i}.{bcolors.ENDC}')
             for local_step in range(1, num_iters + 1):
@@ -238,21 +251,25 @@ def run(experiment_cfg: ExperimentConfig,
                     if experiment_cfg.full_batch:
                         logging.warning(f'{bcolors.WARNING}{bcolors.BOLD}skipped evaluation at step {local_step} because `full_batch=True`{bcolors.ENDC}')
                     else:
-                        with profiler.profile('Evaluating'):
-                            _, model_params, model_state = tstate.get_algoperf_stuff()
-                            latest_eval_result = workload.eval_model(workload.eval_batch_size,
-                                                                    model_params,
-                                                                    model_state,
-                                                                    eval_rng,
-                                                                    data_dir,
-                                                                    None,  # hopefully we dont need imagenetv2 dataset dir...
-                                                                    local_step)
+                        try:
+                            with profiler.profile('Evaluating'):
+                                _, model_params, model_state = tstate.get_algoperf_stuff()
+                                latest_eval_result = workload.eval_model(workload.eval_batch_size,
+                                                                        jax_utils.replicate(model_params),
+                                                                        model_state,
+                                                                        eval_rng,
+                                                                        data_dir,
+                                                                        None,  # hopefully we dont need imagenetv2 dataset dir...
+                                                                        local_step)
 
-                        time_since_start = time.time() - global_start_time
-                        logging.info(f'Time: {time_since_start:.2f}s, '
-                                    f'\tStep: {local_step},\tEpisode:{episode_i},\t{bcolors.FAIL}{bcolors.BOLD}{latest_eval_result}{bcolors.ENDC}')
-                        eval_results.append((local_step, latest_eval_result))
-                        metrics_logger.append_scalar_metrics(latest_eval_result, global_step=global_step, preemption_count=preemption_count, is_eval=True)
+                            time_since_start = time.time() - global_start_time
+                            logging.info(f'Time: {time_since_start:.2f}s, '
+                                        f'\tStep: {local_step},\tEpisode:{episode_i},\t{bcolors.FAIL}{bcolors.BOLD}{latest_eval_result}{bcolors.ENDC}')
+                            eval_results.append((local_step, latest_eval_result))
+                            metrics_logger.append_scalar_metrics(latest_eval_result, global_step=global_step, preemption_count=preemption_count, is_eval=True)
+                        except:
+                            logging.error(f'{bcolors.FAIL}{bcolors.BOLD}failed on eval at step {local_step} of episode {episode_i} with error {traceback.format_exc()}{bcolors.ENDC}')
+                            pass
 
                 # checkpoint if we want (including on the last step)
                 if (checkpoint_every > 0) and (local_step % checkpoint_every == 0 or (boundary_step and local_step > 1)):

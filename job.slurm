@@ -16,5 +16,5 @@ module load anaconda3/2024.2
 conda activate meta-opt
 
 # ============================================================================
-python runner.py --config_path="./configs/wmt_test.py"
+python meta_opt/algoperf/runner.py --config_path="./configs/wmt_test.py"
 # ============================================================================

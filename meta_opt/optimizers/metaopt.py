@@ -357,7 +357,7 @@ def make_jax_metaopt(
         assert cost_fn is not None, 'failed to provide cost function to the meta-optimizer'
 
         # flatten things! also make sure that flat size is a multiple of the number of devices along which to shard opt state
-        def flatten_fn(v):
+        def flatten(v):
             f, u = jax.flatten_util.ravel_pytree(v)
             assert f.shape == (opt_state.num_params,), (f.shape, (opt_state.num_params,))
             f = jnp.pad(f, (0, opt_state.flat_size - opt_state.num_params))
@@ -365,9 +365,9 @@ def make_jax_metaopt(
             f = f.astype(dtype)
             unflatten_fn = jax.tree_util.Partial(lambda w: u(w[:opt_state.num_params]))
             return f, unflatten_fn
-        flat_params, unflatten_fn = flatten_fn(params)
+        flat_params, unflatten_fn = flatten(params)
         del params
-        flat_grads, _ = flatten_fn(grads)
+        flat_grads, _ = flatten(grads)
         del grads
 
         # update GPC controller

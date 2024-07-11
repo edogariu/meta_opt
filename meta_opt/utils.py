@@ -46,7 +46,7 @@ def pretty_dict(obj):
 
 def get_size(obj, seen=None):
     """Recursively finds size of objects"""
-
+    return 0
     size = sys.getsizeof(obj)
     if seen is None:
         seen = set()
