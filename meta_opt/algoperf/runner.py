@@ -45,6 +45,8 @@ flags.DEFINE_string('submission_path', None, help='The relative path of the Pyth
 def run(experiment_cfg: ExperimentConfig, 
         optimizer_cfg: OptimizerConfig):
     
+    assert experiment_cfg.experimental_setup == 'algoperf'
+    
     if experiment_cfg.print_with_colors: bcolors.enable()
     else: bcolors.disable()
 

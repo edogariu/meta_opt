@@ -82,14 +82,29 @@ def make_mesh(batch_num_devices: int, opt_state_num_devices: int) -> Mesh:
 
 def get_mesh() -> Mesh:
     global GLOBAL_MESH
-    assert GLOBAL_MESH is not None, 'didnt set up mesh yet!'
-    assert 'batch' in GLOBAL_MESH.axis_names and 'opt' in GLOBAL_MESH.axis_names
-    return GLOBAL_MESH
+    good = True
+    if GLOBAL_MESH is None:
+        good = False
+        logging.warning(f'{bcolors.WARNING}{bcolors.BOLD}didnt set up mesh yet!{bcolors.ENDC}')
+    elif 'batch' not in GLOBAL_MESH.axis_names or 'opt' not in GLOBAL_MESH.axis_names:
+        good = False
+        logging.warning(f'{bcolors.WARNING}{bcolors.BOLD}mesh had incorrect axes!{bcolors.ENDC}')
+    return GLOBAL_MESH if good else None
 
 def sharding_constraint(arr: jax.Array, spec: Tuple[str]) -> jax.Array:
-    s = NamedSharding(get_mesh(), P(*spec))
-    return jax.lax.with_sharding_constraint(arr, s)
+    mesh = get_mesh()
+    if mesh is None: 
+        logging.warning(f'{bcolors.WARNING}{bcolors.BOLD}couldnt add sharding constraint because we didnt set up mesh yet!{bcolors.ENDC}')
+        return arr
+    else:
+        s = NamedSharding(mesh, P(*spec))
+        return jax.lax.with_sharding_constraint(arr, s)
 
 def shard(arr: jax.Array, spec: Tuple[str]) -> jax.Array:
-    s = NamedSharding(get_mesh(), P(*spec))
-    return jax.device_put(arr, s)
+    mesh = get_mesh()
+    if mesh is None: 
+        logging.warning(f'{bcolors.WARNING}{bcolors.BOLD}couldnt shard array because we didnt set up mesh yet!{bcolors.ENDC}')
+        return arr
+    else:
+        s = NamedSharding(mesh, P(*spec))
+        return jax.device_put(arr, s)

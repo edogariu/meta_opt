@@ -4,7 +4,11 @@ from flax import struct
 from torch import optim, Tensor
 import optax
 
-from meta_opt.optimizers.base import OptimizerConfig
+from .base import OptimizerConfig
+
+# ==============================================================================
+# --------------------------   SGD   -------------------------------------------
+# ==============================================================================
 
 
 @struct.dataclass

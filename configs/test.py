@@ -1,8 +1,5 @@
 from meta_opt.experiment import ExperimentConfig
-from meta_opt.optimizers.sgd import SGDConfig
-from meta_opt.optimizers.adamw import AdamWConfig
-from meta_opt.optimizers.metaopt import MetaOptConfig
-
+from meta_opt.optimizers import SGDConfig, AdamWConfig, MetaOptConfig
 
 def get_configs():
     
@@ -13,7 +10,8 @@ def get_configs():
         
         # workload details
         seed=42,
-        workload_name='ogbg', 
+        experimental_setup='algoperf',
+        workload_name='mnist', 
         full_batch=False,  # whether to do full gradient descent on one batch (fixed during the whole training) or regular minibatch SGD
         num_episodes=20,
         num_iters=500,  # if None, uses default for the workload
@@ -25,9 +23,9 @@ def get_configs():
         # how often to do things
         eval_every=50,
         checkpoint_every=-1,
-        log_every=10,
 
-        # other details
+        # algoperf-specific args
+        log_every=50,
         use_wandb=True,
         print_with_colors=True)
 
@@ -36,14 +34,20 @@ def get_configs():
 
     # # meta_optimizer_cfg = SGDConfig(learning_rate=1e-5, momentum=0, nesterov=False, weight_decay=None, grad_clip=None)
     # meta_optimizer_cfg = AdamWConfig(learning_rate=4e-4, b1=0.9, b2=0.999, eps=1e-8, weight_decay=0, grad_clip=None)
-    # optimizer_cfg = MetaOptConfig(initial_learning_rate=0.001, weight_decay=1e-4, grad_clip=None,
+    # optimizer_cfg = MetaOptConfig(base_learning_rate=0.001, weight_decay=1e-4, grad_clip=None,
     #                             H=16, HH=2, m_method='scalar', scale_by_adam_betas=None, 
     #                             fake_the_dynamics=False, freeze_gpc_params=False, freeze_cost_fn_during_rollouts=False,
     #                             meta_optimizer_cfg=meta_optimizer_cfg, use_bfloat16=False)
 
     # meta_optimizer_cfg = SGDConfig(learning_rate=1e-5, momentum=0, nesterov=False, weight_decay=None, grad_clip=None)
-    # optimizer_cfg = MetaOptConfig(initial_learning_rate=0.001, weight_decay=1e-4, grad_clip=None,
+    # optimizer_cfg = MetaOptConfig(base_learning_rate=0.001, weight_decay=1e-4, grad_clip=None,
     #                               H=16, HH=2, m_method='diagonal', scale_by_adam_betas=(0.9, 0.999),
     #                               meta_optimizer_cfg=meta_optimizer_cfg, meta_grad_clip=10.0)
     
-    return experiment_cfg, optimizer_cfg
+    if experiment_cfg.experimental_setup == 'algoperf':
+        return experiment_cfg, optimizer_cfg
+    elif experiment_cfg.experimental_setup == 'init2winit':
+        from meta_opt.init2winit.config_utils import convert_configs
+        return convert_configs(experiment_cfg, optimizer_cfg)
+    else:
+        raise NotImplementedError(experiment_cfg.experimental_setup)

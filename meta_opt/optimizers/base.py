@@ -1,5 +1,5 @@
-from typing import Callable, Iterable
 import abc
+from typing import Callable, Iterable
 
 from torch import optim, Tensor
 import optax

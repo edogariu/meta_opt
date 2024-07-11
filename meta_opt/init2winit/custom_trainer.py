@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Episodic trainer for the init2winit project. Forked from standard trainer."""
+"""Custom trainer for the init2winit project. Forked from standard trainer."""
 import itertools
 import time
 
@@ -25,21 +25,10 @@ from init2winit.trainer_lib import trainer_utils
 from init2winit.trainer_lib.trainer import update
 import jax
 
-# ------------------------------------------------------------------------------------
-# dogariu: I TOUCHED THIS CODE
-from flax import jax_utils
-from meta_opt.experiment import ExperimentConfig
-from meta_opt.optimizers.base import OptimizerConfig
-from meta_opt.utils import bcolors
-# ------------------------------------------------------------------------------------
+class CustomTrainer(base_trainer.BaseTrainer):
+  """Custom trainer (forked from standard init2winit trainer) that can do episodic training and fullbatch training."""
 
-
-class EpisodicTrainer(base_trainer.BaseTrainer):
-  """Episodic trainer."""
-
-  def train(self, 
-            experiment_cfg: ExperimentConfig, 
-            optimizer_cfg: OptimizerConfig):
+  def train(self):
     """All training logic.
 
     The only side-effects are:
@@ -66,12 +55,6 @@ class EpisodicTrainer(base_trainer.BaseTrainer):
 
     self._setup_and_maybe_restore(init_rng, data_rng, callback_rng, update)
 
-    # ----------------------------------------------------------------------------
-    # dogariu: I TOUCHED THIS CODE
-    if experiment_cfg.full_batch:
-      self._dataset.train_iterator_fn = self._dataset.train_iterator_fn
-    # -----------------------------------------------------------------------------
-
     if jax.process_index() == 0:
       trainer_utils.log_message(
         'Starting training!', self._logging_pool, self._xm_work_unit)
@@ -93,15 +76,6 @@ class EpisodicTrainer(base_trainer.BaseTrainer):
         hps=self._hps,
         global_step=self._global_step,
         constant_base_rng=rng)
-      
-    # ----------------------------------------------------------------------------
-    # dogariu: I TOUCHED THIS CODE
-    if experiment_cfg.full_batch:
-      frozen_batch = next(train_iter)
-      def _same_batch_generator():
-          while True: yield frozen_batch
-      train_iter = _same_batch_generator()
-    # ----------------------------------------------------------------------------
 
     start_time = time.time()
     start_step = self._global_step
@@ -116,11 +90,23 @@ class EpisodicTrainer(base_trainer.BaseTrainer):
 
 # ------------------------------------------------------------------------
 # dogariu: I TOUCHED THIS CODE
+
+    from flax import jax_utils
+    experiment_cfg, optimizer_cfg = self._hps['experiment_cfg'], self._hps['optimizer_cfg']
+
+    # add the fullbatch part
+    if experiment_cfg.full_batch:
+      frozen_batch = next(train_iter)
+      def _same_batch_generator():
+          while True: yield frozen_batch
+      train_iter = _same_batch_generator()
+
+    # add the episodic part
     num_episodes = experiment_cfg.num_episodes
     for episode_i in range(1, num_episodes + 1):
       # reset for the episode
       rng, init_rng = jax.random.split(rng)
-      logging.info(f'{bcolors.OKBLUE}{bcolors.BOLD}Resetting model!{bcolors.ENDC}')
+      logging.info('Resetting model!')
 
       unreplicated_params, unreplicated_batch_stats = self._model.initialize(
         self._initializer,
@@ -130,14 +116,20 @@ class EpisodicTrainer(base_trainer.BaseTrainer):
       self._params, self._batch_stats = jax_utils.replicate(unreplicated_params), jax_utils.replicate(unreplicated_batch_stats)
 
       if optimizer_cfg.reset_opt_state:
-        logging.info(f'{bcolors.OKBLUE}{bcolors.BOLD}Also resetting optimizer state!{bcolors.ENDC}')
-        optimizer_init_fn, self._optimizer_update_fn = optimizer_cfg.make_jax()
-        unreplicated_optimizer_state = optimizer_init_fn(unreplicated_params)
+        logging.info('Also resetting optimizer state!')
+        if optimizer_cfg.optimizer_name == 'MetaOpt':
+          unreplicated_opt_state = jax_utils.unreplicate(self._optimizer_state)
+          gpc_params, gpc_opt_state = unreplicated_opt_state[0].gpc_params, unreplicated_opt_state[0].gpc_opt_state
+          unreplicated_optimizer_state = self._optimizer_init_fn(unreplicated_params)
+          unreplicated_optimizer_state = (unreplicated_optimizer_state[0].replace(gpc_params=gpc_params, gpc_opt_state=gpc_opt_state),
+                                          unreplicated_optimizer_state[1])
+          logging.info('Resetting metaopt, so I am putting back the gpc params')
+        else:
+          unreplicated_optimizer_state = self._optimizer_init_fn(unreplicated_params)          
         self._optimizer_state = jax_utils.replicate(unreplicated_optimizer_state)
       logging.warn('@EVAN DONT FORGET: handle replication of opt state and also DONT RESET THE Ms for metaopt')
-        # raise RuntimeError('handle replication of opt state and also DONT RESET THE Ms for metaopt')
 
-      if num_episodes > 1: logging.info(f'{bcolors.FAIL}{bcolors.BOLD}Starting training episode {episode_i}.{bcolors.ENDC}')
+      if num_episodes > 1: logging.info(f'Starting training episode {episode_i}.')
 # ------------------------------------------------------------------------
       for _ in range(start_step, self._num_train_steps):
         with jax.profiler.StepTraceAnnotation('train', step_num=self._global_step):

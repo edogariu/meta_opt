@@ -12,14 +12,14 @@ import optax
 from optax._src import base
 import chex
 
-from meta_opt.optimizers.base import OptimizerConfig
+from .base import OptimizerConfig
 from meta_opt.utils import bcolors, get_size, sharding_constraint, get_mesh
 
 
 @struct.dataclass
 class MetaOptConfig(OptimizerConfig):
     # params of the base optimizer
-    initial_learning_rate: float
+    base_learning_rate: float
     weight_decay: float
     grad_clip: float
     scale_by_adam_betas: Optional[Tuple[float, float]]  # set to `None` to not rescale disturbances with Adam rescaling
@@ -58,7 +58,7 @@ class MetaOptConfig(OptimizerConfig):
         and could be used afterward in the usual way.
         """
         meta_optimizer = self.meta_optimizer_cfg.make_jax()
-        opt = make_jax_metaopt(base_lr=self.initial_learning_rate, weight_decay=self.weight_decay, grad_clip=self.grad_clip, scale_by_adam_betas=self.scale_by_adam_betas,
+        opt = make_jax_metaopt(base_lr=self.base_learning_rate, weight_decay=self.weight_decay, grad_clip=self.grad_clip, scale_by_adam_betas=self.scale_by_adam_betas,
                                H=self.H, HH=self.HH, m_method=self.m_method,
                                gpc_tx=meta_optimizer,
                                fake_the_dynamics=self.fake_the_dynamics, freeze_gpc_params=self.freeze_gpc_params, freeze_cost_fn_during_rollouts=self.freeze_cost_fn_during_rollouts,
@@ -77,7 +77,7 @@ def append(arr, val):
     rightmost recent appending, i.e. arr = (val_{t-h}, ..., val_{t-1}, val_t).
     Unlike `jnp.roll`, using a concatenate doesn't make a temp array of size 2 * arr.shape[0]
     """
-    # arr = jnp.concatenate((arr.astype(jnp.bfloat16)[1:].astype(jnp.bfloat16), val.astype(jnp.bfloat16)[None].astype(jnp.bfloat16)), axis=0, dtype=jax.dtypes.bfloat16).astype(jnp.bfloat16)
+    # TODO(dogariu) figure out why this allocs a f32 array even when `arr.dtype = jnp.bfloat16`
     arr = jnp.concatenate((arr[1:], val[None]), axis=0, dtype=arr.dtype)
     return arr
 
@@ -97,6 +97,7 @@ def compute_gpc_control(gpc_params: chex.Array,
     _, n = disturbance_history.shape
 
     # the einsum way
+    # TODO(dogariu) figure out why this allocs a f32 array even when `arr.dtype = jnp.bfloat16`
     logging.info('[GPC] computing controls the einsum way')
     EINSUM_STRS = {1: 'h,hn->n', 2: 'hn,hn->n', 3: 'hmn,hn->m'}  # how to compute controls for scalar, diagonal, and full gpc_params, respectively
     einsum_str = EINSUM_STRS[gpc_params.ndim]
@@ -104,7 +105,7 @@ def compute_gpc_control(gpc_params: chex.Array,
 
     # logging.info('[GPC] computing controls the numpy way')
     # if gpc_params.ndim == 1:
-    #     ret = (gpc_params[..., None] * disturbance_history).sum(axis=0)
+    #     ret = disturbance_history.T @ gpc_params
     # elif gpc_params.ndim == 2:
     #     ret = (gpc_params * disturbance_history).sum(axis=0)
     # elif gpc_params.ndim == 3:
@@ -112,31 +113,6 @@ def compute_gpc_control(gpc_params: chex.Array,
     # else:
     #     raise NotImplementedError(f'gpc_params.ndim={gpc_params.ndim} not in [1, 2, 3]')
     
-    # logging.info('[GPC] computing controls the scan way')
-    # def scan_fn(c, v):
-    #     g, d = v
-    #     return (c + g * d), None
-    # ret, _ = jax.lax.scan(scan_fn, jnp.zeros((n,)), (gpc_params, disturbance_history))
-
-    # logging.info('the matmul way (only for scalar Ms)')
-    # # ret = jnp.dot(disturbance_history.T, gpc_params)
-    # ret = disturbance_history.T @ gpc_params
-
-    # logging.info('[GPC] computing controls the hardcoded way')
-    # ret = gpc_params[0] * disturbance_history[0] + \
-    #       gpc_params[1] * disturbance_history[1] + \
-    #       gpc_params[2] * disturbance_history[2] + \
-    #       gpc_params[3] * disturbance_history[3] + \
-    #       gpc_params[4] * disturbance_history[4] + \
-    #       gpc_params[5] * disturbance_history[5] + \
-    #       gpc_params[6] * disturbance_history[6]
-
-    # logging.info('[GPC] computing controls the forloop way')
-    # ret = jax.lax.fori_loop(0, 7, lambda i, c: c + gpc_params[i] * disturbance_history[i], jnp.zeros((n,), dtype=disturbance_history.dtype))
-
-    # logging.info('[GPC] computing controls the other numpy way (only for scalar Ms)')
-    # ret = (gpc_params[..., None] * disturbance_history).sum(axis=0)
-
     assert ret.shape == (n,), (ret.shape, (n,))
     return ret
 
@@ -288,8 +264,9 @@ def make_jax_metaopt(
 
         # also make sure that flat size is a multiple of the number of devices along which to shard opt state
         num_params = sum([p.size for p in jax.tree_util.tree_leaves(params)])
-        n_opt_devices = get_mesh().shape['opt']
-        logging.info(f'{bcolors.OKCYAN}sharding opt state across {n_opt_devices} devices{bcolors.ENDC}')
+        mesh = get_mesh()
+        n_opt_devices = mesh.shape['opt'] if mesh is not None else 1
+        if n_opt_devices > 1: logging.info(f'{bcolors.OKCYAN}sharding opt state across {n_opt_devices} devices{bcolors.ENDC}')
         if num_params % n_opt_devices != 0:
             flat_size = (1 + num_params // n_opt_devices) * n_opt_devices
             logging.info(f'{bcolors.OKCYAN}needed to pad iterates from {num_params} to {flat_size} to evenly divide over {n_opt_devices} devices{bcolors.ENDC}')

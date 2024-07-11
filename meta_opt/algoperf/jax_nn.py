@@ -9,7 +9,7 @@ from flax import struct, core, jax_utils
 
 from algorithmic_efficiency import spec
 
-from meta_opt.optimizers.base import OptimizerConfig
+from meta_opt.optimizers import OptimizerConfig
 from meta_opt.utils import bcolors, get_size
 
 
