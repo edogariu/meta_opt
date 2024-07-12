@@ -1,7 +1,7 @@
 from typing import Union, Callable, Iterable, Optional
 from flax import struct
 
-from torch import optim, Tensor
+# from torch import optim, Tensor
 import optax
 
 from .base import OptimizerConfig
@@ -29,19 +29,19 @@ class AdamWConfig(OptimizerConfig):
     reset_opt_state: bool = True  # whether to also reset the optimizer state during the episodic resets
 
 
-    def make_torch(self) -> Callable[[Iterable[Tensor]], optim.Optimizer]:
-        """
-        Instantiates this optimizer configuration for use with pytorch. 
-        For example, if this were SGD, it would return roughly the same thing as
-                `lambda params: torch.optim.SGD(params, lr=self.lr, ...)`
-        and could be used afterward in the usual way.
-        """
-        assert self.grad_clip is None, 'havent added gradient clipping to pytorch optimizers yet, my bad'
-        return lambda params: optim.Adam(params,
-                                         lr=self.learning_rate, 
-                                         betas=(self.b1, self.b2),
-                                         eps=self.eps, 
-                                         weight_decay=self.weight_decay)
+    # def make_torch(self) -> Callable[[Iterable[Tensor]], optim.Optimizer]:
+    #     """
+    #     Instantiates this optimizer configuration for use with pytorch. 
+    #     For example, if this were SGD, it would return roughly the same thing as
+    #             `lambda params: torch.optim.SGD(params, lr=self.lr, ...)`
+    #     and could be used afterward in the usual way.
+    #     """
+    #     assert self.grad_clip is None, 'havent added gradient clipping to pytorch optimizers yet, my bad'
+    #     return lambda params: optim.Adam(params,
+    #                                      lr=self.learning_rate, 
+    #                                      betas=(self.b1, self.b2),
+    #                                      eps=self.eps, 
+    #                                      weight_decay=self.weight_decay)
              
 
     def make_jax(self) -> optax.GradientTransformationExtraArgs:

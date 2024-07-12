@@ -2,7 +2,7 @@ from absl import logging
 from typing import Tuple, Callable, Iterable, Optional, Dict
 import functools
 
-from torch import optim, Tensor
+# from torch import optim, Tensor
 
 import jax
 import jax.flatten_util
@@ -40,14 +40,14 @@ class MetaOptConfig(OptimizerConfig):
     reset_opt_state: bool = True  # Whether to also reset the optimizer state during the episodic resets. Dont worry, this resets everything except the M parameters (including things like disturbance transformation state, for example)
 
 
-    def make_torch(self) -> Callable[[Iterable[Tensor]], optim.Optimizer]:
-        """
-        Instantiates this optimizer configuration for use with pytorch. 
-        For example, if this were SGD, it would return roughly the same thing as
-                `lambda params: torch.optim.SGD(params, lr=self.lr, ...)`
-        and could be used afterward in the usual way.
-        """
-        raise NotImplementedError('havent implemented metaopt in pytorch yet, sorry')
+    # def make_torch(self) -> Callable[[Iterable[Tensor]], optim.Optimizer]:
+    #     """
+    #     Instantiates this optimizer configuration for use with pytorch. 
+    #     For example, if this were SGD, it would return roughly the same thing as
+    #             `lambda params: torch.optim.SGD(params, lr=self.lr, ...)`
+    #     and could be used afterward in the usual way.
+    #     """
+    #     raise NotImplementedError('havent implemented metaopt in pytorch yet, sorry')
              
 
     def make_jax(self) -> optax.GradientTransformationExtraArgs:

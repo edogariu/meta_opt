@@ -1,7 +1,7 @@
 import abc
 from typing import Callable, Iterable
 
-from torch import optim, Tensor
+# from torch import optim, Tensor
 import optax
 
 """
@@ -15,14 +15,14 @@ class OptimizerConfig(abc.ABC):
     self_tuning: bool
     reset_opt_state: bool
 
-    @abc.abstractmethod
-    def make_torch(self) -> Callable[[Iterable[Tensor]], optim.Optimizer]:
-        """
-        Instantiates this optimizer configuration for use with pytorch. 
-        For example, if this were SGD, it would return roughly the same thing as
-                `lambda params: torch.optim.SGD(params, lr=self.lr, ...)`
-        and could be used afterward in the usual way.
-        """
+    # @abc.abstractmethod
+    # def make_torch(self) -> Callable[[Iterable[Tensor]], optim.Optimizer]:
+    #     """
+    #     Instantiates this optimizer configuration for use with pytorch. 
+    #     For example, if this were SGD, it would return roughly the same thing as
+    #             `lambda params: torch.optim.SGD(params, lr=self.lr, ...)`
+    #     and could be used afterward in the usual way.
+    #     """
 
     @abc.abstractmethod
     def make_jax(self) -> optax.GradientTransformationExtraArgs:
@@ -35,7 +35,8 @@ class OptimizerConfig(abc.ABC):
 
     def make(self, framework: str):
         if framework == 'torch': 
-            return self.make_torch()
+            raise NotImplementedError('havent gotten around to implementing torch yet, sorry')
+            # return self.make_torch()
         elif framework == 'jax':
             return self.make_jax()
         else:

@@ -1,3 +1,4 @@
+from typing import Optional
 from flax import struct
 
 @struct.dataclass
@@ -17,13 +18,13 @@ class ExperimentConfig:
     workload_name: str  # one of ['mnist', 'cifar', 'wmt', 'ogbg', 'lm1b', ...]
     full_batch: bool
     num_episodes: int
-    num_iters: int = None
-    batch_size: int = None
+    num_iters: Optional[int] = None
+    batch_size: Optional[int] = None
 
     # backend details. the number of devices should multiply to `jax.local_device_count()`
     framework: str = 'jax'  # one of ['pytorch', 'jax']
-    num_batch_devices: int = None
-    num_opt_devices: int = None
+    num_batch_devices: Optional[int] = None
+    num_opt_devices: Optional[int] = None
 
     # how often to do things. set to `-1` to never do them
     eval_every: int = -1

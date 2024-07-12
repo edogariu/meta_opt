@@ -1,15 +1,12 @@
-from absl import logging
-
-try:  # try internal imports
+try:
+    from meta_opt.experiment import ExperimentConfig
+    from meta_opt.optimizers import SGDConfig, AdamWConfig, MetaOptConfig
+except:  # internal google imports
     from google3.learning.deepmind.python.adhoc_import import binary_import
     with binary_import.AutoGoogle3():
         from init2winit.experiments.meta_opt.meta_opt.init2winit import config_utils
         from init2winit.experiments.meta_opt.meta_opt.experiment import ExperimentConfig
         from init2winit.experiments.meta_opt.meta_opt.optimizers import SGDConfig, AdamWConfig, MetaOptConfig
-except Exception as e:  # otherwise, just import regularly
-    logging.exception(f'[CONFIG] {e}')
-    from meta_opt.experiment import ExperimentConfig
-    from meta_opt.optimizers import SGDConfig, AdamWConfig, MetaOptConfig
 
 def get_config():
     
