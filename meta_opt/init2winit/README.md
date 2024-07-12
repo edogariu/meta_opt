@@ -1,9 +1,20 @@
 # Things to change in `init2winit` codebase 
-Here is a list of the changes that must be made in Google's internal `init2winit` codebase so that our stuff runs.
+Here is a list of the changes that must be made in Google's internal `//third_party/py/init2winit` codebase so that our stuff runs.
+
+### Link imports/builds/things
+Our config file will need to be able to import `meta_opt.optimizers.*.py` (which in turn needs `meta_opt.utils.py`) as well as `meta_opt.experiment.py` and `meta_opt.init2winit.config_utils.py`. The easiest way to do this is simply to copy all the files of interest into `init2winit/experiments/` next to `base_config.py`, let cider figure out all the `BUILD` files, and import all the modules at the top of the config file with
+```python
+# pylint: disable=g-import-not-at-top
+from google3.learning.deepmind.python.adhoc_import import binary_import
+with binary_import.AutoGoogle3():
+    from init2winit.experiments import sgd, adamw, metaopt, experiment, config_utils, ...
+# pylint: enable=g-import-not-at-top
+```
 
 ### Add metaopt to `optimizer_lib`
 Add to `init2winit/optimizer_lib/optimizers.py::get_optimizer(...)` the lines 
-```
+```python
+...
 elif hps.optimizer == 'metaopt':
     metaopt_cfg = hps['optimizer_cfg']
     def metaopt_fn(learning_rate: float): return metaopt_cfg.replace(base_learning_rate=learning_rate).make_jax()
@@ -11,22 +22,66 @@ elif hps.optimizer == 'metaopt':
         learning_rate=0.0,  # Manually injected on each train step
     )
     optimizer_requires_cost_fn = True
+...
 ```
 so that, as long as a `MetaOptConfig` is placed in `hps['optimizer_cfg']`, we can proceed.
 
-### Add episodic and fullbatch training to `trainer_lib`
-Import `custom_trainer.CustomTrainer` and add to `init2winit/trainer_lib/trainers.py::_ALL_TRAINERS` the lines 
-```
-_ALL_TRAINERS = {
-    'standard': trainer.Trainer,
-    'custom': CustomTrainer,
-}
+### Add episodic and fullbatch training to `trainer.Trainer`
+Add the following code to right before the train loop of `init2winit/trainer_lib/trainer.py::Trainer.train(...)`
+```python
+...
+
+from flax import jax_utils
+experiment_cfg, optimizer_cfg = self._hps['experiment_cfg'], self._hps['optimizer_cfg']
+
+# add the fullbatch part
+if experiment_cfg.full_batch:
+    frozen_batch = next(train_iter)
+    def _same_batch_generator():
+        while True: yield frozen_batch
+    train_iter = _same_batch_generator()
+
+# add the episodic part
+num_episodes = experiment_cfg.num_episodes
+for episode_i in range(1, num_episodes + 1):
+    # reset for the episode
+    rng, init_rng = jax.random.split(rng)
+    logging.info('Resetting model!')
+
+    unreplicated_params, unreplicated_batch_stats = self._model.initialize(
+    self._initializer,
+    self._hps,
+    init_rng,
+    self._init_logger,)
+    self._params, self._batch_stats = jax_utils.replicate(unreplicated_params), jax_utils.replicate(unreplicated_batch_stats)
+
+    if optimizer_cfg.reset_opt_state:
+    logging.info('Also resetting optimizer state!')
+    if optimizer_cfg.optimizer_name == 'MetaOpt':
+        unreplicated_opt_state = jax_utils.unreplicate(self._optimizer_state)
+        gpc_params, gpc_opt_state = unreplicated_opt_state[0].gpc_params, unreplicated_opt_state[0].gpc_opt_state
+        unreplicated_optimizer_state = self._optimizer_init_fn(unreplicated_params)
+        unreplicated_optimizer_state = (unreplicated_optimizer_state[0].replace(gpc_params=gpc_params, gpc_opt_state=gpc_opt_state),
+                                        unreplicated_optimizer_state[1])
+        logging.info('Resetting metaopt, so I am putting back the gpc params')
+    else:
+        unreplicated_optimizer_state = self._optimizer_init_fn(unreplicated_params)          
+    self._optimizer_state = jax_utils.replicate(unreplicated_optimizer_state)
+    logging.warn('@EVAN DONT FORGET: handle replication of opt state and also DONT RESET THE Ms for metaopt')
+
+    if num_episodes > 1: logging.info(f'Starting training episode {episode_i}.')
+
+    for _ in range(start_step, self._num_train_steps):
+        ...
+
 ```
 so that, as long as an `ExperimentConfig` is placed in `hps['experiment_cfg']` and an `OptimizerConfig` is placed in `hps['optimizer_cfg']`, we can proceed. We also need to add 
-```
+```python
+...
 optimizer_init_fn, optimizer_update_fn = optimizers.get_optimizer(
     self._hps, self._model, batch_axis_name='batch')
 unreplicated_optimizer_state = optimizer_init_fn(unreplicated_params)
 self._optimizer_init_fn = optimizer_init_fn
+...
 ```
-to `init2winit/trainer_lib/base_trainer.py::setup_and_maybe_restore()` to expose `self._optimizer_init_fn` for episodic resets.
+to `init2winit/trainer_lib/base_trainer.py::setup_and_maybe_restore(...)` to expose `self._optimizer_init_fn` for episodic resets.

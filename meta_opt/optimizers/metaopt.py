@@ -13,7 +13,7 @@ from optax._src import base
 import chex
 
 from .base import OptimizerConfig
-from meta_opt.utils import bcolors, get_size, sharding_constraint, get_mesh
+from ..utils import bcolors, get_size, sharding_constraint, get_mesh
 
 
 @struct.dataclass

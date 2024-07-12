@@ -3,7 +3,6 @@ from ml_collections.config_dict import config_dict
 
 def make_default(workload: str) -> config_dict.ConfigDict:
     config = get_base_config()
-    config.trainer = 'custom'
 
     if workload == 'mnist':
         batch_size = 64
