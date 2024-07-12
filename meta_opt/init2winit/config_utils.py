@@ -1,5 +1,6 @@
 import datetime
 from ml_collections.config_dict import config_dict
+from dataclasses import asdict
 
 def make_default(workload: str) -> config_dict.ConfigDict:
     config = get_base_config()
@@ -79,7 +80,8 @@ def convert_configs(experiment_cfg, optimizer_cfg):
     time = datetime.datetime.now().strftime('%Y_%m_%d_%H_%M_%S')
     config.experiment_name = f'{experiment_cfg.experiment_name}_{experiment_cfg.workload_name}_{time}'
     config.cell = 'pw'
-    hparam_overrides['experiment_cfg'], hparam_overrides['optimizer_cfg'] = experiment_cfg, optimizer_cfg
+    hparam_overrides['experiment_cfg'] = asdict(experiment_cfg)
+    hparam_overrides['optimizer_cfg'] = asdict(optimizer_cfg)
 
     # parse experiment config
     if experiment_cfg.batch_size is not None:
@@ -208,6 +210,8 @@ def get_base_config() -> config_dict.ConfigDict:
     config.early_stopping_target_value = config_dict.placeholder(float)
     config.early_stopping_mode = config_dict.placeholder(str)
     config.early_stopping_min_steps = 0
+    config.experiment_cfg = None
+    config.optimizer_cfg = None
     # Prevent adding new fields. Existing fields can be overridden.
     config.lock()
     return config

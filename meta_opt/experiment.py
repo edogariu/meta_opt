@@ -37,10 +37,3 @@ class ExperimentConfig:
     log_every: int = -1  # does nothing for init2winit experiments
     print_with_colors: bool = True  # whether to use colors when printing
     use_wandb: bool = False
-
-    def toJSON(self):
-        return json.dumps(
-            self,
-            default=lambda o: asdict(o), 
-            sort_keys=True,
-            indent=4)

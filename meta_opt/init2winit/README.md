@@ -3,8 +3,83 @@ Here is a list of the changes that must be made in Google's internal `//third_pa
 
 ### Link imports/builds/things
 Our config file will need to be able to import `meta_opt.optimizers.*.py` (which in turn needs `meta_opt.utils.py`) as well as `meta_opt.experiment.py` and `meta_opt.init2winit.config_utils.py`. The easiest way to do this is simply to clone this repo into `init2winit/experiments/` next to `base_config.py` and paste this addition to the `init2winit/experiments/BUILD` file.
-```
-add_stuff
+```python
+...
+pytype_strict_library(
+    name = "meta_opt/meta_opt/init2winit/config_utils",
+    srcs = ["meta_opt/meta_opt/init2winit/config_utils.py",],
+    srcs_version = "PY3",
+    visibility = ["//third_party/py/init2winit:__subpackages__"],
+    deps = [
+        "//third_party/py/ml_collections/config_dict",  # buildcleaner: keep
+    ],
+)
+
+pytype_strict_library(
+    name = "meta_opt/meta_opt/experiment",
+    srcs = ["meta_opt/meta_opt/experiment.py",],
+    srcs_version = "PY3",
+    visibility = ["//third_party/py/init2winit:__subpackages__"],
+    deps = [
+        "//third_party/py/flax",  # buildcleaner: keep
+    ],
+)
+
+pytype_strict_library(
+    name = "meta_opt/meta_opt/utils",
+    srcs = ["meta_opt/meta_opt/utils.py",],
+    srcs_version = "PY3",
+    visibility = ["//third_party/py/init2winit:__subpackages__"],
+    deps = [
+        "//third_party/py/jax",  # buildcleaner: keep
+    ],
+)
+
+pytype_strict_library(
+    name = "meta_opt/meta_opt/optimizers/base",
+    srcs = ["meta_opt/meta_opt/optmiizers/base.py",],
+    srcs_version = "PY3",
+    visibility = ["//third_party/py/init2winit:__subpackages__"],
+    deps = [
+        "//third_party/py/flax",  # buildcleaner: keep
+        "//third_party/py/optax",  # buildcleaner: keep
+    ],
+)
+
+pytype_strict_library(
+    name = "meta_opt/meta_opt/optimizers/sgd",
+    srcs = ["meta_opt/meta_opt/optmiizers/sgd.py",],
+    srcs_version = "PY3",
+    visibility = ["//third_party/py/init2winit:__subpackages__"],
+    deps = [
+        "//third_party/py/flax",  # buildcleaner: keep
+        "//third_party/py/optax",  # buildcleaner: keep
+    ],
+)
+
+pytype_strict_library(
+    name = "meta_opt/meta_opt/optimizers/adamw",
+    srcs = ["meta_opt/meta_opt/optmiizers/adamw.py",],
+    srcs_version = "PY3",
+    visibility = ["//third_party/py/init2winit:__subpackages__"],
+    deps = [
+        "//third_party/py/flax",  # buildcleaner: keep
+        "//third_party/py/optax",  # buildcleaner: keep
+    ],
+)
+
+pytype_strict_library(
+    name = "meta_opt/meta_opt/optimizers/metaopt",
+    srcs = ["meta_opt/meta_opt/optmiizers/metaopt.py",],
+    srcs_version = "PY3",
+    visibility = ["//third_party/py/init2winit:__subpackages__"],
+    deps = [
+        "//third_party/py/chex",  # buildcleaner: keep
+        "//third_party/py/flax",  # buildcleaner: keep
+        "//third_party/py/jax",  # buildcleaner: keep
+        "//third_party/py/optax",  # buildcleaner: keep
+    ],
+)
 ```
 
 ### Add metaopt to `optimizer_lib`
