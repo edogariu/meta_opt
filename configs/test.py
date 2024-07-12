@@ -1,5 +1,15 @@
-from meta_opt.experiment import ExperimentConfig
-from meta_opt.optimizers import SGDConfig, AdamWConfig, MetaOptConfig
+from absl import logging
+
+try:  # try internal imports
+    from google3.learning.deepmind.python.adhoc_import import binary_import
+    with binary_import.AutoGoogle3():
+        from init2winit.experiments.meta_opt.meta_opt.init2winit import config_utils
+        from init2winit.experiments.meta_opt.meta_opt.experiment import ExperimentConfig
+        from init2winit.experiments.meta_opt.meta_opt.optimizers import SGDConfig, AdamWConfig, MetaOptConfig
+except Exception as e:  # otherwise, just import regularly
+    logging.exception(f'[CONFIG] {e}')
+    from meta_opt.experiment import ExperimentConfig
+    from meta_opt.optimizers import SGDConfig, AdamWConfig, MetaOptConfig
 
 def get_config():
     
@@ -47,7 +57,6 @@ def get_config():
     if experiment_cfg.experimental_setup == 'algoperf':
         return experiment_cfg, optimizer_cfg
     elif experiment_cfg.experimental_setup == 'init2winit':
-        from meta_opt.init2winit.config_utils import convert_configs
-        return convert_configs(experiment_cfg, optimizer_cfg)
+        return config_utils.convert_configs(experiment_cfg, optimizer_cfg)
     else:
         raise NotImplementedError(experiment_cfg.experimental_setup)
