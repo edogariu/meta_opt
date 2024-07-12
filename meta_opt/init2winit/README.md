@@ -2,13 +2,9 @@
 Here is a list of the changes that must be made in Google's internal `//third_party/py/init2winit` codebase so that our stuff runs.
 
 ### Link imports/builds/things
-Our config file will need to be able to import `meta_opt.optimizers.*.py` (which in turn needs `meta_opt.utils.py`) as well as `meta_opt.experiment.py` and `meta_opt.init2winit.config_utils.py`. The easiest way to do this is simply to copy all the files of interest into `init2winit/experiments/` next to `base_config.py`, let cider figure out all the `BUILD` files, and import all the modules at the top of the config file with
-```python
-# pylint: disable=g-import-not-at-top
-from google3.learning.deepmind.python.adhoc_import import binary_import
-with binary_import.AutoGoogle3():
-    from init2winit.experiments import sgd, adamw, metaopt, experiment, config_utils, ...
-# pylint: enable=g-import-not-at-top
+Our config file will need to be able to import `meta_opt.optimizers.*.py` (which in turn needs `meta_opt.utils.py`) as well as `meta_opt.experiment.py` and `meta_opt.init2winit.config_utils.py`. The easiest way to do this is simply to clone this repo into `init2winit/experiments/` next to `base_config.py` and paste this addition to the `init2winit/experiments/BUILD` file.
+```
+add_stuff
 ```
 
 ### Add metaopt to `optimizer_lib`
@@ -85,3 +81,5 @@ self._optimizer_init_fn = optimizer_init_fn
 ...
 ```
 to `init2winit/trainer_lib/base_trainer.py::setup_and_maybe_restore(...)` to expose `self._optimizer_init_fn` for episodic resets.
+
+### Putting out fires

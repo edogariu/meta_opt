@@ -18,7 +18,7 @@ def get_config():
         
         # workload details
         seed=42,
-        experimental_setup='algoperf',
+        experimental_setup='init2winit',
         workload_name='mnist', 
         full_batch=False,  # whether to do full gradient descent on one batch (fixed during the whole training) or regular minibatch SGD
         num_episodes=20,
