@@ -194,6 +194,7 @@ def get_base_config() -> config_dict.ConfigDict:
     config.allowed_unrecognized_hparams = []
     # Vizier parameters.
     config.use_halton_generator = False
+    config.vizier_study_config = None
     # config.vizier_study_config = config_dict.placeholder(vizier_pb2.StudyConfig)
     config.vizier_num_clients = config_dict.placeholder(int)
     config.vizier_max_feasible_trials = config_dict.placeholder(int)

@@ -2,6 +2,7 @@ try:
     from meta_opt.experiment import ExperimentConfig
     from meta_opt.optimizers import SGDConfig, AdamWConfig, MetaOptConfig
 except:  # internal google imports
+    import jax
     from google3.learning.deepmind.python.adhoc_import import binary_import
     with binary_import.AutoGoogle3():
         from init2winit.experiments.meta_opt.meta_opt.init2winit import config_utils
