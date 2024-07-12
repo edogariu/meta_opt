@@ -28,6 +28,15 @@ class AdamWConfig(OptimizerConfig):
     self_tuning: bool = False
     reset_opt_state: bool = True  # whether to also reset the optimizer state during the episodic resets
 
+    @staticmethod
+    def fromdict(d: dict):
+        ret = {}
+        for k in ['learning_rate', 'b1', 'b2', 'eps']:  # required
+            ret[k] = d[k]
+        for k in ['weight_decay', 'grad_clip']:  # optional
+            if k in d: ret[k] = d[k]
+        return AdamWConfig(**ret)
+
 
     # def make_torch(self) -> Callable[[Iterable[Tensor]], optim.Optimizer]:
     #     """

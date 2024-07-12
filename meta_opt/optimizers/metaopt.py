@@ -13,6 +13,8 @@ from optax._src import base
 import chex
 
 from .base import OptimizerConfig
+from .sgd import SGDConfig
+from .adamw import AdamWConfig
 from ..utils import bcolors, get_size, sharding_constraint, get_mesh
 
 
@@ -38,6 +40,26 @@ class MetaOptConfig(OptimizerConfig):
     optimizer_name: str = 'MetaOpt'
     self_tuning: bool = True
     reset_opt_state: bool = True  # Whether to also reset the optimizer state during the episodic resets. Dont worry, this resets everything except the M parameters (including things like disturbance transformation state, for example)
+
+    @staticmethod
+    def fromdict(d: dict):
+        ret = {}
+        meta_optimizer_name = d['meta_optimizer_cfg']['optimizer_name']
+        if meta_optimizer_name == 'SGD':
+            ret['meta_optimizer_cfg'] = SGDConfig.fromdict(d['meta_optimizer_cfg'])
+        elif meta_optimizer_name == 'AdamW':
+            ret['meta_optimizer_cfg'] = AdamWConfig.fromdict(d['meta_optimizer_cfg'])
+        else:
+            raise ValueError(f'unknown meta optimizer {meta_optimizer_name}')
+        ret['meta_optimizer_cfg'] = OptimizerConfig.fromdict(d['meta_optimizer_cfg'])
+        
+        for k in ['base_learning_rate', 'weight_decay', 'grad_clip', 'scale_by_adam_betas',
+                  'H', 'HH', 'm_method', 'use_bfloat16',
+                  'fake_the_dynamics', 'freeze_gpc_params', 'freeze_cost_fn_during_rollouts',]:  # required
+            ret[k] = d[k]
+        for k in []:  # optional
+            if k in d: ret[k] = d[k]
+        return MetaOptConfig(**ret)
 
 
     # def make_torch(self) -> Callable[[Iterable[Tensor]], optim.Optimizer]:

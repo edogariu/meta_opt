@@ -1,4 +1,4 @@
-# Things to change in `init2winit` codebase 
+# How to run in `init2winit` codebase 
 Here is a list of the changes that must be made in Google's internal `//third_party/py/init2winit` codebase so that our stuff runs.
 
 ### Link imports/builds/things
@@ -87,7 +87,11 @@ Add to `init2winit/optimizer_lib/optimizers.py::get_optimizer(...)` the lines
 ```python
 ...
 elif hps.optimizer == 'metaopt':
-    metaopt_cfg = hps['optimizer_cfg']
+    import jax
+    from google3.learning.deepmind.python.adhoc_import import binary_import
+    with binary_import.AutoGoogle3():
+        from init2winit.experiments.meta_opt.meta_opt.optimizers import MetaOptConfig
+    metaopt_cfg = MetaOptConfig.fromdict(hps.opt_hparams['optimizer_cfg'])
     def metaopt_fn(learning_rate: float): return metaopt_cfg.replace(base_learning_rate=learning_rate).make_jax()
     opt_init, opt_update = utils.static_inject_hyperparams(metaopt_fn)(
         learning_rate=0.0,  # Manually injected on each train step
@@ -103,7 +107,7 @@ Add the following code to right before the train loop of `init2winit/trainer_lib
 ...
 
 from flax import jax_utils
-experiment_cfg, optimizer_cfg = self._hps['experiment_cfg'], self._hps['optimizer_cfg']
+experiment_cfg, optimizer_cfg = self._hps.opt_hparams['experiment_cfg'], self.opt_hparams['optimizer_cfg']
 
 # add the fullbatch part
 if experiment_cfg.full_batch:
@@ -157,4 +161,22 @@ self._optimizer_init_fn = optimizer_init_fn
 ```
 to `init2winit/trainer_lib/base_trainer.py::setup_and_maybe_restore(...)` to expose `self._optimizer_init_fn` for episodic resets.
 
+### TODO: HANDLING SHARDING
+we gotta set up opt_state sharding for i2w like we did for algoperf...
+
 ### Putting out fires
+On line 499 in `init2winit/xmanager/launch_utils_v2.py`, there is a note for (znado,gdahl) to convert it to `config.to_json()`. Do this.
+```python
+...
+if isinstance(config, config_dict.ConfigDict):
+    config_json = config.to_json()
+else:
+    config_json = json.dumps(config_copy)
+...
+```
+◊
+### Running it
+Now that we have set all this up, we can run a config simply by doing an `hgd` so that we are at `google3` and then executing
+```bash
+/google/bin/releases/xmanager/cli/xmanager.par --xm_deployment_env=alphabet launch third_party/py/init2winit/xmanager/launch_train_xm_v2.py -- --xm_resource_pool= --xm_resource_alloc= --undefok=xm_gxm_origin --xm_gxm_origin --xm_skip_launch_confirmation -- --xm_resource_pool=gdm --xm_skip_launch_confirmation --xm_resource_alloc=group:gdm/brain-pton --noxm_monitor_on_launch --xm_skip_launch_confirmation --config=third_party/py/init2winit/experiments/meta_opt/configs/test.py --use_fragmented_python --append_timestamp --skip_mitto --cns_group=dogariu
+```

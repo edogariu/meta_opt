@@ -27,6 +27,15 @@ class SGDConfig(OptimizerConfig):
     self_tuning: bool = False
     reset_opt_state: bool = True  # whether to also reset the optimizer state during the episodic resets
 
+    @staticmethod
+    def fromdict(d: dict):
+        ret = {}
+        for k in ['learning_rate', ]:  # required
+            ret[k] = d[k]
+        for k in ['momentum', 'nesterov', 'weight_decay', 'grad_clip']:  # optional
+            if k in d: ret[k] = d[k]
+        return SGDConfig(**ret)
+
 
 #     def make_torch(self) -> Callable[[Iterable[Tensor]], optim.Optimizer]:
 #         """

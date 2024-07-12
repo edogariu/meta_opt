@@ -25,6 +25,19 @@ class OptimizerConfig(abc.ABC):
     #     """
 
     @abc.abstractmethod
+    @staticmethod
+    def fromdict(d: dict):
+        """dict -> config
+
+        Args:
+            d (dict): dict assumed to contain all of the required args for the corresponding optimizer
+
+        Returns:
+            OptimizerConfig: config made from the dict
+        """
+        return OptimizerConfig(**d)
+
+    @abc.abstractmethod
     def make_jax(self) -> optax.GradientTransformationExtraArgs:
         """
         Instantiates this optimizer configuration for use with jax/flax/optax. 

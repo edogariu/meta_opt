@@ -2,9 +2,11 @@ import datetime
 from ml_collections.config_dict import config_dict
 from dataclasses import asdict
 
+
 def make_default(workload: str) -> config_dict.ConfigDict:
     config = get_base_config()
 
+    # parse workload
     if workload == 'mnist':
         batch_size = 64
         train_size = 50000
@@ -80,8 +82,6 @@ def convert_configs(experiment_cfg, optimizer_cfg):
     time = datetime.datetime.now().strftime('%Y_%m_%d_%H_%M_%S')
     config.experiment_name = f'{experiment_cfg.experiment_name}_{experiment_cfg.workload_name}_{time}'
     config.cell = 'pw'
-    hparam_overrides['experiment_cfg'] = asdict(experiment_cfg)
-    hparam_overrides['optimizer_cfg'] = asdict(optimizer_cfg)
 
     # parse experiment config
     if experiment_cfg.batch_size is not None:
@@ -96,6 +96,7 @@ def convert_configs(experiment_cfg, optimizer_cfg):
     config.checkpoint_steps = compute_steps(config.num_train_steps * experiment_cfg.num_episodes, experiment_cfg.checkpoint_every)
 
     # parse optimizer config
+    lr_hparams, opt_hparams = {}, {}
     if optimizer_cfg.optimizer_name == 'AdamW':
         hparam_overrides['optimizer'] = 'adam'
         lr_hparams = {
@@ -108,13 +109,13 @@ def convert_configs(experiment_cfg, optimizer_cfg):
             'epsilon': optimizer_cfg.eps,
             'weight_decay': optimizer_cfg.weight_decay
         }
-        hparam_overrides['lr_hparams'] = lr_hparams
-        hparam_overrides['opt_hparams'] = opt_hparams
     elif optimizer_cfg.optimizer_name == 'MetaOpt':
         hparam_overrides['optimizer'] = 'metaopt'
     else:
         raise NotImplementedError(optimizer_cfg.optimizer_name)
-
+    opt_hparams.update({'experiment_cfg': asdict(experiment_cfg), 'optimizer_cfg': asdict(optimizer_cfg)})
+    hparam_overrides['lr_hparams'] = lr_hparams
+    hparam_overrides['opt_hparams'] = opt_hparams
     config.hparam_overrides = hparam_overrides
     return config
 
@@ -210,8 +211,6 @@ def get_base_config() -> config_dict.ConfigDict:
     config.early_stopping_target_value = config_dict.placeholder(float)
     config.early_stopping_mode = config_dict.placeholder(str)
     config.early_stopping_min_steps = 0
-    config.experiment_cfg = None
-    config.optimizer_cfg = None
     # Prevent adding new fields. Existing fields can be overridden.
     config.lock()
     return config
