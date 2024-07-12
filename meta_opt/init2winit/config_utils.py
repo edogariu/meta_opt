@@ -76,7 +76,8 @@ def convert_configs(experiment_cfg, optimizer_cfg):
     config = make_default(experiment_cfg.workload_name)
     hparam_overrides = config.hparam_overrides
 
-    config.experiment_name = f'{experiment_cfg.experiment_name}_{experiment_cfg.workload_name}_{datetime.datetime.now().strftime('%Y_%m_%d_%H_%M_%S')}'
+    time = datetime.datetime.now().strftime('%Y_%m_%d_%H_%M_%S')
+    config.experiment_name = f'{experiment_cfg.experiment_name}_{experiment_cfg.workload_name}_{time}'
     config.cell = 'pw'
     hparam_overrides['experiment_cfg'], hparam_overrides['optimizer_cfg'] = experiment_cfg, optimizer_cfg
 
