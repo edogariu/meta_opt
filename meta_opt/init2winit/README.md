@@ -121,7 +121,7 @@ class LossFn(struct.PyTreeNode):
             batch=self.batch,
             batch_stats=self.batch_stats,
             dropout_rng=self.rng,
-        )
+        )[0]
 opt_cost = LossFn(rng, batch_stats, batch)
 
 model_updates, new_optimizer_state = optimizer_update_fn(
