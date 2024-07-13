@@ -246,7 +246,7 @@ if opt_cfg['optimizer_name'] == 'MetaOpt':
 
 return metrics_state
 ```
-to the `init_fn(...)` definition of `init2winit/training_metrics/grabber.py::make_training_metrics(...)`.
+to the `init_fn(...)` definition of `init2winit/training_metrics_grabber.py::make_training_metrics(...)`.
 
 
 ### Running it
