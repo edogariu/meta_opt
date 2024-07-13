@@ -1,4 +1,5 @@
 try:
+    base_config = None
     from meta_opt import experiment
     from meta_opt.optimizers import sgd, adamw, metaopt
     from meta_opt.init2winit import config_utils
