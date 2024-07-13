@@ -98,6 +98,8 @@ elif hps.optimizer == 'metaopt':
     opt_init, opt_update = utils.static_inject_hyperparams(metaopt_fn)(
         learning_rate=0.0,  # Manually injected on each train step
     )
+    opt_update = lambda grads, opt_state, cost_fn_params_tuple: _opt_update(grads, opt_state,
+                        params=cost_fn_params_tuple[1], cost_fn=cost_fn_params_tuple[0])
     optimizer_requires_cost_fn = True
 ```
 so that, as long as a `MetaOptConfig` is placed in `hps['optimizer_cfg']`, we can proceed. We also have to add 
