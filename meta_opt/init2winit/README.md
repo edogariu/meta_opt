@@ -103,7 +103,7 @@ elif hps.optimizer == 'metaopt':
     optimizer_requires_cost_fn = True
 ```
 so that, as long as a `MetaOptConfig` is placed in `hps['opt_hparams']['optimizer_cfg']`, we can proceed. We also have to add 
-`"//learning/deepmind/python/adhoc_import:binary_import"` to the `BUILD` file list of deps for the `"optimizers"` target.
+`"//third_party/py/init2winit/experiments:metaopt"` to the `BUILD` file list of deps for the `"optimizers"` target.
 
 ### Add passing the loss function to the optimizer to `trainer.Trainer`
  Add the following code to right before the optimizer update fn call of `init2winit/trainer_lib/trainer.py::update(...)`
