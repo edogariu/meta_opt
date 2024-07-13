@@ -15,7 +15,6 @@ from algorithmic_efficiency.profiler import Profiler
 from algorithmic_efficiency.workloads import workloads
 
 import meta_opt.algoperf.jax_nn as jax_nn
-from meta_opt.algoperf.workload_defaults import handle_defaults
 from meta_opt.experiment import ExperimentConfig
 from meta_opt.optimizers import OptimizerConfig
 from meta_opt.optimizers.metaopt import JaxMetaOptState
