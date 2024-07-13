@@ -39,7 +39,7 @@ def get_config():
         checkpoint_every=-1,
 
         # other details
-        print_with_colors=True,
+        print_with_colors=False,
 
         # algoperf-only args
         log_every=50,
