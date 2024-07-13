@@ -10,7 +10,7 @@ except:  # internal google imports
         from init2winit.experiments import base_config
         from init2winit.experiments.meta_opt.meta_opt.init2winit import config_utils
         from init2winit.experiments.meta_opt.meta_opt.optimizers import sgd, adamw, metaopt
-        from init2winit.experiments.meta_opt.meta_opt import experiment, utils
+        from init2winit.experiments.meta_opt.meta_opt import experiment
     IS_INTERNAL = True
 
 def get_config():
@@ -56,12 +56,6 @@ def get_config():
     # optimizer_cfg = metaopt.MetaOptConfig(base_learning_rate=0.001, weight_decay=1e-4, grad_clip=None,
     #                               H=16, HH=2, m_method='diagonal', scale_by_adam_betas=(0.9, 0.999),
     #                               meta_optimizer_cfg=meta_optimizer_cfg, meta_grad_clip=10.0)
-
-    # handle printing with colors
-    if experiment_cfg.print_with_colors:
-        utils.bcolors.enable()
-    else:
-        utils.bcolors.disable()
     
     if experiment_cfg.experimental_setup == 'algoperf':
         assert not IS_INTERNAL, 'havent set up algoperf on internal google yet'
