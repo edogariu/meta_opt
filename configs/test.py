@@ -29,15 +29,17 @@ def get_config():
         num_episodes=20,
         num_iters=500,  # if None, uses default for the workload
 
-        # other details
+        # backend details
         framework='jax',
         num_batch_devices=1,
         num_opt_devices=1,
-        print_with_colors=True,
 
         # how often to do things
         eval_every=50,
         checkpoint_every=-1,
+
+        # other details
+        print_with_colors=True,
 
         # algoperf-only args
         log_every=50,
