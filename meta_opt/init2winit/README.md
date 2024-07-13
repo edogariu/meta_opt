@@ -122,8 +122,35 @@ class LossFn(struct.PyTreeNode):
             params,
             batch=self.batch,
             batch_stats=self.batch_stats,
-            dropout_rng=self.rng)
+            dropout_rng=self.rng,
+        )
 opt_cost = LossFn(rng, batch_stats, batch)
+
+model_updates, new_optimizer_state = optimizer_update_fn(
+    grad,
+    optimizer_state,
+    params=params,
+    batch=batch,
+    batch_stats=new_batch_stats,
+    cost_fn=opt_cost,
+    grad_fn=grad_fn,
+    value=cost_value)
+new_params = optax.apply_updates(params, model_updates)
+
+new_metrics_state = None
+if metrics_state is not None:
+    new_metrics_state = metrics_update_fn(metrics_state, step, cost_value, grad,
+                                          params, new_params, optimizer_state,
+                                          new_batch_stats)
+    try:
+        curr_stats = new_optimizer_state[0].get_logging_metrics()
+        for k, v in curr_stats.items():
+            new_metrics_state[k] = metrics_state[k].at[step].set(v)
+    except Exception as e:
+        pass
+
+return (new_optimizer_state, new_params, new_batch_stats,
+      running_train_cost + cost_value, new_metrics_state, grad_norm)
 ...
 ```
 and add `"//third_party/py/flax"` to the `trainer` target of `init2winit/trainer_lib/BUILD`.
