@@ -90,6 +90,7 @@ def convert_configs(experiment_cfg, optimizer_cfg, base_config: config_dict.Conf
         hparam_overrides['batch_size'] = experiment_cfg.batch_size
     if experiment_cfg.num_iters is not None:
         config.num_train_steps = experiment_cfg.num_iters
+    config.num_train_steps *= experiment_cfg.num_episodes 
     hparam_overrides['rng_seed'] = experiment_cfg.seed
     config.eval_frequency = experiment_cfg.eval_every if experiment_cfg.eval_every > 0 else int(1e9)
     config.eval_steps = compute_steps(config.num_train_steps * experiment_cfg.num_episodes, experiment_cfg.eval_every)
