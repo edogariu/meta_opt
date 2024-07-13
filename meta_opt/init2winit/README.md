@@ -5,8 +5,9 @@ Here is a list of the changes that must be made in Google's internal `//third_pa
 Our config file will need to be able to import `meta_opt.optimizers.*.py` (which in turn needs `meta_opt.utils.py`) as well as `meta_opt.experiment.py` and `meta_opt.init2winit.config_utils.py`. The easiest way to do this is simply to clone this repo into `init2winit/experiments/` next to `base_config.py` and paste this addition to the `init2winit/experiments/BUILD` file.
 ```python
 ...
-pytype_strict_library(
-    name = "meta_opt/meta_opt/init2winit/config_utils",
+load("//third_party/bazel_rules/rules_python/python:py_library.bzl", "py_library")
+py_library(
+    name = "config_utils",
     srcs = ["meta_opt/meta_opt/init2winit/config_utils.py",],
     srcs_version = "PY3",
     visibility = ["//third_party/py/init2winit:__subpackages__"],
@@ -15,8 +16,8 @@ pytype_strict_library(
     ],
 )
 
-pytype_strict_library(
-    name = "meta_opt/meta_opt/experiment",
+py_library(
+    name = "experiment",
     srcs = ["meta_opt/meta_opt/experiment.py",],
     srcs_version = "PY3",
     visibility = ["//third_party/py/init2winit:__subpackages__"],
@@ -25,8 +26,8 @@ pytype_strict_library(
     ],
 )
 
-pytype_strict_library(
-    name = "meta_opt/meta_opt/utils",
+py_library(
+    name = "utils",
     srcs = ["meta_opt/meta_opt/utils.py",],
     srcs_version = "PY3",
     visibility = ["//third_party/py/init2winit:__subpackages__"],
@@ -35,9 +36,9 @@ pytype_strict_library(
     ],
 )
 
-pytype_strict_library(
-    name = "meta_opt/meta_opt/optimizers/base",
-    srcs = ["meta_opt/meta_opt/optmiizers/base.py",],
+py_library(
+    name = "base",
+    srcs = ["meta_opt/meta_opt/optimizers/base.py",],
     srcs_version = "PY3",
     visibility = ["//third_party/py/init2winit:__subpackages__"],
     deps = [
@@ -46,31 +47,33 @@ pytype_strict_library(
     ],
 )
 
-pytype_strict_library(
-    name = "meta_opt/meta_opt/optimizers/sgd",
-    srcs = ["meta_opt/meta_opt/optmiizers/sgd.py",],
+py_library(
+    name = "sgd",
+    srcs = ["meta_opt/meta_opt/optimizers/sgd.py",],
     srcs_version = "PY3",
     visibility = ["//third_party/py/init2winit:__subpackages__"],
     deps = [
         "//third_party/py/flax",  # buildcleaner: keep
         "//third_party/py/optax",  # buildcleaner: keep
+        "//third_party/py/init2winit/experiments:base",  # buildcleaner: keep
     ],
 )
 
-pytype_strict_library(
-    name = "meta_opt/meta_opt/optimizers/adamw",
-    srcs = ["meta_opt/meta_opt/optmiizers/adamw.py",],
+py_library(
+    name = "adamw",
+    srcs = ["meta_opt/meta_opt/optimizers/adamw.py",],
     srcs_version = "PY3",
     visibility = ["//third_party/py/init2winit:__subpackages__"],
     deps = [
         "//third_party/py/flax",  # buildcleaner: keep
         "//third_party/py/optax",  # buildcleaner: keep
+        "//third_party/py/init2winit/experiments:base",  # buildcleaner: keep
     ],
 )
 
-pytype_strict_library(
-    name = "meta_opt/meta_opt/optimizers/metaopt",
-    srcs = ["meta_opt/meta_opt/optmiizers/metaopt.py",],
+py_library(
+    name = "metaopt",
+    srcs = ["meta_opt/meta_opt/optimizers/metaopt.py",],
     srcs_version = "PY3",
     visibility = ["//third_party/py/init2winit:__subpackages__"],
     deps = [
@@ -78,6 +81,10 @@ pytype_strict_library(
         "//third_party/py/flax",  # buildcleaner: keep
         "//third_party/py/jax",  # buildcleaner: keep
         "//third_party/py/optax",  # buildcleaner: keep
+        "//third_party/py/init2winit/experiments:base",  # buildcleaner: keep
+        "//third_party/py/init2winit/experiments:sgd",  # buildcleaner: keep
+        "//third_party/py/init2winit/experiments:adamw",  # buildcleaner: keep
+        "//third_party/py/init2winit/experiments:utils",  # buildcleaner: keep
     ],
 )
 ```
@@ -87,11 +94,8 @@ Add to `init2winit/optimizer_lib/optimizers.py::get_optimizer(...)` the lines
 ```python
 ...
 elif hps.optimizer == 'metaopt':
-    import jax
-    from google3.learning.deepmind.python.adhoc_import import binary_import
-    with binary_import.AutoGoogle3():
-        from init2winit.experiments.meta_opt.meta_opt.optimizers import MetaOptConfig
-    metaopt_cfg = MetaOptConfig.fromdict(hps.opt_hparams['optimizer_cfg'])
+    from init2winit.experiments import metaopt
+    metaopt_cfg = metaopt.MetaOptConfig.fromdict(hps.opt_hparams['optimizer_cfg'])
     def metaopt_fn(learning_rate: float): return metaopt_cfg.replace(base_learning_rate=learning_rate).make_jax()
     opt_init, opt_update = utils.static_inject_hyperparams(metaopt_fn)(
         learning_rate=0.0,  # Manually injected on each train step
@@ -99,7 +103,8 @@ elif hps.optimizer == 'metaopt':
     optimizer_requires_cost_fn = True
 ...
 ```
-so that, as long as a `MetaOptConfig` is placed in `hps['optimizer_cfg']`, we can proceed.
+so that, as long as a `MetaOptConfig` is placed in `hps['optimizer_cfg']`, we can proceed. We also have to add 
+`"//learning/deepmind/python/adhoc_import:binary_import"` to the `BUILD` file list of deps for the `"optimizers"` target.
 
 ### Add episodic and fullbatch training to `trainer.Trainer`
 Add the following code to right before the train loop of `init2winit/trainer_lib/trainer.py::Trainer.train(...)`
@@ -131,18 +136,18 @@ for episode_i in range(1, num_episodes + 1):
     self._params, self._batch_stats = jax_utils.replicate(unreplicated_params), jax_utils.replicate(unreplicated_batch_stats)
 
     if optimizer_cfg.reset_opt_state:
-    logging.info('Also resetting optimizer state!')
-    if optimizer_cfg.optimizer_name == 'MetaOpt':
-        unreplicated_opt_state = jax_utils.unreplicate(self._optimizer_state)
-        gpc_params, gpc_opt_state = unreplicated_opt_state[0].gpc_params, unreplicated_opt_state[0].gpc_opt_state
-        unreplicated_optimizer_state = self._optimizer_init_fn(unreplicated_params)
-        unreplicated_optimizer_state = (unreplicated_optimizer_state[0].replace(gpc_params=gpc_params, gpc_opt_state=gpc_opt_state),
-                                        unreplicated_optimizer_state[1])
-        logging.info('Resetting metaopt, so I am putting back the gpc params')
-    else:
-        unreplicated_optimizer_state = self._optimizer_init_fn(unreplicated_params)          
-    self._optimizer_state = jax_utils.replicate(unreplicated_optimizer_state)
-    logging.warn('@EVAN DONT FORGET: handle replication of opt state and also DONT RESET THE Ms for metaopt')
+        logging.info('Also resetting optimizer state!')
+        if optimizer_cfg.optimizer_name == 'MetaOpt':
+            unreplicated_opt_state = jax_utils.unreplicate(self._optimizer_state)
+            gpc_params, gpc_opt_state = unreplicated_opt_state[0].gpc_params, unreplicated_opt_state[0].gpc_opt_state
+            unreplicated_optimizer_state = self._optimizer_init_fn(unreplicated_params)
+            unreplicated_optimizer_state = (unreplicated_optimizer_state[0].replace(gpc_params=gpc_params, gpc_opt_state=gpc_opt_state),
+                                            unreplicated_optimizer_state[1])
+            logging.info('Resetting metaopt, so I am putting back the gpc params')
+        else:
+            unreplicated_optimizer_state = self._optimizer_init_fn(unreplicated_params)          
+        self._optimizer_state = jax_utils.replicate(unreplicated_optimizer_state)
+        logging.warn('@EVAN DONT FORGET: handle replication of opt state and also DONT RESET THE Ms for metaopt')
 
     if num_episodes > 1: logging.info(f'Starting training episode {episode_i}.')
 
@@ -174,9 +179,10 @@ else:
     config_json = json.dumps(config_copy)
 ...
 ```
-◊
+
 ### Running it
 Now that we have set all this up, we can run a config simply by doing an `hgd` so that we are at `google3` and then executing
 ```bash
 /google/bin/releases/xmanager/cli/xmanager.par --xm_deployment_env=alphabet launch third_party/py/init2winit/xmanager/launch_train_xm_v2.py -- --xm_resource_pool= --xm_resource_alloc= --undefok=xm_gxm_origin --xm_gxm_origin --xm_skip_launch_confirmation -- --xm_resource_pool=gdm --xm_skip_launch_confirmation --xm_resource_alloc=group:gdm/brain-pton --noxm_monitor_on_launch --xm_skip_launch_confirmation --config=third_party/py/init2winit/experiments/meta_opt/configs/test.py --use_fragmented_python --append_timestamp --skip_mitto --cns_group=dogariu
 ```
+where the `--config=third_party/py/init2winit/experiments/meta_opt/configs/test.py` arg is filled in with the location of the config/sweep you wanna run.

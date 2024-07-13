@@ -24,8 +24,8 @@ class OptimizerConfig(abc.ABC):
     #     and could be used afterward in the usual way.
     #     """
 
-    @abc.abstractmethod
     @staticmethod
+    @abc.abstractmethod
     def fromdict(d: dict):
         """dict -> config
 

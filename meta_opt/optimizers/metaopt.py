@@ -51,7 +51,6 @@ class MetaOptConfig(OptimizerConfig):
             ret['meta_optimizer_cfg'] = AdamWConfig.fromdict(d['meta_optimizer_cfg'])
         else:
             raise ValueError(f'unknown meta optimizer {meta_optimizer_name}')
-        ret['meta_optimizer_cfg'] = OptimizerConfig.fromdict(d['meta_optimizer_cfg'])
         
         for k in ['base_learning_rate', 'weight_decay', 'grad_clip', 'scale_by_adam_betas',
                   'H', 'HH', 'm_method', 'use_bfloat16',

@@ -3,8 +3,7 @@ from ml_collections.config_dict import config_dict
 from dataclasses import asdict
 
 
-def make_default(workload: str) -> config_dict.ConfigDict:
-    config = get_base_config()
+def make_default(workload: str, config: config_dict.ConfigDict) -> config_dict.ConfigDict:
 
     # parse workload
     if workload == 'mnist':
@@ -71,12 +70,13 @@ def make_default(workload: str) -> config_dict.ConfigDict:
     return config
 
 
-def convert_configs(experiment_cfg, optimizer_cfg):
+def convert_configs(experiment_cfg, optimizer_cfg, base_config: config_dict.ConfigDict):
     assert experiment_cfg.experimental_setup == 'init2winit', 'this function only works in init2winit'
     assert experiment_cfg.framework == 'jax', 'init2winit only works in jax'
     assert experiment_cfg.num_opt_devices == 1, 'havent set up optimizer state sharding in init2winit yet'
+    assert isinstance(base_config, config_dict.ConfigDict), 'base_config must be a ConfigDict'
 
-    config = make_default(experiment_cfg.workload_name)
+    config = make_default(experiment_cfg.workload_name, base_config)
     hparam_overrides = config.hparam_overrides
 
     time = datetime.datetime.now().strftime('%Y_%m_%d_%H_%M_%S')
@@ -97,7 +97,28 @@ def convert_configs(experiment_cfg, optimizer_cfg):
 
     # parse optimizer config
     lr_hparams, opt_hparams = {}, {}
-    if optimizer_cfg.optimizer_name == 'AdamW':
+    hparam_overrides['l2_decay_factor'] = None  # make it so weight decay is handled by optimizer and not cost function
+    if optimizer_cfg.optimizer_name == 'SGD':
+        if optimizer_cfg.momentum is None:
+            hparam_overrides['optimizer'] = 'sgd'
+            lr_hparams = {
+            'base_lr': optimizer_cfg.learning_rate,
+            'schedule': 'constant',
+            }
+            opt_hparams = {
+                'weight_decay': optimizer_cfg.weight_decay
+            }
+        else:
+            hparam_overrides['optimizer'] = 'momentum' if not optimizer_cfg.nesterov else 'nesterov'
+            lr_hparams = {
+            'base_lr': optimizer_cfg.learning_rate,
+            'schedule': 'constant',
+            }
+            opt_hparams = {
+                'momentum': optimizer_cfg.momentum,
+                'weight_decay': optimizer_cfg.weight_decay
+            }
+    elif optimizer_cfg.optimizer_name == 'AdamW':
         hparam_overrides['optimizer'] = 'adam'
         lr_hparams = {
             'base_lr': optimizer_cfg.learning_rate,
@@ -126,92 +147,3 @@ def compute_steps(total_iters, freq):  # compute at which steps to do something
         return l
     else: 
         return []
-
-"""Base XManager experiment configuration. Forked from `init2winit/experiments/base_config.py`"""
-from ml_collections.config_dict import config_dict
-def get_base_config() -> config_dict.ConfigDict:
-    """Returns the base configuration for XManager jobs."""
-    config = config_dict.ConfigDict()
-    config.trainer = 'standard'
-    # Borg parameters.
-    config.experiment_name = config_dict.placeholder(str)
-    config.project_name = config_dict.placeholder(str)
-    # `cell` supports Brain global quota - go/marketplace-global-quota.
-    # To allow XM to choose which cell to run in, set this field to 'global'.
-    config.cell = config_dict.placeholder(str)
-    # Note: If cns_cell is set to None, the launcher will default to 'auto',
-    # meaning it will try to use the same cell as the compute cell unless it has
-    # been mapped to a fallback cell, in which case use the fallback.
-    config.cns_cell = 'auto'
-    config.cpu_priority = 200
-    config.train_hardware = 'cpu'
-    config.gpu_type = 'v100'
-    config.gpu_count = 1
-    config.tpu_type = 'jf'
-    config.tpu_topology = '2x2'
-    config.tags = []
-    # Additional directories to create in the experiment_dir
-    config.hlo_dir = 'hlo/ttl=45d'
-    # Idle polling configuration.
-    config.poll_frequency_secs = 100
-    config.email_frequency_secs = 3600
-    config.idle_threshold_secs = 3600
-    config.grace_period_secs = 7200
-    # Performance parameters.
-    # Number of network to host prefetches per step (e.g., passed to tf.data's
-    # prefetch). Set to -1 for tf.data.AUTOTUNE.
-    config.num_tf_data_prefetches = -1
-    # Number of host to device prefetches per step (used in train loop).
-    config.num_device_prefetches = 0
-    # Number of parallel calls to make from tf.data.map. Set to -1 for
-    # tf.data.AUTOTUNE.
-    config.num_tf_data_map_parallel_calls = -1
-    # Set this to True to have tpu matmul use float32, will be 6x slower but may
-    # be more numerically stable.
-    config.xla_jf_conv_full_precision = False
-    # Dataset parameters.
-    config.dataset = config_dict.placeholder(str)
-    config.model = config_dict.placeholder(str)
-    config.initializer = 'noop'
-    config.data_selector = 'noop'
-    # Loss/Metrics parameters.
-    config.loss = 'cross_entropy'
-    config.metrics = 'classification_metrics'
-    # Model parameters.
-    config.hparam_overrides = config_dict.placeholder(dict)
-    config.training_metrics_config = config_dict.placeholder(dict)
-    config.callback_configs = None
-    config.checkpoint_steps = []
-    config.eval_steps = []
-    config.sweep = config_dict.placeholder(list)
-    config.num_train_steps = config_dict.placeholder(int)
-    config.eval_batch_size = config_dict.placeholder(int)
-    config.eval_use_ema = False
-    config.eval_num_batches = config_dict.placeholder(int)
-    config.test_num_batches = config_dict.placeholder(int)
-    config.eval_train_num_batches = config_dict.placeholder(int)
-    config.eval_frequency = config_dict.placeholder(int)
-    # Training parameters.
-    config.root_dir = config_dict.placeholder(str)
-    config.external_checkpoint_path = config_dict.placeholder(str, required=False)
-    config.allowed_unrecognized_hparams = []
-    # Vizier parameters.
-    config.use_halton_generator = False
-    config.vizier_study_config = None
-    # config.vizier_study_config = config_dict.placeholder(vizier_pb2.StudyConfig)
-    config.vizier_num_clients = config_dict.placeholder(int)
-    config.vizier_max_feasible_trials = config_dict.placeholder(int)
-    config.pythia_method = config_dict.placeholder(str)
-    # If the Halton generator code path supported max_feasible_trials we would not
-    # need a separate configuration parameter.
-    config.halton_num_trials = config_dict.placeholder(int)
-    config.halton_seed = config_dict.placeholder(int)
-    # Optional early stopping.
-    config.early_stopping_target_name = config_dict.placeholder(str)
-    config.early_stopping_target_value = config_dict.placeholder(float)
-    config.early_stopping_mode = config_dict.placeholder(str)
-    config.early_stopping_min_steps = 0
-    # Prevent adding new fields. Existing fields can be overridden.
-    config.lock()
-    return config
-    
