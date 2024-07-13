@@ -85,7 +85,7 @@ def get_mesh() -> Mesh:
     good = True
     if GLOBAL_MESH is None:
         good = False
-        logging.warning(f'{bcolors.WARNING}{bcolors.BOLD}didnt set up mesh yet!{bcolors.ENDC}')
+        # logging.warning(f'{bcolors.WARNING}{bcolors.BOLD}didnt set up mesh yet!{bcolors.ENDC}')
     elif 'batch' not in GLOBAL_MESH.axis_names or 'opt' not in GLOBAL_MESH.axis_names:
         good = False
         logging.warning(f'{bcolors.WARNING}{bcolors.BOLD}mesh had incorrect axes!{bcolors.ENDC}')
@@ -94,7 +94,7 @@ def get_mesh() -> Mesh:
 def sharding_constraint(arr: jax.Array, spec: Tuple[str]) -> jax.Array:
     mesh = get_mesh()
     if mesh is None: 
-        logging.warning(f'{bcolors.WARNING}{bcolors.BOLD}couldnt add sharding constraint because we didnt set up mesh yet!{bcolors.ENDC}')
+        # logging.warning(f'{bcolors.WARNING}{bcolors.BOLD}couldnt add sharding constraint because we didnt set up mesh yet!{bcolors.ENDC}')
         return arr
     else:
         s = NamedSharding(mesh, P(*spec))
@@ -103,7 +103,7 @@ def sharding_constraint(arr: jax.Array, spec: Tuple[str]) -> jax.Array:
 def shard(arr: jax.Array, spec: Tuple[str]) -> jax.Array:
     mesh = get_mesh()
     if mesh is None: 
-        logging.warning(f'{bcolors.WARNING}{bcolors.BOLD}couldnt shard array because we didnt set up mesh yet!{bcolors.ENDC}')
+        # logging.warning(f'{bcolors.WARNING}{bcolors.BOLD}couldnt shard array because we didnt set up mesh yet!{bcolors.ENDC}')
         return arr
     else:
         s = NamedSharding(mesh, P(*spec))
