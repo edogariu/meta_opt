@@ -2,6 +2,8 @@ import datetime
 from ml_collections.config_dict import config_dict
 from dataclasses import asdict
 
+from ..utils import bcolors
+
 
 def make_default(workload: str, config: config_dict.ConfigDict) -> config_dict.ConfigDict:
 
@@ -95,6 +97,12 @@ def convert_configs(experiment_cfg, optimizer_cfg, base_config: config_dict.Conf
     config.eval_frequency = experiment_cfg.eval_every if experiment_cfg.eval_every > 0 else int(1e9)
     config.eval_steps = compute_steps(config.num_train_steps * experiment_cfg.num_episodes, experiment_cfg.eval_every)
     config.checkpoint_steps = compute_steps(config.num_train_steps * experiment_cfg.num_episodes, experiment_cfg.checkpoint_every)
+
+    # handle printing with colors
+    if experiment_cfg.print_with_colors:
+        bcolors.enable()
+    else:
+        bcolors.disable()
 
     # parse optimizer config
     lr_hparams, opt_hparams = {}, {}
