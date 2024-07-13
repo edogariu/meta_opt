@@ -33,7 +33,9 @@ class ExperimentConfig:
     eval_every: int = -1
     checkpoint_every: int = -1
 
-    # algoperf-specific args
-    log_every: int = -1  # does nothing for init2winit experiments
+    # other details
     print_with_colors: bool = True  # whether to use colors when printing
+    
+    # algoperf-specific args
+    log_every: int = -1
     use_wandb: bool = False
