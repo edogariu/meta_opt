@@ -201,6 +201,26 @@ else:
     config_json = json.dumps(config_copy)
 ...
 ```
+To ensure that we are correctly logging the optimizer state's training metrics, add
+```python
+opt_cfg = hps['opt_hparams']['optimizer_cfg']
+if opt_cfg['optimizer_name'] == 'MetaOpt':
+  history_len = opt_cfg['H']
+  for h in range(history_len):
+    metrics_state[f'M_{h}'] = jnp.zeros(num_train_steps)
+    metrics_state[f'grad_M_{h}'] = jnp.zeros(num_train_steps)
+  for k in ['gpc_cost', 
+            'disturbance_history_memory',
+            'param_history_memory',
+            'cost_fn_history_memory',
+            'disturbance_transform_state_memory',
+            'total_metaopt_memory']:
+    metrics_state[k] = jnp.zeros(num_train_steps)
+
+return metrics_state
+```
+to the `init_fn(...)` definition of `init2winit/training_metrics/grabber.py::make_training_metrics(...)`.
+
 
 ### Running it
 Now that we have set all this up, we can run a config simply by doing an `hgd` so that we are at `google3` and then executing
