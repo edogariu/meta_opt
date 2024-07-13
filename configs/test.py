@@ -8,7 +8,9 @@ except:  # internal google imports
     from google3.learning.deepmind.python.adhoc_import import binary_import
     with binary_import.AutoGoogle3():
         from init2winit.experiments import base_config
-        from init2winit.experiments import config_utils, experiment, sgd, adamw, metaopt
+        from init2winit.experiments.meta_opt.meta_opt.init2winit import config_utils
+        from init2winit.experiments.meta_opt.meta_opt.optimizers import sgd, adamw, metaopt
+        from init2winit.experiments.meta_opt.meta_opt import experiment, utils
     IS_INTERNAL = True
 
 def get_config():
@@ -26,9 +28,11 @@ def get_config():
         num_episodes=20,
         num_iters=500,  # if None, uses default for the workload
 
+        # other details
         framework='jax',
         num_batch_devices=1,
         num_opt_devices=1,
+        print_with_colors=True,
 
         # how often to do things
         eval_every=50,
@@ -36,8 +40,7 @@ def get_config():
 
         # algoperf-only args
         log_every=50,
-        use_wandb=False,
-        print_with_colors=True)
+        use_wandb=False)
 
     # optimizer_cfg = sgd.SGDConfig(learning_rate=0.01, momentum=0.9, nesterov=False, weight_decay=None, grad_clip=None)
     # optimizer_cfg = adamw.AdamWConfig(learning_rate=0.001, b1=0.9, b2=0.999, eps=1e-8, weight_decay=None, grad_clip=None)
@@ -53,6 +56,12 @@ def get_config():
     # optimizer_cfg = metaopt.MetaOptConfig(base_learning_rate=0.001, weight_decay=1e-4, grad_clip=None,
     #                               H=16, HH=2, m_method='diagonal', scale_by_adam_betas=(0.9, 0.999),
     #                               meta_optimizer_cfg=meta_optimizer_cfg, meta_grad_clip=10.0)
+
+    # handle printing with colors
+    if experiment_cfg.print_with_colors:
+        utils.bcolors.enable()
+    else:
+        utils.bcolors.disable()
     
     if experiment_cfg.experimental_setup == 'algoperf':
         assert not IS_INTERNAL, 'havent set up algoperf on internal google yet'
