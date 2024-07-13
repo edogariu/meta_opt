@@ -4,7 +4,6 @@ Here is a list of the changes that must be made in Google's internal `//third_pa
 ### Link imports/builds/things
 Our config file will need to be able to import `meta_opt.optimizers.*.py` (which in turn needs `meta_opt.utils.py`) as well as `meta_opt.experiment.py` and `meta_opt.init2winit.config_utils.py`. The easiest way to do this is simply to clone this repo into `init2winit/experiments/` next to `base_config.py` and paste this addition to the `init2winit/experiments/BUILD` file.
 ```python
-...
 load("//third_party/bazel_rules/rules_python/python:py_library.bzl", "py_library")
 py_library(
     name = "config_utils",
@@ -92,7 +91,6 @@ py_library(
 ### Add metaopt to `optimizer_lib`
 Add to `init2winit/optimizer_lib/optimizers.py::get_optimizer(...)` the lines 
 ```python
-...
 elif hps.optimizer == 'metaopt':
     from init2winit.experiments import metaopt
     metaopt_cfg = metaopt.MetaOptConfig.fromdict(hps.opt_hparams['optimizer_cfg'])
@@ -101,7 +99,6 @@ elif hps.optimizer == 'metaopt':
         learning_rate=0.0,  # Manually injected on each train step
     )
     optimizer_requires_cost_fn = True
-...
 ```
 so that, as long as a `MetaOptConfig` is placed in `hps['optimizer_cfg']`, we can proceed. We also have to add 
 `"//learning/deepmind/python/adhoc_import:binary_import"` to the `BUILD` file list of deps for the `"optimizers"` target.
@@ -109,7 +106,6 @@ so that, as long as a `MetaOptConfig` is placed in `hps['optimizer_cfg']`, we ca
 ### Add passing the loss function to the optimizer to `trainer.Trainer`
  Add the following code to right before the optimizer update fn call of `init2winit/trainer_lib/trainer.py::update(...)`
 ```python
-...
 from flax import struct
 @struct.dataclass
 class LossFn(struct.PyTreeNode):
@@ -151,15 +147,12 @@ if metrics_state is not None:
 
 return (new_optimizer_state, new_params, new_batch_stats,
       running_train_cost + cost_value, new_metrics_state, grad_norm)
-...
 ```
 and add `"//third_party/py/flax"` to the `trainer` target of `init2winit/trainer_lib/BUILD`.
 
 ### Add episodic and fullbatch training to `trainer.Trainer`
 Add the following code to right before the train loop of `init2winit/trainer_lib/trainer.py::Trainer.train(...)`
 ```python
-...
-
 from flax import jax_utils
 experiment_cfg, optimizer_cfg = self._hps.opt_hparams['experiment_cfg'], self.opt_hparams['optimizer_cfg']
 
@@ -202,16 +195,13 @@ for episode_i in range(1, num_episodes + 1):
 
     for _ in range(start_step, self._num_train_steps // num_episodes):
         ...
-
 ```
 so that, as long as an `ExperimentConfig` is placed in `hps['experiment_cfg']` and an `OptimizerConfig` is placed in `hps['optimizer_cfg']`, we can proceed. We also need to add 
 ```python
-...
 optimizer_init_fn, optimizer_update_fn = optimizers.get_optimizer(
     self._hps, self._model, batch_axis_name='batch')
 unreplicated_optimizer_state = optimizer_init_fn(unreplicated_params)
 self._optimizer_init_fn = optimizer_init_fn
-...
 ```
 to `init2winit/trainer_lib/base_trainer.py::setup_and_maybe_restore(...)` to expose `self._optimizer_init_fn` for episodic resets.
 
@@ -221,12 +211,10 @@ we gotta set up opt_state sharding for i2w like we did for algoperf...
 ### Putting out fires
 On line 499 in `init2winit/xmanager/launch_utils_v2.py`, there is a note for (znado,gdahl) to convert it to `config.to_json()`. Do this.
 ```python
-...
 if isinstance(config, config_dict.ConfigDict):
     config_json = config.to_json()
 else:
     config_json = json.dumps(config_copy)
-...
 ```
 To ensure that we are correctly logging the optimizer state's training metrics, add
 ```python
