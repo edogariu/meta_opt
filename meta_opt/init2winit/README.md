@@ -242,6 +242,6 @@ to the `init_fn(...)` definition of `init2winit/training_metrics_grabber.py::mak
 ### Running it
 Now that we have set all this up, we can run a config simply by doing an `hgd` so that we are at `google3` and then executing
 ```bash
-/google/bin/releases/xmanager/cli/xmanager.par --xm_deployment_env=alphabet launch third_party/py/init2winit/xmanager/launch_train_xm_v2.py -- --xm_resource_pool= --xm_resource_alloc= --undefok=xm_gxm_origin --xm_gxm_origin --xm_skip_launch_confirmation -- --xm_resource_pool=gdm --xm_skip_launch_confirmation --xm_resource_alloc=group:gdm/brain-pton --noxm_monitor_on_launch --xm_skip_launch_confirmation --config=third_party/py/init2winit/experiments/meta_opt/configs/test.py --use_fragmented_python --append_timestamp --skip_mitto --cns_group=dogariu
+/google/bin/releases/xmanager/cli/xmanager.par --xm_deployment_env=alphabet launch third_party/py/init2winit/xmanager/launch_train_xm_v2.py -- --undefok=xm_gxm_origin --xm_gxm_origin -- --xm_resource_pool=gdm --xm_skip_launch_confirmation --xm_resource_alloc=group:gdm/brain-pton --noxm_monitor_on_launch --xm_skip_launch_confirmation --config=third_party/py/init2winit/experiments/meta_opt/configs/test.py --use_fragmented_python --append_timestamp --skip_mitto --cns_group=dogariu
 ```
 where the `--config=third_party/py/init2winit/experiments/meta_opt/configs/test.py` arg is filled in with the location of the config/sweep you wanna run.
