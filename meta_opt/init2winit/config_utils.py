@@ -1,4 +1,3 @@
-import datetime
 from ml_collections.config_dict import config_dict
 from dataclasses import asdict
 
@@ -81,8 +80,7 @@ def convert_configs(experiment_cfg, optimizer_cfg, base_config: config_dict.Conf
     config = make_default(experiment_cfg.workload_name, base_config)
     hparam_overrides = config.hparam_overrides
 
-    time = datetime.datetime.now().strftime('%Y_%m_%d_%H_%M_%S')
-    config.experiment_name = f'{experiment_cfg.experiment_name}_{experiment_cfg.workload_name}_{time}'
+    config.experiment_name = experiment_cfg.experiment_name
     config.cell = 'pw'
 
     # parse experiment config
