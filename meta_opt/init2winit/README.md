@@ -126,6 +126,7 @@ class LossFn(struct.PyTreeNode):
 opt_cost = LossFn(rng, batch_stats, batch)
 ...
 ```
+and add `"//third_party/py/flax"` to the `trainer` target of `init2winit/trainer_lib/BUILD`.
 
 ### Add episodic and fullbatch training to `trainer.Trainer`
 Add the following code to right before the train loop of `init2winit/trainer_lib/trainer.py::Trainer.train(...)`
