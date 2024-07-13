@@ -102,7 +102,7 @@ elif hps.optimizer == 'metaopt':
                         params=cost_fn_params_tuple[1], cost_fn=cost_fn_params_tuple[0])
     optimizer_requires_cost_fn = True
 ```
-so that, as long as a `MetaOptConfig` is placed in `hps['optimizer_cfg']`, we can proceed. We also have to add 
+so that, as long as a `MetaOptConfig` is placed in `hps['opt_hparams']['optimizer_cfg']`, we can proceed. We also have to add 
 `"//learning/deepmind/python/adhoc_import:binary_import"` to the `BUILD` file list of deps for the `"optimizers"` target.
 
 ### Add passing the loss function to the optimizer to `trainer.Trainer`
