@@ -22,6 +22,25 @@ from meta_opt.optimizers.metaopt import JaxMetaOptState
 from meta_opt.utils import bcolors, pretty_dict, shard, make_mesh
 
 
+from absl import logging
+
+from meta_opt.experiment import ExperimentConfig
+from meta_opt.utils import bcolors
+
+DEFAULT_BATCH_SIZES = {
+    'mnist': 512,
+    'cifar': 128,
+    'ogbg': 128,
+    'wmt': 16,
+}
+
+DEFAULT_NUM_ITERS = {
+    'mnist': 20000,
+    'cifar': 100000,
+    'ogbg': 20000,
+    'wmt': 200000,
+}
+
 # required flags to run
 flags.DEFINE_string('config_path', None, required=True,
     help='The relative path of the Python file containing the experiment and optimizer configs.'
@@ -40,6 +59,25 @@ flags.DEFINE_string('experiment_name', None, help='Name of the experiment.'); fl
 flags.DEFINE_string('workload', None, help=f'The name of the workload to run.'); flags.FLAGS.workload = ''
 flags.DEFINE_string('framework', None, help='Whether to use Jax or Pytorch.'); flags.FLAGS.framework = ''
 flags.DEFINE_string('submission_path', None, help='The relative path of the Python file containing the experiment and optimizer configs. NOTE: the config dir must have an __init__.py file!'); flags.FLAGS.submission_path = ''
+
+
+def handle_defaults(experiment_cfg: ExperimentConfig):
+    name = experiment_cfg.workload_name
+
+    if experiment_cfg.batch_size is None: 
+        batch_size = DEFAULT_BATCH_SIZES[name]
+        logging.info(f'{bcolors.OKCYAN}{bcolors.BOLD}no `batch_size` provided. using default of {batch_size} for the workload {name}!{bcolors.ENDC}')
+        experiment_cfg = experiment_cfg.replace(batch_size=batch_size)
+    if experiment_cfg.num_iters is None: 
+        num_iters = DEFAULT_NUM_ITERS[name]
+        logging.info(f'{bcolors.OKCYAN}{bcolors.BOLD}no `num_iters` provided. using default of {num_iters} for the workload {name}!{bcolors.ENDC}')
+        experiment_cfg = experiment_cfg.replace(num_iters=num_iters)
+
+    num_iters = experiment_cfg.num_iters
+    if experiment_cfg.eval_every is None: 
+        logging.info(f'{bcolors.OKCYAN}{bcolors.BOLD}{bcolors.ENDC}')
+    
+    return experiment_cfg
 
 
 def run(experiment_cfg: ExperimentConfig, 
