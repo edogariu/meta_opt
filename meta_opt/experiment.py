@@ -32,10 +32,8 @@ class ExperimentConfig:
     # how often to do things. set to `-1` to never do them
     eval_every: int = -1
     checkpoint_every: int = -1
+    log_every: int = -1  # only applies to algoperf experiments
 
     # other details
     print_with_colors: bool = True  # whether to use colors when printing
-    
-    # algoperf-specific args
-    log_every: int = -1
-    use_wandb: bool = False
+    use_wandb: bool = False  # only applies to algoperf experiments
