@@ -106,6 +106,27 @@ elif hps.optimizer == 'metaopt':
 so that, as long as a `MetaOptConfig` is placed in `hps['optimizer_cfg']`, we can proceed. We also have to add 
 `"//learning/deepmind/python/adhoc_import:binary_import"` to the `BUILD` file list of deps for the `"optimizers"` target.
 
+### Add passing the loss function to the optimizer to `trainer.Trainer`
+ Add the following code to right before the optimizer update fn call of `init2winit/trainer_lib/trainer.py::update(...)`
+```python
+...
+from flax import struct
+@struct.dataclass
+class LossFn(struct.PyTreeNode):
+    rng: jax.Array = struct.field(pytree_node=True)
+    batch_stats: jax.Array = struct.field(pytree_node=True)
+    batch: jax.Array = struct.field(pytree_node=True)
+
+    def __call__(self, params):
+        return training_cost(
+            params,
+            batch=self.batch,
+            batch_stats=self.batch_stats,
+            dropout_rng=self.rng)
+opt_cost = LossFn(rng, batch_stats, batch)
+...
+```
+
 ### Add episodic and fullbatch training to `trainer.Trainer`
 Add the following code to right before the train loop of `init2winit/trainer_lib/trainer.py::Trainer.train(...)`
 ```python
