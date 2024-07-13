@@ -335,6 +335,7 @@ def make_jax_metaopt(
     def update_fn(grads: chex.ArrayTree, 
                   opt_state: JaxMetaOptState, 
                   params: chex.ArrayTree,
+                  cost_fn: Callable[[chex.ArrayTree], float],
                   **extra_args,
                   ):
         """Applies a single step of the meta-opt optimizer.
@@ -351,8 +352,7 @@ def make_jax_metaopt(
         """
         opt_state, _ = opt_state
         assert params is not None, 'failed to provide parameters to the meta-optimizer'
-        assert 'cost_fn' in extra_args['cost_fn'], 'failed to provide cost function to the meta-optimizer'
-        cost_fn = extra_args['cost_fn']
+        assert cost_fn is not None, 'failed to provide cost function to the meta-optimizer'
 
         # flatten things! also make sure that flat size is a multiple of the number of devices along which to shard opt state
         def flatten(v):
