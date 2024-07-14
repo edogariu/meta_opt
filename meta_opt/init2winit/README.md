@@ -156,12 +156,12 @@ for episode_i in range(1, num_episodes + 1):
         logging.info('Also resetting optimizer state!')
         if optimizer_cfg.optimizer_name == 'MetaOpt':
             gpc_params, gpc_opt_state = self._optimizer_state[0].gpc_params, self._optimizer_state[0].gpc_opt_state
-            opt_state = self._optimizer_init_fn(unreplicated_params)
+            opt_state = self._optimizer_init_fn(self._params)
             opt_state = (opt_state[0].replace(gpc_params=gpc_params, gpc_opt_state=gpc_opt_state),
                                             opt_state[1])
             logging.info('Resetting metaopt, so I am putting back the gpc params')
         else:
-            opt_state = self._optimizer_init_fn(unreplicated_params)          
+            opt_state = self._optimizer_init_fn(self._params)          
         self._optimizer_state = opt_state
 
     if num_episodes > 1: logging.info(f'Starting training episode {episode_i}.')
