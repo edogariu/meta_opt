@@ -181,7 +181,7 @@ to `init2winit/trainer_lib/base_trainer.py::setup_and_maybe_restore(...)` to exp
 ### Add sharding
 Since this library uses `pmap` for sharding over batches, we will need to make a couple changes:
 1. Stop explictly replicating things like optimizer state, model weights, etc.. These will be replicated across the `'batch'` axis via `jax.jit`. **At the top of `init2winit/checkpoint.py` we add `jax_utils.replicate = lambda v: v` to null out any replications.**
-2. Change the pmapped train step function to a regular one. **We change the definition in line 383 of `init2winit/trainer_lib/base_trainer::BaseTrainer.setup_and_maybe_restore(...)` to `update_pmapped = update_fn.`**
+2. Change the pmapped train step function to a regular one. **We change the definition in line 383 of `init2winit/trainer_lib/base_trainer::BaseTrainer.setup_and_maybe_restore(...)` to `update_pmapped = update_fn.` Also, change the definition in line 200 of that file to `self._evaluate_batch_pmapped = self._model.evaluate_batch`**.
 3. In the dataloader, make sure to reshape and shard the data along the mesh gotten from `utils.get_mesh()`.
 4. Add a call to `utils.make_mesh()` to the config that runs BEFORE the optimizer gets made.
 
