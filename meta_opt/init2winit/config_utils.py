@@ -96,12 +96,6 @@ def convert_configs(experiment_cfg, optimizer_cfg, base_config: config_dict.Conf
     config.eval_steps = compute_steps(config.num_train_steps, experiment_cfg.eval_every)
     config.checkpoint_steps = compute_steps(config.num_train_steps, experiment_cfg.checkpoint_every)
 
-    # handle printing with colors
-    if experiment_cfg.print_with_colors:
-        bcolors.enable()
-    else:
-        bcolors.disable()
-
     # parse optimizer config
     lr_hparams, opt_hparams = {}, {}
     hparam_overrides['l2_decay_factor'] = None  # make it so weight decay is handled by optimizer and not cost function
