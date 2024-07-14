@@ -202,7 +202,7 @@ train_iter = shard_iterator()
 # add the episodic part
 ...
 ```
-
+Must also comment out the `(objective_numerator, objective_denominator) = jax.lax.psum((objective_numerator, objective_denominator), axis_name='batch')` in line 288 of `init2winit.model_lib.base_model::BaseModel.training_objective_fn(...)`.
 
 5. Add a call to `utils.make_mesh()` to the config that runs BEFORE the optimizer gets made.
 
