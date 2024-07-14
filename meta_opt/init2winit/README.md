@@ -155,11 +155,13 @@ for episode_i in range(1, num_episodes + 1):
     if optimizer_cfg['reset_opt_state']:
         logging.info('Also resetting optimizer state!')
         if optimizer_cfg.optimizer_name == 'MetaOpt':
-            gpc_params = self._optimizer_state.internal_state[0].gpc_params
-            gpc_opt_state = self._optimizer_state.internal_state[0].gpc_opt_state
+            gpc_params = self._optimizer_state.inner_state[0].gpc_params
+            gpc_opt_state = self._optimizer_state.inner_state[0].gpc_opt_state
             opt_state = self._optimizer_init_fn(self._params)
-            opt_state = (opt_state[0].replace(gpc_params=gpc_params, gpc_opt_state=gpc_opt_state),
-                                            opt_state[1])
+            opt_state = opt_state.replace(inner_state=(
+                                opt_state.inner_state[0].replace(gpc_params=gpc_params, gpc_opt_state=gpc_opt_state),
+                                opt_state.inner_state[1],
+                                ))
             logging.info('Resetting metaopt, so I am putting back the gpc params')
         else:
             opt_state = self._optimizer_init_fn(self._params)          
