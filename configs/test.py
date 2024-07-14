@@ -30,7 +30,6 @@ def get_config():
         num_iters=500,  # if None, uses default for the workload
 
         # backend details
-        framework='jax',
         num_batch_devices=1,
         num_opt_devices=1,
 
