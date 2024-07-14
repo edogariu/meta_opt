@@ -22,7 +22,7 @@ def make_default(workload: str, config: config_dict.ConfigDict) -> config_dict.C
 
     elif workload == 'cifar':
         batch_size = 128
-        train_size = 50000
+        train_size = 45000
 
         config.train_hardware = 'tpu'
         config.tpu_type = 'jf'
