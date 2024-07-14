@@ -195,7 +195,7 @@ def shard_iterator():
     while True: 
       batch = next(train_iter_old)
       batch = jax.tree_util.tree_map(lambda x: x.reshape(x.shape[0] * x.shape[1], *x.shape[2:]), batch)
-      batch = shard_utils.shard(batch, ('batch'))
+      batch = shard_utils.shard(batch, ('batch',))
       yield batch
 train_iter = shard_iterator()
 
