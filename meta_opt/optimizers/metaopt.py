@@ -397,18 +397,18 @@ def make_jax_metaopt(
 
             # append to histories
             param_history = append(opt_state.param_history, flat_params)
-            # param_history = sharding_constraint(param_history, (None, 'opt'))
+            param_history = sharding_constraint(param_history, (None, 'opt'))
             cost_fn_history = opt_state.cost_fn_history[1:] + (cost_fn,)
             disturbances, disturbance_transform_state = opt_state.disturbance_transform.update(flat_grads, opt_state.disturbance_transform_state, params=flat_params)
             disturbance_history = append(opt_state.disturbance_history, disturbances)
-            # disturbance_history = sharding_constraint(disturbance_history, (None, 'opt'))
+            disturbance_history = sharding_constraint(disturbance_history, (None, 'opt'))
             opt_state = opt_state.replace(gpc_params=gpc_params, gpc_opt_state=gpc_opt_state, disturbance_history=disturbance_history, disturbance_transform_state=disturbance_transform_state, 
                                         param_history=param_history, cost_fn_history=cost_fn_history, 
                                         recent_gpc_grads=gpc_grads, recent_gpc_cost=gpc_cost, t=opt_state.t+1)
         else:
             disturbances, disturbance_transform_state = opt_state.disturbance_transform.update(flat_grads, opt_state.disturbance_transform_state, params=flat_params)
             disturbance_history = append(opt_state.disturbance_history, disturbances)
-            # disturbance_history = sharding_constraint(disturbance_history, (None, 'opt'))
+            disturbance_history = sharding_constraint(disturbance_history, (None, 'opt'))
             opt_state = opt_state.replace(disturbance_history=disturbance_history, disturbance_transform_state=disturbance_transform_state, t=opt_state.t+1)
         
         # compute GPC control with updated params
