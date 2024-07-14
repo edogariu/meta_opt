@@ -146,26 +146,23 @@ for episode_i in range(1, num_episodes + 1):
     rng, init_rng = jax.random.split(rng)
     logging.info('Resetting model!')
 
-    unreplicated_params, unreplicated_batch_stats = self._model.initialize(
-    self._initializer,
-    self._hps,
-    init_rng,
-    self._init_logger,)
-    self._params, self._batch_stats = jax_utils.replicate(unreplicated_params), jax_utils.replicate(unreplicated_batch_stats)
+    self._params, self._batch_stats = self._model.initialize(
+            self._initializer,
+            self._hps,
+            init_rng,
+            self._init_logger,)
 
     if optimizer_cfg['reset_opt_state']:
         logging.info('Also resetting optimizer state!')
         if optimizer_cfg.optimizer_name == 'MetaOpt':
-            unreplicated_opt_state = jax_utils.unreplicate(self._optimizer_state)
-            gpc_params, gpc_opt_state = unreplicated_opt_state[0].gpc_params, unreplicated_opt_state[0].gpc_opt_state
-            unreplicated_optimizer_state = self._optimizer_init_fn(unreplicated_params)
-            unreplicated_optimizer_state = (unreplicated_optimizer_state[0].replace(gpc_params=gpc_params, gpc_opt_state=gpc_opt_state),
-                                            unreplicated_optimizer_state[1])
+            gpc_params, gpc_opt_state = self._optimizer_state[0].gpc_params, self._optimizer_state[0].gpc_opt_state
+            opt_state = self._optimizer_init_fn(unreplicated_params)
+            opt_state = (opt_state[0].replace(gpc_params=gpc_params, gpc_opt_state=gpc_opt_state),
+                                            opt_state[1])
             logging.info('Resetting metaopt, so I am putting back the gpc params')
         else:
-            unreplicated_optimizer_state = self._optimizer_init_fn(unreplicated_params)          
-        self._optimizer_state = jax_utils.replicate(unreplicated_optimizer_state)
-        logging.warn('@EVAN DONT FORGET: handle replication of opt state and also DONT RESET THE Ms for metaopt')
+            opt_state = self._optimizer_init_fn(unreplicated_params)          
+        self._optimizer_state = opt_state
 
     if num_episodes > 1: logging.info(f'Starting training episode {episode_i}.')
 
@@ -183,8 +180,8 @@ to `init2winit/trainer_lib/base_trainer.py::setup_and_maybe_restore(...)` to exp
 
 ### Add sharding
 Since this library uses `pmap` for sharding over batches, we will need to make a couple changes:
-1. Stop explictly replicating things like optimizer state, model weights, etc.. These will be replicated across the `'batch'` axis via `jax.jit`. 
-2. Change the pmapped train step function to a regular one.
+1. Stop explictly replicating things like optimizer state, model weights, etc.. These will be replicated across the `'batch'` axis via `jax.jit`. **At the top of `init2winit/checkpoint.py` we add `jax_utils.replicate = lambda v: v` to null out any replications.**
+2. Change the pmapped train step function to a regular one. **We change the definition in line 383 of `init2winit/trainer_lib/base_trainer::BaseTrainer.setup_and_maybe_restore(...)` to `update_pmapped = update_fn.`**
 3. In the dataloader, make sure to reshape and shard the data along the mesh gotten from `utils.get_mesh()`.
 4. Add a call to `utils.make_mesh()` to the config.
 
