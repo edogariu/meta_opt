@@ -93,8 +93,8 @@ def convert_configs(experiment_cfg, optimizer_cfg, base_config: config_dict.Conf
     config.num_train_steps *= experiment_cfg.num_episodes 
     hparam_overrides['rng_seed'] = experiment_cfg.seed
     config.eval_frequency = experiment_cfg.eval_every if experiment_cfg.eval_every > 0 else int(1e9)
-    config.eval_steps = compute_steps(config.num_train_steps * experiment_cfg.num_episodes, experiment_cfg.eval_every)
-    config.checkpoint_steps = compute_steps(config.num_train_steps * experiment_cfg.num_episodes, experiment_cfg.checkpoint_every)
+    config.eval_steps = compute_steps(config.num_train_steps, experiment_cfg.eval_every)
+    config.checkpoint_steps = compute_steps(config.num_train_steps, experiment_cfg.checkpoint_every)
 
     # handle printing with colors
     if experiment_cfg.print_with_colors:
