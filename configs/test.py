@@ -19,7 +19,7 @@ def get_config():
     experiment_cfg = experiment.ExperimentConfig(
         
         # name of the experiment
-        experiment_name='test',
+        experiment_name='metaopt_test',
         
         # workload details
         seed=42,
@@ -60,7 +60,6 @@ def get_config():
     #                               meta_optimizer_cfg=meta_optimizer_cfg, meta_grad_clip=10.0)
     
     if experiment_cfg.experimental_setup == 'algoperf':
-        assert not IS_INTERNAL, 'havent set up algoperf on internal google yet'
         return experiment_cfg, optimizer_cfg
     elif experiment_cfg.experimental_setup == 'init2winit':
         assert IS_INTERNAL, 'havent set up init2winit on external yet'

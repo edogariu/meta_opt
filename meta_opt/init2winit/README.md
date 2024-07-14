@@ -130,7 +130,7 @@ and add `"//third_party/py/flax"` to the `trainer` target of `init2winit/trainer
 Add the following code to right before the train loop of `init2winit/trainer_lib/trainer.py::Trainer.train(...)`
 ```python
 from flax import jax_utils
-experiment_cfg, optimizer_cfg = self._hps.opt_hparams['experiment_cfg'], self.opt_hparams['optimizer_cfg']
+experiment_cfg, optimizer_cfg = self._hps.opt_hparams['experiment_cfg'], self._hps.opt_hparams['optimizer_cfg']
 
 # add the fullbatch part
 if experiment_cfg['full_batch']:
