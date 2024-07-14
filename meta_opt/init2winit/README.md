@@ -202,7 +202,7 @@ train_iter = shard_iterator()
 # add the episodic part
 ...
 ```
-Must also comment out the `(objective_numerator, objective_denominator) = jax.lax.psum((objective_numerator, objective_denominator), axis_name='batch')` in line 288 of `init2winit.model_lib.base_model::BaseModel.training_objective_fn(...)` and replace the `grad = lax.pmean((grad), axis_name=axis_name)` in line 94 of `init2winit.trainer_lib.trainer::update(...)` with a `pass`. Must also drop the `[0]` in `return lr_array[0]` in line 254 of `init2winit.trainer_lib.trainer_utils::fetch_learning_rate(...)`.
+Must also comment out the `(objective_numerator, objective_denominator) = jax.lax.psum((objective_numerator, objective_denominator), axis_name='batch')` in line 288 of `init2winit.model_lib.base_model::BaseModel.training_objective_fn(...)` and replace the `grad = lax.pmean((grad), axis_name=axis_name)` in line 94 of `init2winit.trainer_lib.trainer::update(...)` with a `pass`. Must also drop the `[0]` in `return lr_array[0]` in line 254 of `init2winit.trainer_lib.trainer_utils::fetch_learning_rate(...)` and comment out the body of `maybe_sync_batchnorm_stats(...)` in the same file.
 
 5. Add a call to `utils.make_mesh()` to the config that runs BEFORE the optimizer gets made.
 
