@@ -189,13 +189,13 @@ This looks something like
 ...
 
 # add the sharding and un-pmapping part
-from init2winit.experiments.meta_opt.meta_opt import utils
+from init2winit.experiments.meta_opt.meta_opt import utils as shard_utils
 train_iter_old = train_iter
 def shard_iterator():
     while True: 
       batch = next(train_iter_old)
       batch = jax.tree_util.tree_map(lambda x: x.reshape(x.shape[0] * x.shape[1], *x.shape[2:]), batch)
-      batch = utils.shard(batch, ('batch'))
+      batch = shard_utils.shard(batch, ('batch'))
       yield batch
 train_iter = shard_iterator()
 
@@ -216,11 +216,11 @@ merged_hps = hyperparameters.build_hparams(
     allowed_unrecognized_hparams=allowed_unrecognized_hparams)
 
 # set up global mesh
-from init2winit.experiments.meta_opt.meta_opt import utils
+from init2winit.experiments.meta_opt.meta_opt import utils as shard_utils
 experiment_cfg = merged_hps.opt_hparams['experiment_cfg']
 num_batch_devices = experiment_cfg['num_batch_devices']
 num_opt_devices = experiment_cfg['num_opt_devices']
-utils.make_mesh(num_batch_devices, num_opt_devices)
+shard_utils.make_mesh(num_batch_devices, num_opt_devices)
 ```
 and adding ""//third_party/py/init2winit/experiments:utils"` to `main.py`'s `BUILD`file entry.
 
