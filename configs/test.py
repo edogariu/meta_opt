@@ -64,7 +64,7 @@ def get_config():
         assert not IS_INTERNAL, 'havent set up algoperf on internal google yet'
         return experiment_cfg, optimizer_cfg
     elif experiment_cfg.experimental_setup == 'init2winit':
-        assert IS_INTERNAL, 'havent set up init2winit on external google yet'
+        assert IS_INTERNAL, 'havent set up init2winit on external yet'
         return config_utils.convert_configs(experiment_cfg, optimizer_cfg, base_config.get_base_config())
     else:
         raise NotImplementedError(experiment_cfg.experimental_setup)

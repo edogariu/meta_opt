@@ -123,32 +123,6 @@ class LossFn(struct.PyTreeNode):
             dropout_rng=self.rng,
         )[0]
 opt_cost = LossFn(rng, batch_stats, batch)
-
-model_updates, new_optimizer_state = optimizer_update_fn(
-    grad,
-    optimizer_state,
-    params=params,
-    batch=batch,
-    batch_stats=new_batch_stats,
-    cost_fn=opt_cost,
-    grad_fn=grad_fn,
-    value=cost_value)
-new_params = optax.apply_updates(params, model_updates)
-
-new_metrics_state = None
-if metrics_state is not None:
-    new_metrics_state = metrics_update_fn(metrics_state, step, cost_value, grad,
-                                          params, new_params, optimizer_state,
-                                          new_batch_stats)
-    try:
-        curr_stats = new_optimizer_state[0].get_logging_metrics()
-        for k, v in curr_stats.items():
-            new_metrics_state[k] = metrics_state[k].at[step].set(v)
-    except Exception as e:
-        pass
-
-return (new_optimizer_state, new_params, new_batch_stats,
-      running_train_cost + cost_value, new_metrics_state, grad_norm)
 ```
 and add `"//third_party/py/flax"` to the `trainer` target of `init2winit/trainer_lib/BUILD`.
 
@@ -207,8 +181,14 @@ self._optimizer_init_fn = optimizer_init_fn
 ```
 to `init2winit/trainer_lib/base_trainer.py::setup_and_maybe_restore(...)` to expose `self._optimizer_init_fn` for episodic resets.
 
-### TODO: HANDLING SHARDING
-we gotta set up opt_state sharding for i2w like we did for algoperf...
+### Add sharding
+Since this library uses `pmap` for sharding over batches, we will need to make a couple changes:
+1. Stop explictly replicating things like optimizer state, model weights, etc.. These will be replicated across the `'batch'` axis via `jax.jit`. 
+2. Change the pmapped train step function to a regular one.
+3. In the dataloader, make sure to reshape and shard the data along the mesh gotten from `utils.get_mesh()`.
+4. Add a call to `utils.make_mesh()` to the config.
+
+
 
 ### Putting out fires
 On line 499 in `init2winit/xmanager/launch_utils_v2.py`, there is a note for (znado,gdahl) to convert it to `config.to_json()`. Do this.
@@ -218,30 +198,11 @@ if isinstance(config, config_dict.ConfigDict):
 else:
     config_json = json.dumps(config_copy)
 ```
-To ensure that we are correctly logging the optimizer state's training metrics, add
-```python
-opt_cfg = hps['opt_hparams']['optimizer_cfg']
-if opt_cfg['optimizer_name'] == 'MetaOpt':
-  history_len = opt_cfg['H']
-  for h in range(history_len):
-    metrics_state[f'M_{h}'] = jnp.zeros(num_train_steps)
-    metrics_state[f'grad_M_{h}'] = jnp.zeros(num_train_steps)
-  for k in ['gpc_cost', 
-            'disturbance_history_memory',
-            'param_history_memory',
-            'cost_fn_history_memory',
-            'disturbance_transform_state_memory',
-            'total_metaopt_memory']:
-    metrics_state[k] = jnp.zeros(num_train_steps)
-
-return metrics_state
-```
-to the `init_fn(...)` definition of `init2winit/training_metrics_grabber.py::make_training_metrics(...)`.
 
 
 ### Running it
 Now that we have set all this up, we can run a config simply by doing an `hgd` so that we are at `google3` and then executing
 ```bash
-/google/bin/releases/xmanager/cli/xmanager.par --xm_deployment_env=alphabet launch third_party/py/init2winit/xmanager/launch_train_xm_v2.py -- --undefok=xm_gxm_origin --xm_gxm_origin -- --xm_resource_pool=gdm --xm_skip_launch_confirmation --xm_resource_alloc=group:gdm/brain-pton --noxm_monitor_on_launch --xm_skip_launch_confirmation --config=third_party/py/init2winit/experiments/meta_opt/configs/test.py --use_fragmented_python --append_timestamp --skip_mitto --cns_group=dogariu
+/google/bin/releases/xmanager/cli/xmanager.par --xm_deployment_env=alphabet launch third_party/py/init2winit/xmanager/launch_train_xm_v2.py -- --undefok=xm_gxm_origin --xm_gxm_origin -- --xm_resource_pool=gdm --xm_skip_launch_confirmation --xm_resource_alloc=group:gdm/brain-pton --noxm_monitor_on_launch --xm_skip_launch_confirmation --config=third_party/py/init2winit/experiments/meta_opt/configs/test.py --use_fragmented_python --append_timestamp --skip_mitto --cns_group=dogariu --attribution_urls=rh/efforts/1234
 ```
 where the `--config=third_party/py/init2winit/experiments/meta_opt/configs/test.py` arg is filled in with the location of the config/sweep you wanna run.
