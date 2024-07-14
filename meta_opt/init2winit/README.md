@@ -219,6 +219,10 @@ merged_hps = hyperparameters.build_hparams(
 # set up global mesh
 from init2winit.experiments.meta_opt.meta_opt import utils as shard_utils
 experiment_cfg = merged_hps.opt_hparams['experiment_cfg']
+if experiment_cfg['print_with_colors']:  # handle printing color
+    shard_utils.bcolors.enable()
+else:
+    shard_utils.bcolors.disable()
 num_batch_devices = experiment_cfg['num_batch_devices']
 num_opt_devices = experiment_cfg['num_opt_devices']
 shard_utils.make_mesh(num_batch_devices, num_opt_devices)
