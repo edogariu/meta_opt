@@ -222,6 +222,7 @@ num_batch_devices = experiment_cfg['num_batch_devices']
 num_opt_devices = experiment_cfg['num_opt_devices']
 utils.make_mesh(num_batch_devices, num_opt_devices)
 ```
+and adding ""//third_party/py/init2winit/experiments:utils"` to `main.py`'s `BUILD`file entry.
 
 ### Putting out fires
 On line 499 in `init2winit/xmanager/launch_utils_v2.py`, there is a note for (znado,gdahl) to convert it to `config.to_json()`. Do this.
