@@ -198,7 +198,14 @@ if isinstance(config, config_dict.ConfigDict):
 else:
     config_json = json.dumps(config_copy)
 ```
-
+Also, to ensure that the meta-optimization metrics get logged to xmanager, add the following to `init2winit/trainer_lib/base_trainer::BaseTrainer._eval(...)` (after the report update):
+```python
+try:
+    opt_report = self._optimizer_state.inner_state[0].get_logging_metrics()
+except:
+    opt_report = {}
+report.update(opt_report)
+```
 
 ### Running it
 Now that we have set all this up, we can run a config simply by doing an `hgd` so that we are at `google3` and then executing
