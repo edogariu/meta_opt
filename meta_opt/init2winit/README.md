@@ -189,7 +189,7 @@ This looks something like
 ...
 
 # add the sharding and un-pmapping part
-from init2winit.experiments import utils
+from init2winit.experiments.meta_opt.meta_opt import utils
 train_iter_old = train_iter
 def shard_iterator():
     while True: 
@@ -202,10 +202,26 @@ train_iter = shard_iterator()
 # add the episodic part
 ...
 ```
+We also have to add `""//third_party/py/init2winit/experiments:utils"` to `trainer.py`'s `BUILD`file entry.
 
-4. Add a call to `utils.make_mesh()` that runs BEFORE the optimizer gets made.
+4. Add a call to `utils.make_mesh()` that runs BEFORE the optimizer gets made. This looks like adding the following to `init2winit/main.py::_run(...)`:
+```python
+merged_hps = hyperparameters.build_hparams(
+    model_name=model_name,
+    initializer_name=initializer_name,
+    dataset_name=dataset_name,
+    hparam_file=hparam_file,
+    hparam_overrides=hparam_overrides,
+    input_pipeline_hps=input_pipeline_hps,
+    allowed_unrecognized_hparams=allowed_unrecognized_hparams)
 
-
+# set up global mesh
+from init2winit.experiments.meta_opt.meta_opt import utils
+experiment_cfg = merged_hps.opt_hparams['experiment_cfg']
+num_batch_devices = experiment_cfg['num_batch_devices']
+num_opt_devices = experiment_cfg['num_opt_devices']
+utils.make_mesh(num_batch_devices, num_opt_devices)
+```
 
 ### Putting out fires
 On line 499 in `init2winit/xmanager/launch_utils_v2.py`, there is a note for (znado,gdahl) to convert it to `config.to_json()`. Do this.
