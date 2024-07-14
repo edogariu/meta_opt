@@ -159,14 +159,14 @@ from flax import jax_utils
 experiment_cfg, optimizer_cfg = self._hps.opt_hparams['experiment_cfg'], self.opt_hparams['optimizer_cfg']
 
 # add the fullbatch part
-if experiment_cfg.full_batch:
+if experiment_cfg['full_batch']:
     frozen_batch = next(train_iter)
     def _same_batch_generator():
         while True: yield frozen_batch
     train_iter = _same_batch_generator()
 
 # add the episodic part
-num_episodes = experiment_cfg.num_episodes
+num_episodes = experiment_cfg['num_episodes']
 for episode_i in range(1, num_episodes + 1):
     # reset for the episode
     rng, init_rng = jax.random.split(rng)
@@ -179,7 +179,7 @@ for episode_i in range(1, num_episodes + 1):
     self._init_logger,)
     self._params, self._batch_stats = jax_utils.replicate(unreplicated_params), jax_utils.replicate(unreplicated_batch_stats)
 
-    if optimizer_cfg.reset_opt_state:
+    if optimizer_cfg['reset_opt_state']:
         logging.info('Also resetting optimizer state!')
         if optimizer_cfg.optimizer_name == 'MetaOpt':
             unreplicated_opt_state = jax_utils.unreplicate(self._optimizer_state)
