@@ -59,18 +59,12 @@ def get_config():
             for nesterov in [True, False]:
                 for wd in [1e-4, 1e-3]:
                     o = dataclasses.replace(optimizer_cfg, learning_rate=lr, momentum=momentum, nesterov=nesterov, weight_decay=wd)
-                    sweep.append((experiment_cfg, o))
+                    sweep.append(o)
     
     if experiment_cfg.experimental_setup == 'algoperf':
         return sweep
     elif experiment_cfg.experimental_setup == 'init2winit':
         assert IS_INTERNAL, 'havent set up init2winit on external yet'
-        cfgs = [config_utils.convert_configs(experiment_cfg, optimizer_cfg, base_config.get_base_config()) for (experiment_cfg, optimizer_cfg) in sweep]
-        ret = cfgs[0]
-        ret.sweep = [copy.deepcopy(c.hparam_overrides) for c in cfgs]
-        ret.unlock()
-        ret.hparam_overrides = {}
-        ret.lock()
-        return ret
+        return config_utils.convert_configs(experiment_cfg, sweep, base_config.get_base_config())
     else:
         raise NotImplementedError(experiment_cfg.experimental_setup)
