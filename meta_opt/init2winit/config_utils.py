@@ -71,73 +71,77 @@ def make_default(workload: str, config: config_dict.ConfigDict) -> config_dict.C
     return config
 
 
-def convert_configs(experiment_cfg, optimizer_cfg, base_config: config_dict.ConfigDict):
+def convert_configs(experiment_cfg, optimizer_cfg_sweep, base_config: config_dict.ConfigDict):
     assert experiment_cfg.experimental_setup == 'init2winit', 'this function only works in init2winit'
     assert experiment_cfg.framework == 'jax', 'init2winit only works in jax'
     assert isinstance(base_config, config_dict.ConfigDict), 'base_config must be a ConfigDict'
 
     config = make_default(experiment_cfg.workload_name, base_config)
-    hparam_overrides = config.hparam_overrides
+    base_hparam_overrides = config.hparam_overrides
 
     config.experiment_name = experiment_cfg.experiment_name
     config.cell = 'el'
 
     # parse experiment config
     if experiment_cfg.batch_size is not None:
-        ratio = hparam_overrides['batch_size'] / experiment_cfg.batch_size
+        ratio = base_hparam_overrides['batch_size'] / experiment_cfg.batch_size
         config.num_train_steps = int(config.num_train_steps * ratio)
-        hparam_overrides['batch_size'] = experiment_cfg.batch_size
+        base_hparam_overrides['batch_size'] = experiment_cfg.batch_size
     if experiment_cfg.num_iters is not None:
         config.num_train_steps = experiment_cfg.num_iters
     config.num_train_steps *= experiment_cfg.num_episodes 
-    hparam_overrides['rng_seed'] = experiment_cfg.seed
+    base_hparam_overrides['rng_seed'] = experiment_cfg.seed
     config.eval_frequency = experiment_cfg.eval_every if experiment_cfg.eval_every > 0 else int(1e9)
     config.eval_steps = compute_steps(config.num_train_steps, experiment_cfg.eval_every)
     config.checkpoint_steps = compute_steps(config.num_train_steps, experiment_cfg.checkpoint_every)
 
-    # parse optimizer config
-    lr_hparams, opt_hparams = {}, {}
-    hparam_overrides['l2_decay_factor'] = None  # make it so weight decay is handled by optimizer and not cost function
-    if optimizer_cfg.optimizer_name == 'SGD':
-        if optimizer_cfg.momentum is None:
-            hparam_overrides['optimizer'] = 'sgd'
+    # parse optimizer configs
+    sweep_hparam_overrides = []
+    for optimizer_cfg in optimizer_cfg_sweep:
+        hparam_overrides = base_hparam_overrides.copy()
+        lr_hparams, opt_hparams = {}, {}
+        hparam_overrides['l2_decay_factor'] = None  # make it so weight decay is handled by optimizer and not cost function
+        if optimizer_cfg.optimizer_name == 'SGD':
+            if optimizer_cfg.momentum is None:
+                hparam_overrides['optimizer'] = 'sgd'
+                lr_hparams = {
+                'base_lr': optimizer_cfg.learning_rate,
+                'schedule': 'constant',
+                }
+                opt_hparams = {
+                    'weight_decay': optimizer_cfg.weight_decay
+                }
+            else:
+                hparam_overrides['optimizer'] = 'momentum' if not optimizer_cfg.nesterov else 'nesterov'
+                lr_hparams = {
+                'base_lr': optimizer_cfg.learning_rate,
+                'schedule': 'constant',
+                }
+                opt_hparams = {
+                    'momentum': optimizer_cfg.momentum,
+                    'weight_decay': optimizer_cfg.weight_decay
+                }
+        elif optimizer_cfg.optimizer_name == 'AdamW':
+            hparam_overrides['optimizer'] = 'adam'
             lr_hparams = {
-            'base_lr': optimizer_cfg.learning_rate,
-            'schedule': 'constant',
+                'base_lr': optimizer_cfg.learning_rate,
+                'schedule': 'constant',
             }
             opt_hparams = {
+                'beta1': optimizer_cfg.b1,
+                'beta2': optimizer_cfg.b2,
+                'epsilon': optimizer_cfg.eps,
                 'weight_decay': optimizer_cfg.weight_decay
             }
+        elif optimizer_cfg.optimizer_name == 'MetaOpt':
+            hparam_overrides['optimizer'] = 'metaopt'
         else:
-            hparam_overrides['optimizer'] = 'momentum' if not optimizer_cfg.nesterov else 'nesterov'
-            lr_hparams = {
-            'base_lr': optimizer_cfg.learning_rate,
-            'schedule': 'constant',
-            }
-            opt_hparams = {
-                'momentum': optimizer_cfg.momentum,
-                'weight_decay': optimizer_cfg.weight_decay
-            }
-    elif optimizer_cfg.optimizer_name == 'AdamW':
-        hparam_overrides['optimizer'] = 'adam'
-        lr_hparams = {
-            'base_lr': optimizer_cfg.learning_rate,
-            'schedule': 'constant',
-        }
-        opt_hparams = {
-            'beta1': optimizer_cfg.b1,
-            'beta2': optimizer_cfg.b2,
-            'epsilon': optimizer_cfg.eps,
-            'weight_decay': optimizer_cfg.weight_decay
-        }
-    elif optimizer_cfg.optimizer_name == 'MetaOpt':
-        hparam_overrides['optimizer'] = 'metaopt'
-    else:
-        raise NotImplementedError(optimizer_cfg.optimizer_name)
-    opt_hparams.update({'experiment_cfg': asdict(experiment_cfg), 'optimizer_cfg': asdict(optimizer_cfg)})
-    hparam_overrides['lr_hparams'] = lr_hparams
-    hparam_overrides['opt_hparams'] = opt_hparams
-    config.hparam_overrides = hparam_overrides
+            raise NotImplementedError(optimizer_cfg.optimizer_name)
+        opt_hparams.update({'experiment_cfg': asdict(experiment_cfg), 'optimizer_cfg': asdict(optimizer_cfg)})
+        hparam_overrides['lr_hparams'] = lr_hparams
+        hparam_overrides['opt_hparams'] = opt_hparams
+        sweep_hparam_overrides.append(hparam_overrides)
+    config.sweep = sweep_hparam_overrides
     return config
 
 def compute_steps(total_iters, freq):  # compute at which steps to do something
