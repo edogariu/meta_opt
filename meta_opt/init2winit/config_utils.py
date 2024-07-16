@@ -74,14 +74,13 @@ def make_default(workload: str, config: config_dict.ConfigDict) -> config_dict.C
 def convert_configs(experiment_cfg, optimizer_cfg, base_config: config_dict.ConfigDict):
     assert experiment_cfg.experimental_setup == 'init2winit', 'this function only works in init2winit'
     assert experiment_cfg.framework == 'jax', 'init2winit only works in jax'
-    assert experiment_cfg.num_opt_devices == 1, 'havent set up optimizer state sharding in init2winit yet'
     assert isinstance(base_config, config_dict.ConfigDict), 'base_config must be a ConfigDict'
 
     config = make_default(experiment_cfg.workload_name, base_config)
     hparam_overrides = config.hparam_overrides
 
     config.experiment_name = experiment_cfg.experiment_name
-    config.cell = 'pw'
+    config.cell = 'el'
 
     # parse experiment config
     if experiment_cfg.batch_size is not None:
