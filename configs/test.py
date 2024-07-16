@@ -65,6 +65,6 @@ def get_config():
         return sweep
     elif experiment_cfg.experimental_setup == 'init2winit':
         assert IS_INTERNAL, 'havent set up init2winit on external yet'
-        return config_utils.convert_configs(sweep, base_config.get_base_config())
+        return [config_utils.convert_configs(experiment_cfg, optimizer_cfg, base_config.get_base_config()) for (experiment_cfg, optimizer_cfg) in sweep]
     else:
         raise NotImplementedError(experiment_cfg.experimental_setup)
