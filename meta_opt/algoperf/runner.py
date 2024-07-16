@@ -353,8 +353,9 @@ def main(_):
     config_module_path = workloads.convert_filepath_to_module(config_path)
     config_module = importlib.import_module(config_module_path, package='.')
 
-    experiment_cfg, optimizer_cfg = config_module.get_config()
-    run(experiment_cfg, optimizer_cfg)
+    cfgs = config_module.get_config()
+    for (experiment_cfg, optimizer_cfg) in cfgs:
+        run(experiment_cfg, optimizer_cfg)
     return
 
 
