@@ -15,9 +15,9 @@ def make_default(workload: str, config: config_dict.ConfigDict) -> config_dict.C
 
         config.dataset = 'mnist'
         config.model = 'fully_connected'
-        config.hparam_overrides = {
+        config.sweep = [{
             'batch_size': batch_size,
-        }
+        },]
         config.num_train_steps = int(300 * train_size / batch_size)
 
     elif workload == 'cifar':
@@ -30,13 +30,13 @@ def make_default(workload: str, config: config_dict.ConfigDict) -> config_dict.C
 
         config.dataset = 'cifar10'
         config.model = 'wide_resnet'
-        config.hparam_overrides = {
+        config.sweep = [{
             'batch_size': batch_size,
             'blocks_per_group': 4,
             'channel_multiplier': 10,
             'train_size': train_size,
             'valid_size': 5000,
-        }
+        },]
         config.num_train_steps = int(300 * train_size / batch_size)
 
     elif workload == 'lm1b':
@@ -49,7 +49,7 @@ def make_default(workload: str, config: config_dict.ConfigDict) -> config_dict.C
 
         config.dataset = 'lm1b_v2'
         config.model = 'transformer'
-        config.hparam_overrides = {
+        config.sweep = [{
             'batch_size': batch_size,
             'emb_dim': 512,
             'num_heads': 8,
@@ -60,7 +60,7 @@ def make_default(workload: str, config: config_dict.ConfigDict) -> config_dict.C
             'attention_dropout_rate': 0.1,
             'model_dtype': 'bfloat16',
             'vocab_path': '/cns/iw-d/home/init2winit/lm1b/sentencepiece_model2'
-        }
+        },]
         config.num_train_steps = int(300 * train_size / batch_size)
         config.eval_train_num_batches = 256
         config.eval_num_batches = None
@@ -77,7 +77,7 @@ def convert_configs(experiment_cfg, optimizer_cfg_sweep, base_config: config_dic
     assert isinstance(base_config, config_dict.ConfigDict), 'base_config must be a ConfigDict'
 
     config = make_default(experiment_cfg.workload_name, base_config)
-    base_hparam_overrides = config.hparam_overrides
+    base_hparam_overrides = config.sweep[0]
 
     config.experiment_name = experiment_cfg.experiment_name
     config.cell = 'el'
