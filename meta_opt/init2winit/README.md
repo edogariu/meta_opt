@@ -205,7 +205,7 @@ train_iter = shard_iterator()
 # add the episodic part
 ...
 ```
-We also have to add `""//third_party/py/init2winit/experiments:utils"` to `trainer.py`'s `BUILD`file entry.
+and adding `""//third_party/py/init2winit/experiments:utils"` to `trainer.py`'s `BUILD`file entry. We also have to do the same thing in `init2winit/trainer_lib/trainer_utils::eval_metrics(...)`.
 
 4. Add a call to `utils.make_mesh()` that runs BEFORE the optimizer gets made. This looks like adding the following to `init2winit/main.py::_run(...)`:
 ```python
