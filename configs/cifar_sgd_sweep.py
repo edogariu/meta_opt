@@ -13,7 +13,9 @@ except:  # internal google imports
         from init2winit.experiments.meta_opt.meta_opt.optimizers import sgd, adamw, metaopt
         from init2winit.experiments.meta_opt.meta_opt import experiment
     IS_INTERNAL = True
+
 import dataclasses
+import copy
 
 def get_config():
     
@@ -65,7 +67,10 @@ def get_config():
         assert IS_INTERNAL, 'havent set up init2winit on external yet'
         cfgs = [config_utils.convert_configs(experiment_cfg, optimizer_cfg, base_config.get_base_config()) for (experiment_cfg, optimizer_cfg) in sweep]
         ret = cfgs[0]
-        ret.sweep = [c.hparam_overrides for c in cfgs[1:]]
+        ret.sweep = [copy.deepcopy(c.hparam_overrides) for c in cfgs]
+        ret.unlock()
+        ret.hparam_overrides = {}
+        ret.lock()
         return ret
     else:
         raise NotImplementedError(experiment_cfg.experimental_setup)
