@@ -35,6 +35,7 @@ class MetaOptConfig(OptimizerConfig):
     freeze_gpc_params: bool  # whether to skip the controller update step. set this to False to learn optimizer, and True to deploy it
     freeze_cost_fn_during_rollouts: bool  # whether to use one fixed batch during counterfactual rollouts
     use_bfloat16: bool
+    counterfactual: bool = True
 
     # METADATA
     optimizer_name: str = 'MetaOpt'
