@@ -172,12 +172,12 @@ def update_gpc_controller_counterfactual(gpc_params: chex.Array,
             params += compute_gpc_control(controller_params, jax.lax.dynamic_slice_in_dim(disturbance_history, h, H))  # play GPC control
 
         cost = curr_cost_fn(unflatten_fn(params))
-        return cost
+        return cost, params
     
-    gpc_cost, gpc_grads = jax.value_and_grad(gpc_cost_fn)(gpc_params)
+    (gpc_cost, final_params), gpc_grads = jax.value_and_grad(gpc_cost_fn, has_aux=True)(gpc_params)
     gpc_updates, new_gpc_opt_state = gpc_tx.update(gpc_grads, gpc_opt_state, gpc_params)
     gpc_params = optax.apply_updates(gpc_params, gpc_updates)
-    return gpc_params, new_gpc_opt_state, gpc_cost, gpc_grads
+    return gpc_params, new_gpc_opt_state, gpc_cost, gpc_grads, final_params
 
 
 class JaxMetaOptState(struct.PyTreeNode):
@@ -243,6 +243,7 @@ def make_jax_metaopt(
         gpc_tx: optax.GradientTransformation,
         dtype,
 
+        counterfactual: bool,
         fake_the_dynamics: bool,
         freeze_gpc_params: bool,
         freeze_cost_fn_during_rollouts: bool,
@@ -267,6 +268,8 @@ def make_jax_metaopt(
             method for computing GPC controls. one of 'scalar', 'diagonal', 'full'
         gpc_tx: optax.GradientTransformation
             optax optimizer for the GPC controller parameters
+        counterfactual: bool
+            if False, returns updates on top of params at end of rollout
         fake_the_dynamics: bool
             whether to use cached disturbances or compute fresh gradients during rollouts
         freeze_gpc_params: bool
@@ -372,7 +375,7 @@ def make_jax_metaopt(
         # update GPC controller
         if not freeze_gpc_params:
             # if t >= H + HH, compute update to gpc controller
-            gpc_params, gpc_opt_state, gpc_cost, gpc_grads = jax.lax.cond(opt_state.t >= H + HH, 
+            gpc_params, gpc_opt_state, gpc_cost, gpc_grads, final_flat_params = jax.lax.cond(opt_state.t >= H + HH, 
                                                                           
                                                                           # if true
                                                                           lambda: update_gpc_controller_counterfactual(
@@ -394,7 +397,7 @@ def make_jax_metaopt(
                                                                             ), 
 
                                                                             # if false 
-                                                                            lambda: (opt_state.gpc_params, opt_state.gpc_opt_state, opt_state.recent_gpc_cost, opt_state.recent_gpc_grads))
+                                                                            lambda: (opt_state.gpc_params, opt_state.gpc_opt_state, opt_state.recent_gpc_cost, opt_state.recent_gpc_grads, flat_params))
 
             # append to histories
             param_history = append(opt_state.param_history, flat_params)
@@ -407,6 +410,7 @@ def make_jax_metaopt(
                                         param_history=param_history, cost_fn_history=cost_fn_history, 
                                         recent_gpc_grads=gpc_grads, recent_gpc_cost=gpc_cost, t=opt_state.t+1)
         else:
+            final_flat_params = None
             disturbances, disturbance_transform_state = opt_state.disturbance_transform.update(flat_grads, opt_state.disturbance_transform_state, params=flat_params)
             disturbance_history = append(opt_state.disturbance_history, disturbances)
             disturbance_history = sharding_constraint(disturbance_history, (None, 'opt'))
@@ -415,6 +419,7 @@ def make_jax_metaopt(
         # compute GPC control with updated params
         control = (-weight_decay) * flat_params - base_lr * disturbances  # apply base SGD/adam/whatever update
         control += compute_gpc_control(opt_state.gpc_params, disturbance_history[-H:])  # use past H disturbances, including most recent one
+        if final_flat_params is not None and not counterfactual: control += (final_flat_params - flat_params)
         # logging.info('[DTYPES]', opt_state.disturbance_history.dtype, opt_state.param_history.dtype, control.dtype)
         control = unflatten_fn(control)
         control = sharding_constraint(control, (None,))
