@@ -83,6 +83,7 @@ class MetaOptConfig(OptimizerConfig):
         opt = make_jax_metaopt(base_lr=self.base_learning_rate, weight_decay=self.weight_decay, grad_clip=self.grad_clip, scale_by_adam_betas=self.scale_by_adam_betas,
                                H=self.H, HH=self.HH, m_method=self.m_method,
                                gpc_tx=meta_optimizer,
+                               counterfactual=self.counterfactual,
                                fake_the_dynamics=self.fake_the_dynamics, freeze_gpc_params=self.freeze_gpc_params, freeze_cost_fn_during_rollouts=self.freeze_cost_fn_during_rollouts,
                                dtype=jax.dtypes.bfloat16 if self.use_bfloat16 else float)
         return opt
