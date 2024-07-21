@@ -44,8 +44,11 @@ class JaxTrainState(struct.PyTreeNode):
                 gpc_params, gpc_opt_state = self.opt_state[0].gpc_params, self.opt_state[0].gpc_opt_state
                 logging.info(f'{bcolors.OKBLUE}{bcolors.BOLD}Resetting metaopt, so I am putting back the gpc params{bcolors.ENDC}')
                 opt_state = self.tx.init(params_zeros_like)
-                _, o1 = self.opt_state[0].gpc_tx.init(gpc_params)
-                gpc_opt_state = (gpc_opt_state[0], o1)
+                try:
+                    _, o1 = self.opt_state[0].gpc_tx.init(gpc_params)
+                    gpc_opt_state = (gpc_opt_state[0], o1)
+                except:
+                    pass
                 opt_state=(opt_state[0].replace(gpc_params=gpc_params, gpc_opt_state=gpc_opt_state), opt_state[1])
             else:
                 opt_state = self.tx.init(params_zeros_like)
