@@ -1,20 +1,21 @@
-from typing import Union, Callable, Iterable, Optional
-from flax import struct
+from typing import Optional
 
-# from torch import optim, Tensor
+import chex
 import optax
 
 from .base import OptimizerConfig
+from .schedules import ScheduleConfig
 
 # ==============================================================================
 # --------------------------   SGD   -------------------------------------------
 # ==============================================================================
 
 
-@struct.dataclass
+@OptimizerConfig.register
+@chex.dataclass
 class SGDConfig(OptimizerConfig):
     # REQUIRED
-    learning_rate: Union[float, Callable[[int], float]]  # learning rate or schedule
+    learning_rate_schedule_cfg: ScheduleConfig  # learning rate or schedule
 
     # OPTIONAL
     momentum: Optional[float] = None
@@ -30,26 +31,14 @@ class SGDConfig(OptimizerConfig):
     @staticmethod
     def fromdict(d: dict):
         ret = {}
-        for k in ['learning_rate', ]:  # required
-            ret[k] = d[k]
+        for k in ['learning_rate_schedule_cfg', ]:  # required
+            if k == 'learning_rate_schedule_cfg':
+                ret[k] = ScheduleConfig.from_dict(d[k])
+            else:
+                ret[k] = d[k]
         for k in ['momentum', 'nesterov', 'weight_decay', 'grad_clip']:  # optional
             if k in d: ret[k] = d[k]
         return SGDConfig(**ret)
-
-
-#     def make_torch(self) -> Callable[[Iterable[Tensor]], optim.Optimizer]:
-#         """
-#         Instantiates this optimizer configuration for use with pytorch. 
-#         For example, if this were SGD, it would return roughly the same thing as
-#                 `lambda params: torch.optim.SGD(params, lr=self.lr, ...)`
-#         and could be used afterward in the usual way.
-#         """
-#         assert self.grad_clip is None, 'havent added gradient clipping to pytorch optimizers yet, my bad'
-#         return lambda params: optim.SGD(params,
-#                                         lr=self.learning_rate, 
-#                                         momentum=self.momentum or 0., 
-#                                         weight_decay=self.weight_decay or 0., 
-#                                         nesterov=self.nesterov)
 
 
     def make_jax(self) -> optax.GradientTransformationExtraArgs:
@@ -59,7 +48,7 @@ class SGDConfig(OptimizerConfig):
                 `optax.sgd(learning_rate=self.lr, ...)`
         and could be used afterward in the usual way.
         """
-        opt = optax.sgd(learning_rate=self.learning_rate, 
+        opt = optax.sgd(learning_rate=self.learning_rate_schedule_cfg.make_jax(), 
                         momentum=self.momentum,
                         nesterov=self.nesterov)
         if self.weight_decay is not None: opt = optax.chain(optax.add_decayed_weights(self.weight_decay), opt)

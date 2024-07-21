@@ -101,6 +101,7 @@ def convert_configs(experiment_cfg, optimizer_cfg_sweep, base_config: config_dic
         hparam_overrides = base_hparam_overrides.copy()
         lr_hparams, opt_hparams = {}, {}
         hparam_overrides['l2_decay_factor'] = None  # make it so weight decay is handled by optimizer and not cost function
+        weight_decay = 0.0 if optimizer_cfg.weight_decay is None else optimizer_cfg.weight_decay
         if optimizer_cfg.optimizer_name == 'SGD':
             if optimizer_cfg.momentum is None:
                 hparam_overrides['optimizer'] = 'sgd'
@@ -109,7 +110,7 @@ def convert_configs(experiment_cfg, optimizer_cfg_sweep, base_config: config_dic
                 'schedule': 'constant',
                 }
                 opt_hparams = {
-                    'weight_decay': optimizer_cfg.weight_decay
+                    'weight_decay': weight_decay
                 }
             else:
                 hparam_overrides['optimizer'] = 'momentum' if not optimizer_cfg.nesterov else 'nesterov'
@@ -119,7 +120,7 @@ def convert_configs(experiment_cfg, optimizer_cfg_sweep, base_config: config_dic
                 }
                 opt_hparams = {
                     'momentum': optimizer_cfg.momentum,
-                    'weight_decay': optimizer_cfg.weight_decay
+                    'weight_decay': weight_decay
                 }
         elif optimizer_cfg.optimizer_name == 'AdamW':
             hparam_overrides['optimizer'] = 'adam'
@@ -131,7 +132,7 @@ def convert_configs(experiment_cfg, optimizer_cfg_sweep, base_config: config_dic
                 'beta1': optimizer_cfg.b1,
                 'beta2': optimizer_cfg.b2,
                 'epsilon': optimizer_cfg.eps,
-                'weight_decay': optimizer_cfg.weight_decay
+                'weight_decay': weight_decay
             }
         elif optimizer_cfg.optimizer_name == 'MetaOpt':
             hparam_overrides['optimizer'] = 'metaopt'

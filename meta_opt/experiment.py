@@ -36,4 +36,5 @@ class ExperimentConfig:
 
     # other details
     print_with_colors: bool = True  # whether to use colors when printing
+    data_dir: str = './datasets'  # only applies to algoperf experiments
     use_wandb: bool = False  # only applies to algoperf experiments

@@ -6,7 +6,9 @@ import time
 import traceback
 from collections import namedtuple
 from dataclasses import asdict
+from typing import Tuple, Iterable
 
+import numpy as np
 import jax
 from flax import jax_utils
 
@@ -17,7 +19,6 @@ from algorithmic_efficiency.workloads import workloads
 import meta_opt.algoperf.jax_nn as jax_nn
 from meta_opt.experiment import ExperimentConfig
 from meta_opt.optimizers import OptimizerConfig
-from meta_opt.optimizers.metaopt import JaxMetaOptState
 from meta_opt.utils import bcolors, pretty_dict, shard, make_mesh
 
 
@@ -78,6 +79,54 @@ def handle_defaults(experiment_cfg: ExperimentConfig):
     
     return experiment_cfg
 
+def make_workload_and_dataset(rng: jax.random.PRNGKey, 
+                              workload_name: str, 
+                              batch_size: int, 
+                              full_batch: bool, 
+                              data_dir: str = './datasets') -> Tuple[workloads.spec.Workload, Iterable]:
+    workload_metadata = deepcopy(workloads.WORKLOADS[workload_name])
+    workload_metadata['workload_path'] = os.path.join(workloads.BASE_WORKLOADS_DIR,
+                                                      workload_metadata['workload_path'] + '_jax',
+                                                      'workload.py')
+    workload = workloads.import_workload(
+        workload_path=workload_metadata['workload_path'],
+        workload_class_name=workload_metadata['workload_class_name'],
+        workload_init_kwargs={})
+    inq = workload._build_input_queue(rng, 'train', data_dir=data_dir, global_batch_size=batch_size)
+
+    @jax.jit
+    def _reshape_fn(v):
+        d, n, *shape = v.shape
+        return v.reshape(d * n, *shape)
+    def _reshape_and_shard_generator():
+        while True: 
+            expanded_batch = next(inq)
+            batch = jax.tree_map(_reshape_fn, expanded_batch)
+            batch = shard(batch, ('batch',))  # shard along the 'batch' axis of the mesh
+            yield batch
+    input_queue = _reshape_and_shard_generator()
+
+    
+    if full_batch:
+        batch = next(input_queue)
+        def _same_batch_generator():
+            while True: yield batch
+        input_queue = _same_batch_generator()
+    return workload, input_queue
+
+def evaluate(rng: jax.random.PRNGKey,
+             workload: workloads.spec.Workload,
+             tstate: jax_nn.JaxTrainState,
+             data_dir: str,
+             step: int = 0):
+    _, model_params, model_state = tstate.get_algoperf_stuff()
+    return workload.eval_model(workload.eval_batch_size,
+                                jax_utils.replicate(model_params),
+                                model_state,
+                                rng,
+                                data_dir,
+                                None,  # hopefully we dont need imagenetv2 dataset dir...
+                                step)
 
 def run(experiment_cfg: ExperimentConfig, 
         optimizer_cfg: OptimizerConfig):
@@ -92,13 +141,6 @@ def run(experiment_cfg: ExperimentConfig,
 
     # set up (framework-specific) workload meta-information
     workload_name = experiment_cfg.workload_name.lower()
-    assert workload_name in workloads.WORKLOADS, f'workload {workload_name} simply doesn\'t exist :)'
-    if workloads.get_base_workload_name(workload_name) in ['librispeech_conformer', 'librispeech_deepspeech']: 
-        raise NotImplementedError('need to write some special code for this!')
-    workload_metadata = deepcopy(workloads.WORKLOADS[workload_name])
-    workload_metadata['workload_path'] = os.path.join(workloads.BASE_WORKLOADS_DIR,
-                                                      workload_metadata['workload_path'] + f'_{experiment_cfg.framework}',
-                                                      'workload.py')
     
     # for algoperf compatability
     flags.FLAGS.workload = workload_name
@@ -121,11 +163,16 @@ def run(experiment_cfg: ExperimentConfig,
     experiment_cfg = handle_defaults(experiment_cfg)
     mesh = make_mesh(experiment_cfg.num_batch_devices, experiment_cfg.num_opt_devices)
 
-    # import the workload
-    workload = workloads.import_workload(
-        workload_path=workload_metadata['workload_path'],
-        workload_class_name=workload_metadata['workload_class_name'],
-        workload_init_kwargs={})
+    # set up rng's
+    seed = experiment_cfg.seed
+    logging.info(f'{bcolors.OKGREEN}{bcolors.BOLD}seed={seed}{bcolors.ENDC}')
+    rng = random_utils.PRNGKey(seed)
+    data_rng, tstate_rng, rng = random_utils.split(rng, 3)  
+    data_dir = os.path.abspath(experiment_cfg.data_dir)
+    workload, input_queue = make_workload_and_dataset(
+        rng=data_rng, workload_name=workload_name, batch_size=experiment_cfg.batch_size,
+        full_batch=experiment_cfg.full_batch, data_dir=data_dir
+    )
     
     # count GPUs and set up framework-specific things
     if experiment_cfg.framework == 'jax':
@@ -171,39 +218,6 @@ def run(experiment_cfg: ExperimentConfig,
         logging.info(logs_so_far)
         logging.info(f'{bcolors.OKGREEN}{bcolors.BOLD}experiment_dir={experiment_dir}{bcolors.ENDC}')
 
-        # set up rng's
-        seed = experiment_cfg.seed
-        logging.info(f'{bcolors.OKGREEN}{bcolors.BOLD}seed={seed}{bcolors.ENDC}')
-        rng = random_utils.PRNGKey(seed)
-        data_rng, tstate_rng, rng = random_utils.split(rng, 3)
-
-        # Workload setup.
-        data_dir = os.path.expanduser(flags.FLAGS.data_dir)
-        s = f'Initializing dataset for workload: {bcolors.OKCYAN}{bcolors.BOLD}{experiment_cfg.workload_name}{bcolors.ENDC}.'
-        logging.info(s)
-        with profiler.profile(s):
-            inq = workload._build_input_queue(data_rng, 'train', data_dir=data_dir, global_batch_size=experiment_cfg.batch_size)
-            
-            # algoperf does a replication axis for batches using `jax.local_devices()`, so we will undo this to get 
-            # batches of size `[experiment_cfg.batch_size, ...]` as desired
-            @jax.jit
-            def _reshape_fn(v):
-                d, n, *shape = v.shape
-                return v.reshape(d * n, *shape)
-            def _reshape_and_shard_generator():
-                while True: 
-                    expanded_batch = next(inq)
-                    batch = jax.tree_map(_reshape_fn, expanded_batch)
-                    batch = shard(batch, ('batch',))  # shard along the 'batch' axis of the mesh
-                    yield batch
-            input_queue = _reshape_and_shard_generator()
-
-            if experiment_cfg.full_batch:
-                batch = next(input_queue)
-                def _same_batch_generator():
-                    while True: yield batch
-                input_queue = _same_batch_generator()
-
         # TrainState (model & optimizer) setup
         s = f'Initializing the model (for {bcolors.OKCYAN}{bcolors.BOLD}{experiment_cfg.workload_name}{bcolors.ENDC}) ' \
             + f'and also optimizer: {bcolors.OKGREEN}{bcolors.BOLD}{optimizer_cfg.optimizer_name}{bcolors.ENDC}'
@@ -218,6 +232,7 @@ def run(experiment_cfg: ExperimentConfig,
         
         # Metrics and checkpoint setup, along with some bookkeeping.
         global_step = 1
+        loss_results = []
         eval_results = []
         preemption_count = 0
         (optimizer_state, model_params, model_state) = tstate.get_algoperf_stuff()
@@ -248,10 +263,10 @@ def run(experiment_cfg: ExperimentConfig,
         o_d = asdict(optimizer_cfg)
         logger_utils.write_json(config_file_name, {'experiment_cfg': e_d, 'optimizer_cfg': o_d})
         if experiment_cfg.num_episodes > 1:
-            logging.warning(f'{bcolors.WARNING}{bcolors.BOLD}wont load checkpoints for episodic learning, its weird{bcolors.ENDC}')
+            logging.info(f'{bcolors.WARNING}{bcolors.BOLD}wont load checkpoints for episodic learning, its weird{bcolors.ENDC}')
         else:
             if global_step == 1:
-                logging.warning(f'{bcolors.WARNING}{bcolors.BOLD}I found no checkpoint, so we proceed without loading :){bcolors.ENDC}')
+                logging.info(f'{bcolors.WARNING}{bcolors.BOLD}I found no checkpoint, so we proceed without loading :){bcolors.ENDC}')
             else:
                 tstate = load_train_state(checkpoint, workload, optimizer_cfg)
 
@@ -263,13 +278,7 @@ def run(experiment_cfg: ExperimentConfig,
         for episode_i in range(1, num_episodes + 1):
             # reset for the episode
             rng, reset_rng = random_utils.split(rng)
-            if isinstance(tstate.opt_state[0], JaxMetaOptState):
-                gpc_params, gpc_opt_state = tstate.opt_state[0].gpc_params, tstate.opt_state[0].gpc_opt_state
-                tstate = tstate.reset(reset_rng, workload, optimizer_cfg.reset_opt_state)
-                logging.info(f'{bcolors.OKBLUE}{bcolors.BOLD}Resetting metaopt, so I am putting back the gpc params{bcolors.ENDC}')
-                tstate = tstate.replace(opt_state=(tstate.opt_state[0].replace(gpc_params=gpc_params, gpc_opt_state=gpc_opt_state), tstate.opt_state[1]))
-            else:
-                tstate = tstate.reset(reset_rng, workload, optimizer_cfg.reset_opt_state)
+            tstate = tstate.reset(reset_rng, workload, optimizer_cfg.reset_opt_state)
 
             if num_episodes > 1: logging.info(f'{bcolors.FAIL}{bcolors.BOLD}Starting training episode {episode_i}.{bcolors.ENDC}')
             for local_step in range(1, num_iters + 1):
@@ -284,6 +293,8 @@ def run(experiment_cfg: ExperimentConfig,
                 with profiler.profile('Update parameters'):
                     batch = next(input_queue)
                     tstate, latest_train_result = train_step(update_rng, workload, tstate, batch)
+                    loss_results.append((global_step, latest_train_result))
+                    # print(latest_train_result['loss'], tstate.opt_state[0].recent_gpc_cost, tstate.opt_state[0].recent_gpc_grads.sum(), tstate.opt_state[0].disturbance_history.mean(axis=1))
 
                 # eval if we want (including on the first and last steps)
                 if (eval_every > 0) and (local_step % eval_every == 0 or boundary_step):
@@ -292,19 +303,12 @@ def run(experiment_cfg: ExperimentConfig,
                     else:
                         try:
                             with profiler.profile('Evaluating'):
-                                _, model_params, model_state = tstate.get_algoperf_stuff()
-                                latest_eval_result = workload.eval_model(workload.eval_batch_size,
-                                                                        jax_utils.replicate(model_params),
-                                                                        model_state,
-                                                                        eval_rng,
-                                                                        data_dir,
-                                                                        None,  # hopefully we dont need imagenetv2 dataset dir...
-                                                                        local_step)
+                                latest_eval_result = evaluate(eval_rng, workload, tstate, data_dir, local_step)
 
                             time_since_start = time.time() - global_start_time
                             logging.info(f'Time: {time_since_start:.2f}s, '
                                         f'\tStep: {local_step},\tEpisode:{episode_i},\t{bcolors.FAIL}{bcolors.BOLD}{latest_eval_result}{bcolors.ENDC}')
-                            eval_results.append((local_step, latest_eval_result))
+                            eval_results.append((global_step, latest_eval_result))
                             metrics_logger.append_scalar_metrics(latest_eval_result, global_step=global_step, preemption_count=preemption_count, is_eval=True)
                         except:
                             logging.error(f'{bcolors.FAIL}{bcolors.BOLD}failed on eval at step {local_step} of episode {episode_i} with error {traceback.format_exc()}{bcolors.ENDC}')
@@ -342,7 +346,25 @@ def run(experiment_cfg: ExperimentConfig,
 
     # epilogue
     logging.info(profiler.summary())
-    return
+    try:
+        loss_results = np.array([(l[0], l[1]['loss']) for l in loss_results])
+        if len(eval_results) > 0:
+            eval_results = np.array([(e[0], e[1]['validation/accuracy']) for e in eval_results])
+    except:
+        pass
+    return loss_results, eval_results, tstate
+
+# def run_fullbatch(optimizer_cfg: OptimizerConfig,
+#                   rng: jax.random.PRNGKey,
+#                   num_iters: int,
+#                   num_episodes: int,
+
+#                   workload, input_queue):
+#     # make rng, data, and model
+#     init_rng, rng = jax.random.split(rng)
+#     tstate = jax_nn.jax_create_train_state(init_rng, workload, optimizer_cfg)
+#     batch = next(input_queue)
+#     return jax_nn._run_fullbatch(tstate, rng, num_episodes, num_iters, workload, batch, optimizer_cfg.reset_opt_state)
 
 
 def main(_):
@@ -354,10 +376,10 @@ def main(_):
     config_module = importlib.import_module(config_module_path, package='.')
 
     cfgs = config_module.get_config()
-    for (experiment_cfg, optimizer_cfg) in cfgs:
-        run(experiment_cfg, optimizer_cfg)
+    for i, (experiment_cfg, optimizer_cfg) in enumerate(cfgs):
+        e = experiment_cfg.replace(experiment_name=f'{experiment_cfg.experiment_name}_{i}')
+        run(e, optimizer_cfg)
     return
-
 
 if __name__ == '__main__':
     app.run(main)

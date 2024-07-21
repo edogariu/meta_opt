@@ -1,7 +1,7 @@
 try:
     base_config = None
     from meta_opt import experiment
-    from meta_opt.optimizers import sgd, adamw, metaopt
+    from meta_opt.optimizers import schedules, sgd, adamw, metaopt, polyak, cocob, dog, dowg, mechanic
     from meta_opt.init2winit import config_utils
     IS_INTERNAL = False
 except:  # internal google imports
@@ -10,7 +10,7 @@ except:  # internal google imports
     with binary_import.AutoGoogle3():
         from init2winit.experiments import base_config
         from init2winit.experiments.meta_opt.meta_opt.init2winit import config_utils
-        from init2winit.experiments.meta_opt.meta_opt.optimizers import sgd, adamw, metaopt
+        from init2winit.experiments.meta_opt.meta_opt.optimizers import sgd, adamw, metaopt, schedules
         from init2winit.experiments.meta_opt.meta_opt import experiment
     IS_INTERNAL = True
 
@@ -19,48 +19,40 @@ def get_config():
     experiment_cfg = experiment.ExperimentConfig(
         
         # name of the experiment
-        experiment_name='metaopt_test',
+        experiment_name='test',
         
         # workload details
         seed=42,
-        experimental_setup='init2winit',
+        experimental_setup='algoperf',
         workload_name='mnist', 
-        full_batch=False,  # whether to do full gradient descent on one batch (fixed during the whole training) or regular minibatch SGD
-        num_episodes=1,
-        num_iters=5000,  # if None, uses default for the workload
+        full_batch=True,  # whether to do full gradient descent on one batch (fixed during the whole training) or regular minibatch SGD
+        num_episodes=3,
+        num_iters=400,  # if None, uses default for the workload
 
         # backend details
         num_batch_devices=8,
         num_opt_devices=1,
 
         # how often to do things
-        eval_every=50,
+        eval_every=-1,
         checkpoint_every=-1,
 
         # other details
-        print_with_colors=False,
+        print_with_colors=True,
 
         # algoperf-only args
         log_every=50,
         use_wandb=False)
 
-    optimizer_cfg = sgd.SGDConfig(learning_rate=None, momentum=None, nesterov=False, weight_decay=None, grad_clip=None)
-    # optimizer_cfg = adamw.AdamWConfig(learning_rate=0.001, b1=0.9, b2=0.999, eps=1e-8, weight_decay=None, grad_clip=None)
-
-    # meta_optimizer_cfg = SGDConfig(learning_rate=1e-5, momentum=0, nesterov=False, weight_decay=None, grad_clip=None)
-    # meta_optimizer_cfg = adamw.AdamWConfig(learning_rate=4e-4, b1=0.9, b2=0.999, eps=1e-8, weight_decay=0, grad_clip=None)
-    # optimizer_cfg = metaopt.MetaOptConfig(base_learning_rate=0.001, weight_decay=1e-4, grad_clip=None,
-    #                             H=16, HH=2, m_method='scalar', scale_by_adam_betas=None, 
-    #                             fake_the_dynamics=False, freeze_gpc_params=False, freeze_cost_fn_during_rollouts=False,
-    #                             meta_optimizer_cfg=meta_optimizer_cfg, use_bfloat16=False)
-
-    sweep = []
-    for lr in [1e-4, 1e-3, 1e-2, 1e-1]:
-        for momentum in [0., 0.8, 0.9, 0.99]:
-            for nesterov in [True, False]:
-                for wd in [1e-4, 1e-3]:
-                    sweep.append((experiment_cfg, optimizer_cfg.replace(learning_rate=lr, momentum=momentum, nesterov=nesterov, weight_decay=wd))
+    # optimizer_cfg = sgd.SGDConfig(learning_rate_schedule_cfg=schedules.CosineScheduleConfig(0.1, decay_steps=30), momentum=None, nesterov=False, weight_decay=None, grad_clip=None)
+    # optimizer_cfg = adamw.AdamWConfig(learning_rate_schedule_cfg=schedules.CosineScheduleConfig(0.1, decay_steps=30), b1=0.9, b2=0.999)
+    # optimizer_cfg = polyak.PolyakConfig(f_min=0)
+    # optimizer_cfg = dadaptation.DAdaptationConfig(b1=0.9, b2=0.9)
+    optimizer_cfg = cocob.COCOBConfig()
+    # optimizer_cfg = dowg.DoWGConfig(init_estim_sq_dist=10)
+    # optimizer_cfg = mechanic.MechanicConfig(base_optimizer_cfg=optimizer_cfg)
     
+    sweep = [(experiment_cfg, optimizer_cfg)]
     if experiment_cfg.experimental_setup == 'algoperf':
         return sweep
     elif experiment_cfg.experimental_setup == 'init2winit':

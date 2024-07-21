@@ -15,7 +15,6 @@ except:  # internal google imports
     IS_INTERNAL = True
 
 import dataclasses
-import copy
 
 def get_config():
     

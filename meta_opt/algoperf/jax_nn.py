@@ -9,7 +9,7 @@ from flax import struct, core, jax_utils
 
 from algorithmic_efficiency import spec
 
-from meta_opt.optimizers import OptimizerConfig
+from meta_opt.optimizers import OptimizerConfig, metaopt
 from meta_opt.utils import bcolors, get_size
 
 
@@ -39,8 +39,16 @@ class JaxTrainState(struct.PyTreeNode):
         if reset_opt_state:
             logging.info(f'{bcolors.OKBLUE}{bcolors.BOLD}Also resetting optimizer state!{bcolors.ENDC}')
             params_zeros_like = jax.tree_map(lambda s: jnp.zeros(s.shape_tuple), workload.param_shapes)
-            opt_state = self.tx.init(params_zeros_like)
-            # opt_state = shard_or_replicate_opt_state(opt_state)
+
+            if isinstance(self.opt_state[0], metaopt.JaxMetaOptState):
+                gpc_params, gpc_opt_state = self.opt_state[0].gpc_params, self.opt_state[0].gpc_opt_state
+                logging.info(f'{bcolors.OKBLUE}{bcolors.BOLD}Resetting metaopt, so I am putting back the gpc params{bcolors.ENDC}')
+                opt_state = self.tx.init(params_zeros_like)
+                _, o1 = self.opt_state[0].gpc_tx.init(gpc_params)
+                gpc_opt_state = (gpc_opt_state[0], o1)
+                opt_state=(opt_state[0].replace(gpc_params=gpc_params, gpc_opt_state=gpc_opt_state), opt_state[1])
+            else:
+                opt_state = self.tx.init(params_zeros_like)
             tstate = self.replace(params=params, model_state=model_state, opt_state=opt_state)
         else:
             tstate = self.replace(params=params, model_state=model_state)
@@ -86,7 +94,6 @@ def jax_load_train_state(checkpoint,
     """Creates a train state from a checkpoint given by `algorithmic_efficiency`."""
     ((opt_state, _), model_params, model_state, _, _, global_step, _) = checkpoint
     logging.info(f'{bcolors.OKGREEN}{bcolors.BOLD}loading train state from checkpoint at step {global_step}{bcolors.ENDC}')
-    # opt_state = shard_or_replicate_opt_state(opt_state)
     opt = optimizer_cfg.make_jax()
     return JaxTrainState(params=model_params, model_state=model_state, tx=opt, opt_state=opt_state, t=global_step)
 
@@ -154,3 +161,35 @@ def jax_train_step(rng: jax.random.PRNGKey,
 #     tstate = tstate.replace(opt_state=new_optimizer_state, params=updated_params, model_state=new_model_state)
 #     return tstate, {'loss': loss, 'grad_sq_norm': sum(jax.tree_util.tree_flatten(jax.tree_map(lambda p: (p * p).sum(), grad))[0])}
 # jax_pmapped_train_step = lambda _r, _w, _t, _b: _jax_pmapped_train_step(jax.random.split(_r, jax.local_device_count()), _w, _t, _b)
+
+
+# @functools.partial(jax.jit, static_argnames=('num_iters', 'num_episodes', 'workload', 'reset_opt_state'))
+# def _run_fullbatch(tstate: JaxTrainState, 
+#                    rng: jax.random.PRNGKey,
+#                    num_episodes: int,
+#                    num_iters: int,
+#                    workload: spec.Workload,
+#                    batch: jax.Array,
+#                    reset_opt_state: bool,
+#                    ):
+
+#     def scan_fn(carry, _):
+#         rng, tstate = carry
+#         rng, reset_rng, episode_rng = jax.random.split(rng, 3)
+#         tstate = tstate.reset(reset_rng, workload, reset_opt_state)
+
+#         if hasattr(tstate.opt_state[0], 'cost_fn_history'):
+#             tstate = tstate.replace(opt_state=(tstate.opt_state[0].replace(cost_fn_history=(LossFn(workload, rng, tstate.model_state, batch),) * tstate.opt_state[0].HH), tstate.opt_state[1]))
+
+#         losses = jnp.zeros((num_iters,))
+#         def scan_fn(carry, idx):
+#             (tstate, step_rng, losses) = carry
+#             update_rng, step_rng = jax.random.split(step_rng)
+#             tstate, latest_train_result = jax_train_step(update_rng, workload, tstate, batch)
+#             losses = losses.at[idx].set(latest_train_result['loss'])
+#             return (tstate, step_rng, losses), None
+#         (tstate, _, losses), _ = jax.lax.scan(scan_fn, (tstate, episode_rng, losses), jnp.arange(num_iters))
+#         return (rng, tstate), losses
+#     _, losses_scan = jax.lax.scan(scan_fn, (rng, tstate), jnp.arange(num_episodes))
+
+#     return jnp.concatenate(losses_scan)

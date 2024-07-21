@@ -1,8 +1,6 @@
 from absl import logging
-from typing import Tuple, Callable, Iterable, Optional, Dict
+from typing import Tuple, Callable, Optional, Dict
 import functools
-
-# from torch import optim, Tensor
 
 import jax
 import jax.flatten_util
@@ -13,15 +11,15 @@ from optax._src import base
 import chex
 
 from .base import OptimizerConfig
-from .sgd import SGDConfig
-from .adamw import AdamWConfig
+from .schedules import ScheduleConfig
 from ..utils import bcolors, get_size, sharding_constraint, get_mesh
 
 
-@struct.dataclass
+@OptimizerConfig.register
+@chex.dataclass
 class MetaOptConfig(OptimizerConfig):
     # params of the base optimizer
-    base_learning_rate: float
+    base_learning_rate_schedule_cfg: ScheduleConfig  # learning rate or schedule
     weight_decay: float
     grad_clip: float
     scale_by_adam_betas: Optional[Tuple[float, float]]  # set to `None` to not rescale disturbances with Adam rescaling
@@ -43,33 +41,21 @@ class MetaOptConfig(OptimizerConfig):
     reset_opt_state: bool = True  # Whether to also reset the optimizer state during the episodic resets. Dont worry, this resets everything except the M parameters (including things like disturbance transformation state, for example)
 
     @staticmethod
-    def fromdict(d: dict):
+    def from_dict(d: dict):
         ret = {}
-        meta_optimizer_name = d['meta_optimizer_cfg']['optimizer_name']
-        if meta_optimizer_name == 'SGD':
-            ret['meta_optimizer_cfg'] = SGDConfig.fromdict(d['meta_optimizer_cfg'])
-        elif meta_optimizer_name == 'AdamW':
-            ret['meta_optimizer_cfg'] = AdamWConfig.fromdict(d['meta_optimizer_cfg'])
-        else:
-            raise ValueError(f'unknown meta optimizer {meta_optimizer_name}')
-        
-        for k in ['base_learning_rate', 'weight_decay', 'grad_clip', 'scale_by_adam_betas',
-                  'H', 'HH', 'm_method', 'use_bfloat16',
+        for k in ['base_learning_rate_schedule_cfg', 'weight_decay', 'grad_clip', 'scale_by_adam_betas',
+                  'meta_optimizer_cfg', 'H', 'HH', 'm_method', 'use_bfloat16',
+                  'counterfactual',
                   'fake_the_dynamics', 'freeze_gpc_params', 'freeze_cost_fn_during_rollouts',]:  # required
-            ret[k] = d[k]
+            if k == 'base_learning_rate_schedule_cfg':
+                ret[k] = ScheduleConfig.from_dict(d[k])
+            elif k == 'meta_optimizer_cfg':
+                ret[k] = OptimizerConfig.from_dict(d[k])
+            else:
+                ret[k] = d[k]
         for k in []:  # optional
             if k in d: ret[k] = d[k]
         return MetaOptConfig(**ret)
-
-
-    # def make_torch(self) -> Callable[[Iterable[Tensor]], optim.Optimizer]:
-    #     """
-    #     Instantiates this optimizer configuration for use with pytorch. 
-    #     For example, if this were SGD, it would return roughly the same thing as
-    #             `lambda params: torch.optim.SGD(params, lr=self.lr, ...)`
-    #     and could be used afterward in the usual way.
-    #     """
-    #     raise NotImplementedError('havent implemented metaopt in pytorch yet, sorry')
              
 
     def make_jax(self) -> optax.GradientTransformationExtraArgs:
@@ -80,7 +66,7 @@ class MetaOptConfig(OptimizerConfig):
         and could be used afterward in the usual way.
         """
         meta_optimizer = self.meta_optimizer_cfg.make_jax()
-        opt = make_jax_metaopt(base_lr=self.base_learning_rate, weight_decay=self.weight_decay, grad_clip=self.grad_clip, scale_by_adam_betas=self.scale_by_adam_betas,
+        opt = make_jax_metaopt(base_lr=self.base_learning_rate_schedule_cfg.make_jax(), weight_decay=self.weight_decay, grad_clip=self.grad_clip, scale_by_adam_betas=self.scale_by_adam_betas,
                                H=self.H, HH=self.HH, m_method=self.m_method,
                                gpc_tx=meta_optimizer,
                                counterfactual=self.counterfactual,
@@ -141,24 +127,24 @@ def compute_gpc_control(gpc_params: chex.Array,
 
 
 @functools.partial(jax.jit, static_argnums=(1, 10, 12, 13, 14))
-def update_gpc_controller_counterfactual(gpc_params: chex.Array,
-                                         gpc_tx: optax.GradientTransformation,   # static
-                                         gpc_opt_state: optax.OptState,
-                                         disturbance_history: chex.Array,
- 
-                                         base_lr: float,
-                                         weight_decay: float,
-                                         initial_params: chex.Array,  # params from HH steps ago
-                                         cost_fn_history,  # past HH cost functions, starting at the one that would have been used to evolve `initial_params`
-                                         curr_cost_fn,
-                                         unflatten_fn,
-                                         disturbance_transform: optax.GradientTransformation,   # static
-                                         initial_disturbance_transform_state: optax.OptState,
+def update_gpc_controller(gpc_params: chex.Array,
+                          gpc_tx: optax.GradientTransformation,   # static
+                          gpc_opt_state: optax.OptState,
+                          disturbance_history: chex.Array,
 
-                                         # rest of the static args
-                                         H: int,
-                                         HH: int,
-                                         fake_the_dynamics: bool) -> Tuple[chex.Array, optax.OptState, float, chex.Array]:
+                          base_lr: float,
+                          weight_decay: float,
+                          initial_params: chex.Array,  # params from HH steps ago
+                          cost_fn_history,  # past HH cost functions, starting at the one that would have been used to evolve `initial_params`
+                          curr_cost_fn,
+                          unflatten_fn,
+                          disturbance_transform: optax.GradientTransformation,   # static
+                          initial_disturbance_transform_state: optax.OptState,
+
+                          # rest of the static args
+                          H: int,
+                          HH: int,
+                          fake_the_dynamics: bool) -> Tuple[chex.Array, optax.OptState, float, chex.Array]:
     @jax.jit
     def gpc_cost_fn(controller_params: chex.Array):
         params = initial_params
@@ -199,7 +185,7 @@ class JaxMetaOptState(struct.PyTreeNode):
     t: int = struct.field(pytree_node=True)  # current step
     num_params: int = struct.field(pytree_node=False)  # number of parameters in the model
     flat_size: int = struct.field(pytree_node=False)  # number of elements in flattened iterates (i.e. num_params, but padded for sharding purposes)
-    base_lr: float = struct.field(pytree_node=False)
+    base_lr: Callable[[int], float] = struct.field(pytree_node=False)
 
     # for rescaling the gradients/disturbances
     disturbance_transform: optax.GradientTransformation = struct.field(pytree_node=False)
@@ -216,7 +202,7 @@ class JaxMetaOptState(struct.PyTreeNode):
         grad_Ms = self.recent_gpc_grads.reshape(self.H, -1).mean(axis=-1)[::-1]
         assert Ms.shape == (self.H,), (Ms.shape, self.H)
         assert grad_Ms.shape == (self.H,), (grad_Ms.shape, self.H)
-        Ms = Ms.at[0].add(-self.base_lr)  # add the effective learning rate to most recent grad coeff
+        Ms = Ms.at[0].add(-self.base_lr(self.t))  # add the effective learning rate to most recent grad coeff
         ret.update({f'M_{i}': m for i, m in enumerate(Ms.reshape(-1))})
         if self.recent_gpc_cost != float('inf'):
             ret.update({f'grad_M_{i}': grad_m for i, grad_m in enumerate(grad_Ms.reshape(-1))})
@@ -233,7 +219,7 @@ class JaxMetaOptState(struct.PyTreeNode):
 
 
 def make_jax_metaopt(
-        base_lr: float,
+        base_lr: Callable[[int], float],
         weight_decay: float,
         grad_clip: Optional[float],
         scale_by_adam_betas: Optional[Tuple[float, float]],
@@ -253,7 +239,7 @@ def make_jax_metaopt(
     """Returns jax optimizer implementing the meta-opt controller.
 
     Args:
-        base_lr: float
+        base_lr: Callable[[int], float]
             base learning rate before any GPC controls are played
         weight_decay: float
             weight decay applied to the parameters before any GPC controls are played
@@ -283,6 +269,7 @@ def make_jax_metaopt(
     def init_fn(params):
 
         if freeze_gpc_params:
+            assert counterfactual, 'cannot be noncounterfactual and also not doing rollouts!'
             logging.warning(f'{bcolors.WARNING}{bcolors.BOLD}the meta-opt controller is frozen! optimizer behavior wont change over time{bcolors.ENDC}')
         else:
             if fake_the_dynamics: 
@@ -355,7 +342,7 @@ def make_jax_metaopt(
             chex.ArrayTree: updates
             JaxMetaOptState: new state of the meta-optimizer
         """
-        opt_state, _ = opt_state
+        opt_state, _o = opt_state
         assert params is not None, 'failed to provide parameters to the meta-optimizer'
         assert cost_fn is not None, 'failed to provide cost function to the meta-optimizer'
 
@@ -375,16 +362,17 @@ def make_jax_metaopt(
 
         # update GPC controller
         if not freeze_gpc_params:
+
             # if t >= H + HH, compute update to gpc controller
             gpc_params, gpc_opt_state, gpc_cost, gpc_grads, final_flat_params = jax.lax.cond(opt_state.t >= H + HH, 
                                                                           
                                                                           # if true
-                                                                          lambda: update_gpc_controller_counterfactual(
+                                                                          lambda: update_gpc_controller(
                                                                                 gpc_params=opt_state.gpc_params, 
                                                                                 gpc_tx=opt_state.gpc_tx, 
                                                                                 gpc_opt_state=opt_state.gpc_opt_state,
                                                                                 disturbance_history=opt_state.disturbance_history, 
-                                                                                base_lr=base_lr, 
+                                                                                base_lr=base_lr(opt_state.t), 
                                                                                 weight_decay=weight_decay,
                                                                                 initial_params=opt_state.param_history[0], 
                                                                                 cost_fn_history=(cost_fn,) * HH if freeze_cost_fn_during_rollouts else opt_state.cost_fn_history, 
@@ -418,13 +406,13 @@ def make_jax_metaopt(
             opt_state = opt_state.replace(disturbance_history=disturbance_history, disturbance_transform_state=disturbance_transform_state, t=opt_state.t+1)
         
         # compute GPC control with updated params
-        control = (-weight_decay) * flat_params - base_lr * disturbances  # apply base SGD/adam/whatever update
+        control = (-weight_decay) * flat_params - base_lr(opt_state.t) * disturbances  # apply base SGD/adam/whatever update
         control += compute_gpc_control(opt_state.gpc_params, disturbance_history[-H:])  # use past H disturbances, including most recent one
         if final_flat_params is not None and not counterfactual: control += (final_flat_params - flat_params)
         # logging.info('[DTYPES]', opt_state.disturbance_history.dtype, opt_state.param_history.dtype, control.dtype)
         control = unflatten_fn(control)
         control = sharding_constraint(control, (None,))
 
-        return control, (opt_state, optax.EmptyState())
+        return control, (opt_state, _o)
     
     return base.GradientTransformationExtraArgs(init_fn, update_fn)
