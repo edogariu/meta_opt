@@ -24,7 +24,7 @@ def get_config():
         # workload details
         seed=42,
         experimental_setup='algoperf',
-        workload_name='cifar', 
+        workload_name='wmt', 
         full_batch=True,  # whether to do full gradient descent on one batch (fixed during the whole training) or regular minibatch SGD
         num_episodes=3,
         num_iters=400,  # if None, uses default for the workload

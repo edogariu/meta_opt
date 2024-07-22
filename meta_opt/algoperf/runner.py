@@ -213,7 +213,7 @@ def run(experiment_cfg: ExperimentConfig,
         logging.info(logs_so_far)
         logging.info(f'{bcolors.OKGREEN}{bcolors.BOLD}experiment_dir={experiment_dir}{bcolors.ENDC}')
 
-        # fix a bug in algoperf cifar
+        # fix some bugs in algoperf
         if experiment_cfg.workload_name == 'cifar':
             logging.warning(f'{bcolors.BOLD}{bcolors.WARNING}proactively fixing a bug in the python code for the jax CifarWorkload in algoperf{bcolors.ENDC}')
             from algorithmic_efficiency.workloads.cifar.cifar_jax.workload import CifarWorkload, spec, Optional, param_utils, jax_utils, models, jnp
@@ -238,6 +238,11 @@ def run(experiment_cfg: ExperimentConfig,
                 params = jax_utils.replicate(params)
                 return params, model_state
             CifarWorkload.init_model_fn = init_model_fn
+        elif experiment_cfg.workload_name == 'wmt':
+            logging.warning(f'{bcolors.BOLD}{bcolors.WARNING}proactively fixing a bug in the python code for the jax wmt workload in algoperf so we can use the latest version of flax (see https://github.com/google/flax/discussions/3389){bcolors.ENDC}')
+            from flax.linen import MultiHeadDotProductAttention
+            _c = MultiHeadDotProductAttention.__call__
+            MultiHeadDotProductAttention.__call__ = lambda self, q, k, mask, **kwargs: _c(self, q, k, mask=mask, **kwargs)
 
         # TrainState (model & optimizer) setup
         s = f'Initializing the model (for {bcolors.OKCYAN}{bcolors.BOLD}{experiment_cfg.workload_name}{bcolors.ENDC}) ' \
