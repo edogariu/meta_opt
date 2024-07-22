@@ -213,6 +213,32 @@ def run(experiment_cfg: ExperimentConfig,
         logging.info(logs_so_far)
         logging.info(f'{bcolors.OKGREEN}{bcolors.BOLD}experiment_dir={experiment_dir}{bcolors.ENDC}')
 
+        # fix a bug in algoperf cifar
+        if experiment_cfg.workload_name == 'cifar':
+            logging.warning(f'{bcolors.BOLD}{bcolors.WARNING}proactively fixing a bug in the python code for the jax CifarWorkload in algoperf{bcolors.ENDC}')
+            from algorithmic_efficiency.workloads.cifar.cifar_jax.workload import CifarWorkload, spec, Optional, param_utils, jax_utils, models, jnp
+            def init_model_fn(
+                workload,
+                rng: spec.RandomState,
+                dropout_rate: Optional[float] = None,
+                aux_dropout_rate: Optional[float] = None) -> spec.ModelInitState:
+                """Dropout is unused."""
+                del dropout_rate
+                del aux_dropout_rate
+                model_cls = getattr(models, 'ResNet18')
+                model = model_cls(num_classes=workload._num_classes, dtype=jnp.float32)
+                workload._model = model
+                input_shape = (1, 32, 32, 3)
+                variables = jax.jit(model.init)({'params': rng},
+                                                jnp.ones(input_shape, model.dtype))
+                model_state, params = variables.pop('batch_stats'), variables.pop('params')  # THIS IS THE ONLY LINE I CHANGED
+                workload._param_shapes = param_utils.jax_param_shapes(params)
+                workload._param_types = param_utils.jax_param_types(workload._param_shapes)
+                model_state = jax_utils.replicate(model_state)
+                params = jax_utils.replicate(params)
+                return params, model_state
+            CifarWorkload.init_model_fn = init_model_fn
+
         # TrainState (model & optimizer) setup
         s = f'Initializing the model (for {bcolors.OKCYAN}{bcolors.BOLD}{experiment_cfg.workload_name}{bcolors.ENDC}) ' \
             + f'and also optimizer: {bcolors.OKGREEN}{bcolors.BOLD}{optimizer_cfg.optimizer_name}{bcolors.ENDC}'
@@ -369,32 +395,6 @@ def main(_):
     # Remove the trailing '.py' and convert the filepath to a Python module.
     config_module_path = workloads.convert_filepath_to_module(config_path)
     config_module = importlib.import_module(config_module_path, package='.')
-
-    # fix a bug in algoperf cifar
-    if experiment_cfg.workload_name == 'cifar':
-        logging.warning(f'{bcolors.BOLD}{bcolors.WARNING}proactively fixing a bug in the python code for the jax CifarWorkload in algoperf{bcolors.ENDC}')
-        from algorithmic_efficiency.workloads.cifar.cifar_jax.workload import CifarWorkload, spec, Optional, jax, jnp, param_utils, jax_utils, models
-        def init_model_fn(
-            workload,
-            rng: spec.RandomState,
-            dropout_rate: Optional[float] = None,
-            aux_dropout_rate: Optional[float] = None) -> spec.ModelInitState:
-            """Dropout is unused."""
-            del dropout_rate
-            del aux_dropout_rate
-            model_cls = getattr(models, 'ResNet18')
-            model = model_cls(num_classes=workload._num_classes, dtype=jnp.float32)
-            workload._model = model
-            input_shape = (1, 32, 32, 3)
-            variables = jax.jit(model.init)({'params': rng},
-                                            jnp.ones(input_shape, model.dtype))
-            model_state, params = variables.pop('batch_stats'), variables.pop('params')  # THIS IS THE ONLY LINE I CHANGED
-            workload._param_shapes = param_utils.jax_param_shapes(params)
-            workload._param_types = param_utils.jax_param_types(workload._param_shapes)
-            model_state = jax_utils.replicate(model_state)
-            params = jax_utils.replicate(params)
-            return params, model_state
-        CifarWorkload.init_model_fn = init_model_fn
 
     # run the configs
     cfgs = config_module.get_config()
