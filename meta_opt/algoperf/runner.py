@@ -22,11 +22,6 @@ from meta_opt.optimizers import OptimizerConfig
 from meta_opt.utils import bcolors, pretty_dict, shard, make_mesh
 
 
-from absl import logging
-
-from meta_opt.experiment import ExperimentConfig
-from meta_opt.utils import bcolors
-
 DEFAULT_BATCH_SIZES = {
     'mnist': 512,
     'cifar': 128,
