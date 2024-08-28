@@ -1,0 +1,25 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+authors:
+- family-names: "Dogariu"
+  given-names: "Evan"
+  orcid: "https://orcid.org/0000-0000-0000-0000"
+title: "Meta-Optimization deep learning optimizer"
+version: 1.0
+date-released: 2024-06-16
+url: "https://github.com/edogariu/meta_opt"
+preferred-citation:
+  type: article
+  authors:
+  - family-names: "Chen"
+    given-names: "Xinyi"
+  - family-names: "Dogariu"
+    given-names: "Evan"
+  - family-names: "Lu"
+    given-names: "Zhou"
+  - family-names: "Hazan"
+    given-names: "Elad"
+  journal: "HiLD 2024: 2nd Workshop on High-dimensional Learning Dynamics"
+  month: 6
+  title: "My awesome research software"
+  year: 2024
