@@ -25,3 +25,29 @@ For certain workloads, you may need to pre-download the corresponding TensorFlow
 - [ ] add back ncf and gaps? they dont do too well, but maybe with adam disturbances they could?
 - [X] ~~implement the `scale_by_adam` for disturbances~~
 - [X] ~~add utilization logging and redo the way we write metrics~~
+
+
+## BibTeX Citation
+
+If you use this algorithm in a scientific publication, we would appreciate using the following citations:
+
+```
+@article{metaopt2024,
+    author    = {Chen, Xinyi and Dogariu, Evan and Lu, Zhou and Hazan, Elad},
+    journal   = {HiLD 2024: 2nd Workshop on High-dimensional Learning Dynamics},
+    month     = {jun},
+    year      = {2024},
+    title     = {Nonconvex Meta-optimization for Deep Learning},
+    url       = {https://openreview.net/pdf?id=AJwlILrBOr},
+    keywords  = {meta-optimization,deep-learning,nonconvex}
+}
+
+@misc{metaopt2024_code,
+    author    = {Dogariu, Evan},
+    month     = {jun},
+    year      = {2024},
+    title     = {edogariu/meta_opt},
+    url       = {https://github.com/edogariu/meta_opt},
+    keywords  = {meta-optimization,deep-learning,nonconvex,jax}
+}
+```
